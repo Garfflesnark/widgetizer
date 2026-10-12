@@ -277,6 +277,56 @@ Changing a project's folder name (`updateProject`) copied the folder, removed th
 
 **Body at:** `77059a71:docs-llms/TODO-agents.md`.
 
+### GH118 · Review export asset naming
+
+**Done · Unrated · OSS · 2026-10-12**
+
+The issue (title only: "Export assets with number+app version+date") asked for exported asset references that identify their export. The old `?v=<exportNumber>` token came from a per-machine counter, so a project imported on another computer re-issued tokens that browsers and CDNs had already cached against different bytes.
+
+**Resolution:** reviewed and accepted by the owner. Exported CSS/JS carry `?v=<exportNumber>-<appVersion>-<YYYYMMDDTHHMMSS>` (UTC), built by `buildAssetVersionToken` in `@widgetizer/core/assetUrl` and recorded as `assetVersion` in `manifest.json`; images and fonts are not stamped. The export folder name stays `<folder>-v<n>`. Checked 2026-10-12 on a real multilingual export served over HTTP: all 19 pages (root, `el/`, collection items at depth 1) reference the token, every CSS/JS request returned 200 and no console errors. Fix `111f88d5`, follow-up `f8b7a6ea`.
+
+**Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
+
+### GH126 · Review the Windows leave-page prompt fix
+
+**Done · Unrated · OSS · 2026-10-12**
+
+The unsaved-changes prompt used `window.confirm()`. On Windows, Electron leaves the window unable to take keyboard focus after a native dialog closes (upstream electron#31917, #40212, #41603), so inputs looked normal but could not be typed into until the user switched windows.
+
+**Resolution:** both navigation guards (`useNavigationGuard`, `useFormNavigationGuard`) use the in-app confirm (`useConfirm`), hardened with Escape, focus trap and focus return. No native `confirm`/`alert`/`prompt` remains in editor-ui or the app shell. Verified 2026-10-12 by the owner in the Windows desktop app: Stay and Leave from the page editor and form screens, typing afterwards, Escape, Tab containment and Alt+← all behave. The Electron shell's own native Help → About dialog (`electron/main.js`) was also checked: typing works after closing it. Deeper router-level tests remain T71. Fix `5defb8fe`, hardening `48eef6f4`.
+
+**Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
+
+### GH127 · Review the code-field spacing fix
+
+**Done · Unrated · OSS · 2026-10-12**
+
+The issue (title only: "Code setting type: Visual bottom gap issue") was the resizable code editor in Site settings: with more lines than fit, the line-number gutter grew past the editor's fixed height and stretched the container, leaving an empty area below the code.
+
+**Resolution:** `CodeInput`'s container owns the height and the drag-to-resize, both columns fill it, and the gutter's scroll sync listens on `.code-editor`, the element that actually scrolls. Checked 2026-10-12 by the owner in Site settings: no gap with a long Custom CSS value, line numbers stay aligned while scrolling and after resizing. Fix `3220e4e2`.
+
+**Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
+
+### GH134 · Review Undo after autosave
+
+**Done · Unrated · OSS · 2026-10-12**
+
+The issue ("Autosave and Undo - Add setting or just simply ignore it and keep undo working") asked for either an autosave setting or an undo history that autosave does not wipe; every save used to clear it.
+
+**Resolution:** undo history survives saves (undoing past a save makes the page dirty again and the next save stores the reverted value), quick edits to one setting within 500 ms are one step, the limit is 150, and server theme corrections are applied through the history. No autosave toggle was added. Closed by the owner 2026-10-12; the "Split into pages" multi-step undo found during review is PAGINATE-UNDO. Fix `e4379a50`.
+
+**Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
+
+### THEME-DISCARD-READBACK · An edit made while a discarded save reads back can bring the discarded value back
+
+**Done · Low · Shared · 2026-10-12**
+
+A theme draft discarded while its save was in flight came back wrong when the save landed: `runSave` counted the value the discard reverted to as an edit made on top of the saved copy, so it stayed unsaved and the next save wrote it back. The logged case was an edit during the whole-file fallback's read-back; the fix found the same result on the other two paths (the server returning the saved theme, and the fallback taking the rebaseline branch when the user had edited after the discard).
+
+**Resolution:** `discardDraft` counts discards and keeps the copy it reverted to (`discardedTo`). A save that sees a discard happened while it was in flight takes the saved values, keeps only `diffThemeSettings(discardedTo, live)` on top, reads back on the fallback, and corrects undo history against `discardedTo`. Checked 2026-10-12 in the browser with a delayed save: after discard and a new edit, the saved value showed and the next save sent only the new edit. Reviewed by Codex and Fable. Accepted limitation: if, within one in-flight save, the user discards, then changes a setting and changes it back to exactly the discarded-to value, that setting looks untouched and the saved value wins. Fix `a1d14619`.
+
+**Body at:** `a1d14619:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

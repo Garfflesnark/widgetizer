@@ -30,16 +30,6 @@ Steps 0–24 and R1–R8 implemented; domain cleanup is part of this task. Check
 
 **Start:** [Multilingual rules](domain/multilingual.md), [theme language switcher](theming.md#the-language-switcher-pagetranslations) and [user checklist](user-test-checklist.md). **Source:** GitHub #115. [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
 
-### GH118 · Review export asset naming
-
-**Review · Unrated · OSS · anastis**
-
-Board says To Be Reviewed; issue has no acceptance detail. Inspect existing export naming/versioning before implementing anything.
-
-**Done when:** Agreed naming appears in a real export without broken references.
-
-**Start:** [exportController.js](../packages/builder-server/src/controllers/exportController.js). **Source:** GitHub #118. [GitHub #118](https://github.com/tsiger/widgetizer/issues/118)
-
 ### GH122 · Review automatic search-engine information
 
 **Review · Unrated · OSS · tsiger**
@@ -49,36 +39,6 @@ Structured-data commits e3ae2f424/e48731228 and docs d065e7ae9 exist. Review the
 **Done when:** Existing implementation satisfies the agreed feature, or concrete gaps get separate tasks.
 
 **Start:** [Structured data](core-export.md#structured-data-json-ld), [site identity](core-projects.md#6-site-identity-and-business-details) and [collection mappings](core-collections.md#5c-structured-data-structureddata-block). **Source:** GitHub #122. [GitHub #122](https://github.com/tsiger/widgetizer/issues/122)
-
-### GH126 · Review the Windows leave-page prompt fix
-
-**Review · Unrated · OSS · anastis**
-
-Both navigation guards use useConfirm; issue comment records the fix. Verify cancel/leave and typing afterwards. T71 covers deeper router tests separately.
-
-**Done when:** Windows workflow passes and local review is recorded.
-
-**Start:** [useNavigationGuard.js](../packages/editor-ui/src/hooks/useNavigationGuard.js). **Source:** GitHub #126. [GitHub #126](https://github.com/tsiger/widgetizer/issues/126)
-
-### GH127 · Review the code-field spacing fix
-
-**Review · Unrated · OSS · tsiger**
-
-Board says To Be Reviewed; issue is title-only. Establish the affected input/state before assuming the fix is absent.
-
-**Done when:** The reported gap is gone in the relevant editor layout.
-
-**Start:** [inputs](../packages/editor-ui/src/components/settings/inputs). **Source:** GitHub #127. [GitHub #127](https://github.com/tsiger/widgetizer/issues/127)
-
-### GH134 · Review Undo after autosave
-
-**Review · Unrated · OSS · tsiger**
-
-Implemented in e4379a50: history survives save, 150 steps, 500 ms same-setting grouping. Verify manual/autosave, in-flight save and theme correction; do not add a toggle without a decision. Found 2026-10-05: turning on "paginate" makes up to three `updateWidgetSettings` calls (`listing_anchor`, per-page count, `paginate`; `SettingsPanel.jsx` ~86-108) that are different settings and so not grouped; one Ctrl+Z turns paginate off but leaves the other two.
-
-**Done when:** Normal editing/undo workflow matches the agreed behaviour.
-
-**Start:** [core-page-editor.md](core-page-editor.md). **Source:** GitHub #134. [GitHub #134](https://github.com/tsiger/widgetizer/issues/134)
 
 ### GH135 · Review the Widgetizer Desktop name
 
@@ -447,16 +407,6 @@ A theme save whose value the server corrects warns `"tTheme:global.colors.settin
 
 **Start:** [Settings.jsx](../packages/editor-ui/src/pages/Settings.jsx), [useThemeLocale.js](../packages/editor-ui/src/hooks/useThemeLocale.js). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
 
-### THEME-DISCARD-READBACK · An edit made while a discarded save reads back can bring the discarded value back
-
-**Open · Low · Shared**
-
-When a theme draft is discarded while its save is in flight and the save returns no theme (the whole-file fallback), `runSave` (`themeStore.js` ~108-116) reads the server back. If the user edits the theme during that read, `discardedNow` is false and the edits kept on top are `diffThemeSettings(sent, live)`. `sent` holds the discarded edit and `live` the reverted draft plus the new edit, so the reverted (pre-discard) value rides on top of the saved one as an unsaved edit, and the next save sends it. The window is one read-back request. Not introduced by `d9d0ce12`: the page editor's earlier read-back (`reconcileFromServer`) produced the same result. Found by the 2026-10-09 review of the SETTINGS-DISCARD fix.
-
-**Done when:** Only edits made after the discard are kept on top of the read-back copy (for example, diff against the baseline the discard reverted to), with a test for an edit during the read-back.
-
-**Start:** [themeStore.js](../packages/editor-ui/src/stores/themeStore.js), [themeStore tests](../packages/editor-ui/src/stores/__tests__/themeStore.test.js). **Source:** 2026-10-09 review of `d9d0ce12`.
-
 ### UNDO-CLEAN · Undoing back to the saved state leaves Save enabled
 
 **Open · Low · Shared**
@@ -466,6 +416,18 @@ In the page editor, undoing a theme edit or a structural change (delete, reorder
 **Done when:** After undo returns page, globals and theme to their saved state, Save is disabled and no unsaved marker shows, with a test.
 
 **Start:** [saveStore.js](../packages/editor-ui/src/stores/saveStore.js), [EditorTopBar.jsx](../packages/editor-ui/src/components/pageEditor/EditorTopBar.jsx). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
+
+### PAGINATE-UNDO · Turning on "Split into pages" takes three undos and changes a setting out of view
+
+**Open · Low · Shared**
+
+Turning `paginate` on in `SettingsPanel.handleSettingChange` (`SettingsPanel.jsx` ~87-104) makes up to three `updateWidgetSettings` calls: `listing_anchor` true, the schema's `collection.perPageSetting` (12 when unset or below 1), then `paginate`. Each is a different setting, so `pageStore`'s undo grouping (one changed path within 500 ms) keeps them as three history steps; one Ctrl+Z turns paginate off and leaves the anchor and the count. Turning `listing_anchor` off while paginated is two steps. The partial states are valid, so nothing is corrupted. Found 2026-10-05.
+
+Layout makes it worse: `paginate` and `listing_anchor` are injected after all the widget's own settings (`allSettings`, ~170-179), while the per-page setting is a theme field much higher up (Arch `news-grid`: `limit` is 10th of 24). Turning on pagination can change the item count where the user can't see it. Consider placing the two injected settings directly after the `perPageSetting` field, so the linked settings sit together.
+
+**Done when:** each linked change is one undo step (both directions) with a test, and the injected settings appear next to the per-page setting, or the placement is decided against.
+
+**Start:** [SettingsPanel.jsx](../packages/editor-ui/src/components/pageEditor/SettingsPanel.jsx), [widgetStore.js](../packages/editor-ui/src/stores/widgetStore.js), [pageStore.js](../packages/editor-ui/src/stores/pageStore.js). **Source:** found 2026-10-05 reviewing GitHub #134; split out when GH134 closed 2026-10-12.
 
 ### EDITOR-THEME-USAGE-NOTICE · The editor's image-tracking notice says "this page" for theme saves
 

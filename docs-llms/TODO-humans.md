@@ -25,14 +25,6 @@ Multilingual websites work and both real-project walkthroughs passed. Some broad
 
 **Next:** Reconcile the remaining documentation before closing the feature locally, starting with the [multilingual rules](domain/multilingual.md) and [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
 
-### GH118 · Review export asset naming
-
-**Review · Unrated · OSS · anastis**
-
-Exports should identify their assets using a number, app version and date.
-
-**Next:** Confirm the intended filename format and review the existing change. [GitHub #118](https://github.com/tsiger/widgetizer/issues/118)
-
 ### GH122 · Review automatic search-engine information
 
 **Review · Unrated · OSS · tsiger**
@@ -40,30 +32,6 @@ Exports should identify their assets using a number, app version and date.
 Automatic structured information for search engines has been implemented.
 
 **Next:** Check the shipped feature against the [documented rules](core-export.md#structured-data-json-ld) and [business details](core-projects.md#6-site-identity-and-business-details) before closing the issue. [GitHub #122](https://github.com/tsiger/widgetizer/issues/122)
-
-### GH126 · Review the Windows leave-page prompt fix
-
-**Review · Unrated · OSS · anastis**
-
-The native prompt was replaced because it could leave Windows users unable to type.
-
-**Next:** Confirm the fix in the packaged Windows app. [GitHub #126](https://github.com/tsiger/widgetizer/issues/126)
-
-### GH127 · Review the code-field spacing fix
-
-**Review · Unrated · OSS · tsiger**
-
-The code input had an unwanted gap at the bottom.
-
-**Next:** Check its appearance and the existing change. [GitHub #127](https://github.com/tsiger/widgetizer/issues/127)
-
-### GH134 · Review Undo after autosave
-
-**Review · Unrated · OSS · tsiger**
-
-Undo history now survives saves, so autosave should not prevent undoing an edit. Turning on "Split into pages" currently takes three undo steps to fully reverse.
-
-**Next:** Check the shipped behaviour against the intended experience. [GitHub #134](https://github.com/tsiger/widgetizer/issues/134)
 
 ### GH135 · Review the Widgetizer Desktop name
 
@@ -350,14 +318,6 @@ When a site setting is saved with an invalid value, the warning names it by an i
 
 **Next:** Show the setting's label in the user's language.
 
-### THEME-DISCARD-READBACK · An edit made while a discarded save reads back can bring the discarded value back
-
-**Open · Low · Shared**
-
-In a very narrow case (discarding theme changes while a save is still finishing on an older server, then editing the theme within that moment), a value you discarded can come back as an unsaved change and be saved next time.
-
-**Next:** Keep only the edits made after the discard.
-
 ### UNDO-CLEAN · Undoing back to the saved state leaves Save enabled
 
 **Open · Low · Shared**
@@ -365,6 +325,14 @@ In a very narrow case (discarding theme changes while a save is still finishing 
 In the page editor, undoing a site-setting change or a widget delete or move back to exactly what was saved still leaves Save enabled. Saving then does nothing harmful.
 
 **Next:** Turn Save off when undo brings everything back to the saved state.
+
+### PAGINATE-UNDO · Turning on "Split into pages" takes three undos and changes a setting out of view
+
+**Open · Low · Shared**
+
+Turning on "Split into pages" in a list widget also marks it as the collection's main list and may set the number of items to 12. Undo reverses these one at a time, so it takes three presses to get back. "Split into pages" and "main list" sit at the bottom of the settings panel, while the number of items is much higher up, so the user may not notice that the number changed.
+
+**Next:** Make each linked change a single undo step, and show the three settings together, next to the number of items.
 
 ### EDITOR-THEME-USAGE-NOTICE · The editor's image-tracking notice says "this page" for theme saves
 
