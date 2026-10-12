@@ -83,7 +83,7 @@ const useThemeStore = create((set, get) => {
     if (state.loadedProjectId !== projectId || !state.settings || !state.originalSettings) {
       return { warnings: [], stale: true };
     }
-    const { generation } = state;
+    const { generation, discardCount } = state;
     const sent = state.settings;
     const changes = diffThemeSettings(state.originalSettings, sent);
     if (changes.length === 0) return { warnings: [], skipped: true };
@@ -98,23 +98,27 @@ const useThemeStore = create((set, get) => {
     if (moved(projectId, generation)) return { warnings: result.warnings, stale: true };
 
     // A draft discarded while this save was in flight is not the user's newest
-    // word — the saved values are. Keep nothing of it on top.
-    const discarded = isDraftDiscarded();
+    // word — the saved values are. Only what the user edited after the discard
+    // goes back on top. Diffing against `sent` instead would count the value the
+    // discard reverted to as an edit, and the next save would write it back.
+    const discardedTo = () => (get().discardCount !== discardCount ? get().discardedTo : null);
+    const adoptOver = (serverTheme) => {
+      const live = get().settings;
+      const base = discardedTo() ?? sent;
+      return adoptServerTheme(serverTheme, diffThemeSettings(base, live), base);
+    };
     let adopted = true;
     let dropped = [];
     if (result.theme) {
-      const live = get().settings;
-      dropped = adoptServerTheme(result.theme, discarded ? [] : diffThemeSettings(sent, live), discarded ? live : sent);
-    } else if (discarded || result.warnings.some((warning) => warning.code === "VALUE_CORRECTED")) {
+      dropped = adoptOver(result.theme);
+    } else if (discardedTo() || result.warnings.some((warning) => warning.code === "VALUE_CORRECTED")) {
       // The whole-file fallback returns no file; read back what it corrected —
       // or, for a draft discarded meanwhile, what it saved: rebaselining to the
       // sent values under the reverted draft would leave a dirty draft that the
       // next save sends back over the saved one.
       const fresh = await getThemeSettings(projectId);
       if (moved(projectId, generation)) return { warnings: result.warnings, stale: true };
-      const live = get().settings;
-      const discardedNow = isDraftDiscarded();
-      dropped = adoptServerTheme(fresh, discardedNow ? [] : diffThemeSettings(sent, live), discardedNow ? live : sent);
+      dropped = adoptOver(fresh);
     } else {
       set({ originalSettings: clone(sent) });
       adopted = false;
@@ -154,6 +158,10 @@ const useThemeStore = create((set, get) => {
     draftRevision: 0,
     // The draftRevision a discard left behind, while nothing has edited since.
     discardedRevision: null,
+    // Counts discards; a save compares it to see whether one happened while it
+    // was in flight. `discardedTo` is the copy the latest discard reverted to.
+    discardCount: 0,
+    discardedTo: null,
     saving: false,
     // Set when a save found settings changed elsewhere: { at, ids }.
     conflict: null,
@@ -293,12 +301,16 @@ const useThemeStore = create((set, get) => {
     /**
      * Revert the draft because the user discarded their edits (the editor's
      * discard-and-leave). A save already in flight still reaches the server;
-     * when it lands on a draft nothing has edited since, the saved values are
-     * taken as they are rather than reverted on top.
+     * when it lands, the saved values are taken rather than reverted on top,
+     * and only edits made after the discard stay unsaved over them.
      */
     discardDraft: () => {
       get().resetThemeSettings();
-      set((prev) => ({ discardedRevision: prev.draftRevision }));
+      set((prev) => ({
+        discardedRevision: prev.draftRevision,
+        discardCount: prev.discardCount + 1,
+        discardedTo: prev.settings ? clone(prev.settings) : null,
+      }));
     },
 
     /** Whether the draft is still the one a discard left in place. */

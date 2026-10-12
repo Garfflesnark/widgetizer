@@ -343,6 +343,26 @@ describe("themeStore", () => {
       expect(useThemeStore.getState().hasUnsavedThemeChanges()).toBe(false);
     });
 
+    // An edit after the discard is the user's; the value the discard reverted
+    // to is not, so it must not ride on top of the saved values.
+    it("keeps only the edits made after a discard during the save", async () => {
+      seedSettings();
+      useThemeStore.getState().updateThemeSetting("colors", "primary_color", "#0000ff");
+      const response = deferred();
+      saveThemeSettingChanges.mockReturnValueOnce(response.promise);
+
+      const saving = useThemeStore.getState().saveSettings("project-a");
+      useThemeStore.getState().discardDraft();
+      useThemeStore.getState().updateThemeSetting("colors", "secondary_color", "#edited");
+      response.resolve({ theme: withValues({ primary: "#0000ff" }), warnings: [] });
+      await saving;
+
+      const { settings, originalSettings } = useThemeStore.getState();
+      expect(valueOf(originalSettings, "primary_color")).toBe("#0000ff");
+      expect(valueOf(settings, "primary_color")).toBe("#0000ff");
+      expect(valueOf(settings, "secondary_color")).toBe("#edited");
+    });
+
     it("forgets the discard once the user edits again", () => {
       seedSettings();
       useThemeStore.getState().discardDraft();
@@ -510,6 +530,71 @@ describe("themeStore", () => {
         expect(valueOf(settings, "primary_color")).toBe("#corrected");
         expect(valueOf(settings, "secondary_color")).toBe("#edited");
       });
+
+      it("reads the saved copy back after a discard followed by an edit, keeping only that edit", async () => {
+        seedSettings();
+        useThemeStore.getState().updateThemeSetting("colors", "primary_color", "#0000ff");
+        const response = deferred();
+        saveThemeSettingChanges.mockReturnValueOnce(response.promise);
+        getThemeSettings.mockResolvedValueOnce(withValues({ primary: "#0000ff" }));
+
+        const saving = useThemeStore.getState().saveSettings("project-a");
+        useThemeStore.getState().discardDraft();
+        useThemeStore.getState().updateThemeSetting("colors", "secondary_color", "#edited");
+        response.resolve({ theme: null, warnings: [] });
+        await saving;
+
+        expect(getThemeSettings).toHaveBeenCalled();
+        const { settings, originalSettings } = useThemeStore.getState();
+        expect(valueOf(originalSettings, "primary_color")).toBe("#0000ff");
+        expect(valueOf(settings, "primary_color")).toBe("#0000ff");
+        expect(valueOf(settings, "secondary_color")).toBe("#edited");
+      });
+
+      it("keeps only an edit made during the read-back of a discarded save", async () => {
+        seedSettings();
+        useThemeStore.getState().updateThemeSetting("colors", "primary_color", "#0000ff");
+        const response = deferred();
+        saveThemeSettingChanges.mockReturnValueOnce(response.promise);
+        const read = deferred();
+        getThemeSettings.mockReturnValueOnce(read.promise);
+
+        const saving = useThemeStore.getState().saveSettings("project-a");
+        useThemeStore.getState().discardDraft();
+        response.resolve({ theme: null, warnings: [] });
+        await vi.waitFor(() => expect(getThemeSettings).toHaveBeenCalled());
+        useThemeStore.getState().updateThemeSetting("colors", "secondary_color", "#edited");
+        read.resolve(withValues({ primary: "#0000ff" }));
+        await saving;
+
+        const { settings, originalSettings } = useThemeStore.getState();
+        expect(valueOf(originalSettings, "primary_color")).toBe("#0000ff");
+        expect(valueOf(settings, "primary_color")).toBe("#0000ff");
+        expect(valueOf(settings, "secondary_color")).toBe("#edited");
+      });
+    });
+
+    it("tells the listener it expected the discarded-to copy when the user edited after a discard", async () => {
+      const listener = vi.fn();
+      useThemeStore.onServerThemeAdopted(listener);
+      try {
+        seedSettings();
+        const discardedTo = withValues({});
+        useThemeStore.getState().updateThemeSetting("colors", "primary_color", "#0000ff");
+        const response = deferred();
+        saveThemeSettingChanges.mockReturnValueOnce(response.promise);
+        const saved = withValues({ primary: "#0000ff" });
+
+        const saving = useThemeStore.getState().saveSettings("project-a");
+        useThemeStore.getState().discardDraft();
+        useThemeStore.getState().updateThemeSetting("colors", "secondary_color", "#edited");
+        response.resolve({ theme: saved, warnings: [] });
+        await saving;
+
+        expect(listener).toHaveBeenCalledWith(discardedTo, saved, withValues({ primary: "#0000ff", secondary: "#edited" }));
+      } finally {
+        useThemeStore.onServerThemeAdopted(null);
+      }
     });
 
     it("tells the registered listener what it expected and what the server holds", async () => {
