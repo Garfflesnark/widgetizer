@@ -3,6 +3,11 @@
   "scope": "Common (themes/common) and future themes explicitly created for this collection. These are the collection author's design rules, not Widgetizer platform requirements or defaults for other authors.",
   "rules": [
     {
+      "id": "visual-selection-before-implementation",
+      "instruction": "For new explorations and replacements of rejected directions, follow the Widgetizer design skill's brief and question process, then present screenshot-style concept images for the owner's selection before building the theme preview. Carry existing answers forward; ask only about material unresolved choices. Base visual proposals on that skill, the supplied brief and these collection rules, rather than substituting an unrelated design workflow or external style catalog.",
+      "implementation": "Show coherent page compositions with representative content, label generated mockups honestly and retain the selected image for implementation. A verbal character choice is not approval of an unseen composition. Wait for the owner's visual choice unless they explicitly waive this stage or provide an already-approved visual."
+    },
+    {
       "id": "language-aware-subtitles",
       "instruction": "Use uppercase subtitles, eyebrows and small labels only in languages whose casing has been checked. Keep Greek in natural case with its accents; do not apply automatic uppercase or strip accents from stored text. Preserve natural case for unverified languages.",
       "implementation": "Store natural-case text. Scope any CSS uppercase treatment to verified languages using the element's inherited language; account for regional language codes and nested language overrides."
@@ -10,7 +15,11 @@
     {
       "id": "no-decorative-subtitle-markers",
       "instruction": "Never decorate subtitles or eyebrows with bullets, dots, numbers, dashes, em dashes or ornamental separators. Use plain text. This applies to authored content, CSS pseudo-elements and generated counters.",
-      "examplesToRemove": ["A leading dot before a subtitle", "01 / Find your flow", "02 / Work your way"]
+      "examplesToRemove": [
+        "A leading dot before a subtitle",
+        "01 / Find your flow",
+        "02 / Work your way"
+      ]
     },
     {
       "id": "real-button-icons",
@@ -50,7 +59,7 @@
     {
       "id": "coherent-content-grids",
       "instruction": "Use a deliberate, shared grid for the page's section layouts. Establish consistent content boundaries, column tracks and gutters; build section compositions on that structure rather than positioning each group independently. Different sections may span different numbers of columns, but their alignment must follow the shared grid. Build balanced layouts around clear content relationships and a logical reading order. Complexity, staggered placement and asymmetry must serve the content. Do not scatter items around a photograph or create arbitrary empty areas merely to make a layout different. Using CSS Grid alone does not establish a coherent composition.",
-      "implementation": "Define shared content-width and gutter tokens and use CSS Grid for the section columns. Choose the column count to suit the theme; twelve columns are not mandatory. Check the actual rendered edges of the header, hero and supporting sections, and align section introductions with the related columns beneath them. Do not treat a no-overflow result as evidence that alignment is correct. Keep an explanation, its action and supporting note visibly grouped. Let columns and rows grow with content; review longer headings, paragraphs and translated button labels at desktop, intermediate and phone widths. Assess whitespace and alignment across the whole section, including its right edge and adjacent sections. Check whether labels, headings, imagery and body copy form an immediately understandable group; matching column edges alone is not enough. Preserve meaningful layout variety without adding complexity for its own sake.",
+      "implementation": "Define shared content-width and gutter tokens and use CSS Grid for the section columns. Choose the column count to suit the theme; twelve columns are not mandatory. Check the actual rendered edges of the header, hero and supporting sections, and align section introductions with the related columns beneath them. Do not treat a no-overflow result as evidence that alignment is correct. Keep an explanation, its action and supporting note visibly grouped. Let columns and rows grow with content; review longer headings, paragraphs and translated button labels at desktop, intermediate and phone widths. Assess whitespace and alignment across the whole section, including its right edge and adjacent sections. Check whether labels, headings, imagery and body copy form an immediately understandable group; matching column edges alone is not enough. Preserve meaningful layout variety without adding complexity for its own sake. Use one explicit shared column system, such as twelve or twenty-four columns, with consistent tracks and gutters across page sections. Header, hero, supporting content and footer must share deliberate outer boundaries; do not introduce unrelated maximum widths for individual sections. Verify alignment at wide desktop widths as well as tablet and phone sizes, including the author’s supplied screenshot dimensions when available.",
       "example": "Accord's initial engagement section aligned its columns but left two small labels isolated above a photograph while the main heading occupied the opposite column. The empty area and detached introduction made the composition unclear. Recompose the section around one clear introduction and a balanced relationship between the image and story; do not preserve the arrangement merely because it uses a grid."
     },
     {
@@ -64,7 +73,7 @@
     {
       "id": "explore-layout-variety",
       "instruction": "Use new explorations to test meaningfully different page compositions and widget layouts as well as colors and typography. Directions may range from restrained to forceful. Avoid repeating the same large headline, photograph and alternating split sections across the collection. Choose layouts that help the niche's content, interaction and visitor goals, express the theme's intended character and remain easy to edit.",
-      "rollout": "Keep the accepted Common, Kiln, Margin, Afterhours, Cove, Panna, Sill and Parla directions. Continue exploring stronger layout variety. Each retained theme will later have 2–3 presets demonstrating different uses of its design system; follow the preset strategy below."
+      "rollout": "Keep the accepted Common, Kiln, Margin, Afterhours, Cove, Panna, Sill and Parla directions. Continue exploring stronger layout variety. Each retained theme will later have 1–3 presets demonstrating different uses of its design system; follow the preset strategy below."
     },
     {
       "id": "distinct-hero-per-exploration",
@@ -96,13 +105,28 @@
   ],
   "heroVariations": "Develop transparent headers over hero imagery and text-on-image heroes as useful options for the collection, starting with the Panna preview. Treat them as independent choices: text on an image can also sit beneath a solid header. Overlay navigation only when the opening widget supports it; other pages need a readable solid header. Compose and review the image, text contrast, navigation contrast and mobile crop together. Carry these options into full theme development where suitable.",
   "presetStrategy": {
-    "intent": "Each retained theme will have 2–3 distinct presets showing its range. Presets may span related businesses with compatible content and editing needs, or very different locations and moods within one business type. They are not restricted to one exact niche.",
+    "intent": "Each retained theme will have 1–3 distinct presets showing its range. Presets may span related businesses with compatible content and editing needs, or very different locations and moods within one business type. They are not restricted to one exact niche.",
     "design": "Give each preset a coherent combination of imagery, palette, typography, content and available layout choices. Vary section selection, order and emphasis where useful. Plan enough flexibility in the shared theme widgets and settings to support these differences while keeping owner editing simple.",
     "examples": [
-      { "theme": "Parla", "uses": ["Foreign-language teacher", "Piano teacher"], "sharedNeeds": "Personal introduction, lesson options, teaching approach and enquiries" },
-      { "theme": "Alder: boutique guesthouse", "proposedSettings": ["A remote, beautiful Alpine village", "California", "A remote Greek island"], "sharedNeeds": "Rooms, the property, local experiences, practical stay information and enquiries" }
+      {
+        "theme": "Parla",
+        "uses": [
+          "Foreign-language teacher",
+          "Piano teacher"
+        ],
+        "sharedNeeds": "Personal introduction, lesson options, teaching approach and enquiries"
+      },
+      {
+        "theme": "Alder: boutique guesthouse",
+        "proposedSettings": [
+          "A remote, beautiful Alpine village",
+          "California",
+          "A remote Greek island"
+        ],
+        "sharedNeeds": "Rooms, the property, local experiences, practical stay information and enquiries"
+      }
     ],
-    "scope": "Explore one direction first. Develop the full preset set later; these examples guide the theme's flexibility and do not require building all variants during the initial preview."
+    "scope": "Explore unique industries and niches first, checking the existing collection for overlap before recommending another exploration. Review the collection before developing each theme’s 1–3 presets; these examples guide flexibility and do not require building variants during initial exploration."
   },
   "boundary": "These rules do not prohibit ordinary punctuation in sentences or markers in genuine content lists.",
   "review": "Review the entire page and its source: expression of the intended character, composition and level of finish, practical information hierarchy, adjacent separators, purposeful content and action icons, consistent button shape, hover and focus states, CSS-generated decoration, captions, language-specific casing, meaningful heading treatments, and type sizes and readability at desktop and mobile widths. Review motion timing and reduced-motion behavior when motion is introduced; check token use and widget CSS organization during full theme development. Structural theme validation alone does not check these collection rules."

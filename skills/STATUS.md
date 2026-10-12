@@ -1,11 +1,12 @@
 # Theme skills: working status
 
-Updated 2026-10-09. This is the maintainer handoff for the reusable skills and app-owned authoring tools. It is outside the portable skill folders.
+Updated 2026-10-12. This is the maintainer handoff for the reusable skills and app-owned authoring tools. It is outside the portable skill folders.
 
 ## Where to continue
 
 - **Skill and tooling work:** use this file and [README.md](README.md).
-- **Premium collection planning and theme progress:** use `WIDGETIZER-PREMIUM-THEMES.md` in the private theme repository. In the maintainer's sibling checkout, it is [here](../../premium-themes/WIDGETIZER-PREMIUM-THEMES.md). Acceptance, preset ideas, review feedback and theme-specific implementation evidence are maintained there, rather than duplicated here or in Google Drive.
+- **Premium collection study:** use [widgetizer-premium-themes.md](../../premium-themes/docs-llms-premium-themes/widgetizer-premium-themes.md) in the private sibling repository for explorations, feedback and skill lessons.
+- **Premium implementation planning:** use [premium-theme-implementation.md](../../premium-themes/docs-llms-premium-themes/premium-theme-implementation.md) in that repository for finished-theme requirements, structure and updates. Keep private collection details there rather than duplicating them here or in Google Drive.
 - **Confirmed collection design rules:** use [widgetizer-premium.json](theme-collections/widgetizer-premium.json). These preferences stay separate from portable skills and platform validation.
 
 The collection notebook and theme sources belong together in the private repository. The reusable skills and app tooling remain in Widgetizer's public repository.
@@ -15,7 +16,7 @@ The collection notebook and theme sources belong together in the private reposit
 | Component | Current state |
 | --- | --- |
 | [Technical skill](widgetizer-theme/SKILL.md) | Authoring workflow, focused references, a minimal working starter and generated capability catalog |
-| [Design skill](widgetizer-theme-design/SKILL.md) | Brief, clarification of unresolved character choices, reference handling, direction selection, responsive preview/styleguide with character review, imagery and simple editing guidance |
+| [Design skill](widgetizer-theme-design/SKILL.md) | Brief and material questions, visual mockup selection before implementation, reference handling, responsive preview/styleguide with character review, imagery and simple editing guidance |
 | [Catalog generator](../scripts/build-theme-skill-contract.js) | Generates `contract.json` from the app; `--check` detects drift |
 | [App-owned validator](../scripts/validate-theme.js) | Static validation using the app's configured LiquidJS engine and Widgetizer rules |
 | [Theme-skill tests](../packages/builder-server/src/tests/themeSkill.test.js) | Catalog freshness, starter import/project/export, Arch/preset validation and invalid-theme regression coverage |
@@ -39,6 +40,8 @@ The catalog records supported names and selected metadata, including available f
 - Decide and build distribution/packaging. The skills are not published as a standalone package. Historical proposals are in [future-skills-theme.md](../docs-llms/future-skills-theme.md); verify third-party platform details before using them for distribution work.
 
 ## Verification and checkpoint history
+
+On 2026-10-12, the design skill gained a visual-selection stage for new explorations and replacements of rejected directions. Carry existing answers forward, clarify material gaps before mockups, show coherent screenshot-style concepts and wait for selection before implementation. A verbal character choice alone is not approval of an unseen layout; an explicit waiver or an already-approved visual can skip the stage. Proposals follow the skill, brief and collection rules, respecting any restriction on external references or unrelated workflows. Premium collection rules mirror that process. Skill metadata validation and catalog freshness checks passed; no platform contract changed.
 
 On 2026-10-09, the design skill gained explicit character selection, clarification before preview work when that choice is unresolved and not delegated, and whole-preview review against the recorded character. Premium rules now support restrained through forceful directions and motion suited to each theme. The collection notebook's shared preferences were aligned without changing accepted theme directions.
 

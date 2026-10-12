@@ -1,6 +1,6 @@
 ---
 name: widgetizer-theme-design
-description: "Develop a Widgetizer theme's visual direction, responsive preview page and simple editing experience from its audience, content and the author's preferences, including screenshots, images or website references. Use when planning a new theme or discussing its design and ease of use. Technical implementation and validation belong to the widgetizer-theme skill."
+description: "Develop a Widgetizer theme's brief, visual style mockups for selection, responsive preview page and simple editing experience from its audience, content and the author's preferences. Use when planning a new theme or discussing its design and ease of use. Technical implementation and validation belong to the widgetizer-theme skill."
 ---
 
 # Widgetizer Theme Design
@@ -32,6 +32,7 @@ Read any collection rules identified by the repository instructions or supplied 
 
 - Use answers already supplied in the conversation or brief. Do not restart discovery when handing off between design and implementation.
 - Ask only when the missing answer would materially change the result. Keep each round small and use plain language.
+- Resolve material gaps before producing style mockups, not after implementation. Wait for required answers while continuing independent work. Carry forward confirmed choices when restarting a rejected exploration; ask again only if the rejection puts a particular choice in doubt.
 - If a new exploration's intended character cannot be inferred from the brief or references and the author has not delegated the choice, ask a short question before committing to a direction. Offer two or three possibilities tailored to the audience and content, with a recommendation; this can also serve as the direction proposal below. Wait for the answer before building the preview, and continue any work that does not depend on that choice.
 - Invite the author's knowledge of the business and their taste. Propose concrete design choices with their effects instead of asking the author to specify technical design values.
 - When the author is unsure, give them a useful recommendation to react to. When they delegate a choice, make it and identify the assumption briefly.
@@ -44,13 +45,25 @@ Identify the visible qualities that could inform this theme: page composition, t
 
 The author may like only part of a reference. Use their annotations and comments to distinguish desired qualities from incidental details. If their preference is unclear, explain what stands out and invite a reaction to the relevant choices. Do not require them to name fonts or describe design techniques.
 
-For an open-ended brief, research references when browsing is available and propose a small selection of distinct directions, usually two or three. Include visual examples or source links when available, explain how each direction fits the audience and content, and identify your recommendation. Describe meaningful differences in character and intensity as well as composition, typography and imagery. For example, a restaurant theme could emphasize large dining photographs or give menus and editorial storytelling the leading role.
+For an open-ended brief, propose a small selection of distinct directions, usually two or three. Derive them from this skill, the established brief and applicable collection rules. Research external references only when compatible with the author's requested sources; a request to work from this skill and collection alone excludes external style catalogs and unrelated design workflows. Describe meaningful differences in character and intensity as well as composition, typography and imagery. For example, a restaurant theme could emphasize large dining photographs or give menus and editorial storytelling the leading role.
 
-When the author supplies a clear direction, develop it directly. When they delegate the choice, select a suitable direction and proceed within the requested scope. Once a direction is established, record its intended character in a few words and briefly explain what it means for typography, contrast, composition, imagery and motion. Carry those decisions and reference observations into the working brief so implementation can use them without restarting the discussion.
+When the author supplies a clear character, develop visual proposals within it rather than reopening that choice. When they delegate the choice, select a suitable character and identify the assumption. Record the proposed character in a few words and explain what it means for typography, contrast, composition, imagery and motion. Carry these decisions into the working brief.
+
+## Select a style through visual mockups
+
+Before implementing a new theme exploration or a replacement for a rejected direction, show screenshot-style visual mockups and let the author choose. A verbal character choice establishes the brief; it does not select an unseen composition. Skip this stage only when the author explicitly asks to skip it or supplies an already-approved visual to implement. Ordinary delegation of design choices does not waive a requested visual review.
+
+Use the same business, representative content and comparable viewport framing across the options. Show the header, hero and enough supporting content to judge a coherent page, not just a palette, isolated photograph or unrelated collection of cards. Usually two or three options are enough. Vary meaningful content hierarchy, image/text relationships and typography while obeying the brief and collection rules. For a collection, compare the openings with existing explorations and record the closest relative and the intended difference.
+
+Generate these as concept images with available image-generation tools; label them as mockups, not screenshots of a working implementation. Do not build theme files or a responsive page merely to offer a style choice. If visual generation is unavailable, explain that limitation and agree an alternative before implementation. Save the options and their brief/prompts so the selected image remains available for the handoff.
+
+Inspect each option for the intended character, readable text, clear content grouping and consistency between its opening and supporting content. Identify material generation errors or provisional details. Present the images with short descriptions and a recommendation, then ask which direction to develop and wait. Rejection returns to this visual-selection stage using the author's feedback; technical checks or an internal review cannot substitute for their choice.
+
+Record the selected image and any requested changes. Selection approves a design direction, not finished behavior or a production-ready theme. Use it with the brief as the implementation reference; render text and controls as real page elements and assess responsive behavior in the working preview below.
 
 ## Preview the direction in a working page
 
-For a new theme, demonstrate the chosen direction in one working, responsive page before expanding it into the full theme. Use the technical skill for the implementation. For changes to an established theme, keep the preview proportionate to the affected design.
+After visual selection, demonstrate the chosen direction in one working, responsive page before expanding it into the full theme. Use the technical skill for the implementation. For changes to an established theme, keep the preview proportionate to the affected design.
 
 Establish the theme's typography roles, color roles, content widths, spacing, image treatment and shared details such as buttons and borders. Apply those choices consistently in the preview. A useful first page contains:
 

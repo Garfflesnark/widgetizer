@@ -2,13 +2,13 @@
 
 Agent Skills for people who build with Widgetizer. Each skill folder contains portable authoring guidance and assets. Executable theme validation belongs to the app checkout; the skill explains when that validation is available and when it remains pending. These maintainer notes are not part of a distributed skill.
 
-For skill/tooling progress and remaining work, see [STATUS.md](STATUS.md). Premium theme planning and development progress live with the private theme sources in `WIDGETIZER-PREMIUM-THEMES.md`; keep the collection notebook there rather than in this skill folder or Google Drive.
+For skill/tooling progress and remaining work, see [STATUS.md](STATUS.md). Premium theme study notes live with the private theme sources in `docs-llms-premium-themes/widgetizer-premium-themes.md`; finished-theme planning lives in `docs-llms-premium-themes/premium-theme-implementation.md`. Keep both documents in that private repository rather than in this skill folder or Google Drive.
 
 ## widgetizer-theme-design
 
-The [design skill](widgetizer-theme-design/SKILL.md) covers the theme brief, selective questions, visual references, direction selection, a working responsive preview with a compact style guide and representative layouts, supplied or generated imagery, and a simple editing model. It works alongside the technical skill below.
+The [design skill](widgetizer-theme-design/SKILL.md) covers the theme brief, selective questions, screenshot-style mockups for visual selection before implementation, a working responsive preview with a compact style guide and representative layouts, supplied or generated imagery, and a simple editing model. It works alongside the technical skill below.
 
-Each exploration records its intended character and the design choices that express it, then checks the whole preview against that brief. If the character is unclear and the author has not delegated the choice, the agent asks before building the preview. Premium themes can pursue different levels of intensity, with layouts and motion suited to each theme's character.
+Each exploration carries forward existing answers, asks about material gaps before mockups, and records its intended character. New explorations and replacements for rejected directions present visual options and wait for the author's selection before implementation, unless that stage is explicitly waived or an already-approved visual is supplied. The whole working preview is then checked against the selected image and brief. Premium themes can pursue different levels of intensity, with layouts and motion suited to each theme's character.
 
 The Widgetizer premium collection's standing design rules live in [theme-collections/widgetizer-premium.json](theme-collections/widgetizer-premium.json). Read them for Common and new themes in that collection. This repository-specific brief stays outside the portable skills, so other theme authors keep their own preferences.
 
