@@ -68,7 +68,7 @@ Why the full-preset convention exists:
 2. `preset-media/<id>/` in the app's seed copy (`themes/`) — the theme-root pool bundled themes use. Kept out of update deltas, runtime theme copies, and per-project copies, so ~180 MB of Arch imagery ships exactly once. The preset-name match is the opt-in; there is no flag.
 3. `preset-media/<id>/` in the runtime theme — a ZIP-installed theme using the theme-root layout (its installed copy is its distribution copy).
 
-No media in any location → nothing is seeded; that's a valid preset (the default `arch` preset has no media and no image references). **Filenames in `preset-media/` are append-only across theme versions** — add files freely, never rename or delete, because older preset templates reference them by name.
+No media in any location → nothing is seeded; that's a valid preset (the `blank` preset has no media and no image references). **Filenames in `preset-media/` are append-only across theme versions** — add files freely, never rename or delete, because older preset templates reference them by name.
 
 If a preset has no collections, omit `collections/`. During initial generation — before images are produced and packed — media may not exist yet; it is created by the production pass (`npm run preset:media`, see [theme-preset-process.md](theme-preset-process.md)), which writes to `themes/arch/preset-media/<id>/`.
 
