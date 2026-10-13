@@ -347,6 +347,16 @@ The issue asked for image captions in Arch without naming placements. The media 
 
 **Body at:** `96fbd53a:docs-llms/TODO-agents.md`.
 
+### GH137 · Check whether theme sync changes menus
+
+**Done · Unrated · OSS · 2026-10-13**
+
+The issue had a title and no body. It was about the `theme:sync` developer script, not a project theme update: with `--project`, the script copied the theme's `menus/` over the project's, stripping the uuids the scaffolder stamps and leaving every menu setting pointing at nothing.
+
+**Resolution:** `theme:sync` never copies `menus/` into a project; the runtime theme copy still gets them, so a new project picks up menu edits. A project theme update was not affected: it adds only menus the project lacks and leaves the author's alone, covered by tests. The separate gap found while checking, that pages and menus added by an update are not linked the way a new project's are, is GitHub #153. Fix `cd79ac55`.
+
+**Body at:** `89b55d2a:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

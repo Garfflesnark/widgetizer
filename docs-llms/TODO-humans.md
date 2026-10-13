@@ -374,14 +374,6 @@ A theme cannot currently choose “|” instead of “-” between the page and 
 
 **Next:** Add an optional separator if this author option is wanted.
 
-### GH137 · Check whether theme sync changes menus
-
-**Investigate · Unrated · OSS · Unassigned**
-
-The issue asks about copying menus during theme sync, without describing the expected result.
-
-**Next:** Clarify the developer workflow and reproduce what it does. [GitHub #137](https://github.com/tsiger/widgetizer/issues/137)
-
 ## Later — only when the stated need arises
 
 ### T4 · Automate a basic website-building check

@@ -479,16 +479,6 @@ Keep SeoTag and renderEngine buildPageTitle aligned, including pagination; escap
 
 **Start:** [SeoTag.js](../packages/core/src/tags/SeoTag.js). **Source:** Original §73.
 
-### GH137 · Check whether theme sync changes menus
-
-**Investigate · Unrated · OSS · Unassigned**
-
-Distinguish theme:sync/preset:sync developer scripts from a project theme update. Preserve authored menus; R6 already covers update copy failures.
-
-**Done when:** Expected sync behaviour is documented and any proven overwrite fixed.
-
-**Start:** [scripts](../scripts). **Source:** GitHub #137. [GitHub #137](https://github.com/tsiger/widgetizer/issues/137)
-
 ## Later — only when the stated need arises
 
 ### T4 · Automate a basic website-building check
