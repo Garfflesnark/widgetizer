@@ -414,7 +414,7 @@ body {
 
 /* When transparent header is active, the first widget extends behind the header */
 .transparent-header .main-content > :first-child {
-  padding-block-start: var(--header-sticky-offset, 4.5rem);
+  padding-block-start: calc(var(--header-sticky-offset, 4.5rem) + var(--breadcrumbs-offset, 0px));
 }
 
 /* --------------------------------------------------------------------------
@@ -3096,12 +3096,24 @@ b {
   color: var(--text-content);
 }
 
+/* One line of trail until scripts.js measures the real height. */
+.transparent-header:has(> .site-breadcrumbs) {
+  --breadcrumbs-offset: calc(var(--space-md) * 2 + var(--font-size-sm) * var(--line-height-normal));
+}
+
 .transparent-header .site-breadcrumbs {
   position: absolute;
   inset-inline: 0;
   top: var(--header-sticky-offset, 4.5rem);
   z-index: 998;
+  padding-inline: var(--space-xl);
   color: var(--colors-highlight_text_content, #fff);
+}
+
+@media (max-width: 749px) {
+  .transparent-header .site-breadcrumbs {
+    padding-inline: var(--space-md);
+  }
 }
 
 .transparent-header .breadcrumbs-item::before,

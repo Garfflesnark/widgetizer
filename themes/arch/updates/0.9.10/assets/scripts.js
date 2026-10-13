@@ -371,9 +371,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Set header height offset (used by sticky columns, transparent header padding, etc.)
   if (isSticky || isTransparent) {
+    const breadcrumbs = isTransparent ? document.querySelector(".site-breadcrumbs") : null;
     const setHeaderOffset = () => {
       const h = widgetElement.offsetHeight;
       document.documentElement.style.setProperty("--header-sticky-offset", h + "px");
+      if (breadcrumbs) {
+        document.body.style.setProperty("--breadcrumbs-offset", breadcrumbs.offsetHeight + "px");
+      }
     };
     setHeaderOffset();
     window.addEventListener("resize", debounce(setHeaderOffset, 150));
