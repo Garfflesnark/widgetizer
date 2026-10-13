@@ -565,6 +565,41 @@ describe("renderWidget — render modes", () => {
 });
 
 // ============================================================================
+// renderWidget — optional icon set
+// ============================================================================
+
+describe("renderWidget — optional icon set", () => {
+  const iconsFile = () => path.join(getProjectDir(PROJECT_FOLDER), "assets", "icons.json");
+  const renderIcon = () =>
+    renderWidget(PROJECT_ID, "icon-1", { type: "test-icon", settings: {} }, RAW_THEME_SETTINGS, "preview", null, null);
+
+  before(async () => {
+    const widgetDir = path.join(getProjectDir(PROJECT_FOLDER), "widgets", "test-icon");
+    await fs.ensureDir(widgetDir);
+    await fs.writeFile(path.join(widgetDir, "widget.liquid"), `<i>{{ icons.star.body }}</i>`);
+    await fs.writeFile(path.join(widgetDir, "schema.json"), JSON.stringify({ type: "test-icon", settings: [] }));
+  });
+
+  it("does not warn in preview when the project has no icons.json", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+
+    await renderIcon();
+    await renderIcon();
+
+    const iconWarnings = warn.mock.calls.filter((call) => String(call.arguments[0]).includes("icon"));
+    assert.deepEqual(iconWarnings, []);
+  });
+
+  it("picks up an icons.json added, then removed, between preview renders", async () => {
+    await fs.outputFile(iconsFile(), JSON.stringify({ icons: { star: { body: "STAR" } } }));
+    assert.ok((await renderIcon()).includes("<i>STAR</i>"));
+
+    await fs.remove(iconsFile());
+    assert.ok((await renderIcon()).includes("<i></i>"));
+  });
+});
+
+// ============================================================================
 // renderWidget — shared globals
 // ============================================================================
 

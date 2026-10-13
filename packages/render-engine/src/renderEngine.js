@@ -950,15 +950,19 @@ async function createBaseRenderContext(deps, rawThemeSettings, renderMode = "pre
 
   if (!shouldReloadIcons && renderMode === "preview") {
     // In preview mode, check if file has been modified since last cache
+    const cachedMtime = global.iconsCache.get(projectId)?.mtime;
     try {
       const stats = await fs.stat(iconsPath);
-      const cachedData = global.iconsCache.get(projectId);
-      if (!cachedData?.mtime || stats.mtimeMs > cachedData.mtime) {
+      if (!cachedMtime || stats.mtimeMs > cachedMtime) {
         shouldReloadIcons = true;
       }
     } catch (error) {
-      console.warn(`Failed to check icon file mtime for project ${projectId} in preview mode:`, error.message);
-      // File doesn't exist or can't be read, will handle below
+      // icons.json is optional: a missing file is only news if one was cached.
+      if (error.code !== "ENOENT") {
+        console.warn(`Failed to check icon file mtime for project ${projectId} in preview mode:`, error.message);
+      } else if (cachedMtime) {
+        shouldReloadIcons = true;
+      }
     }
   }
 
