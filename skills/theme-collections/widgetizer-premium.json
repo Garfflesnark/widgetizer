@@ -4,8 +4,8 @@
   "rules": [
     {
       "id": "visual-selection-before-implementation",
-      "instruction": "For new explorations and replacements of rejected directions, follow the Widgetizer design skill's brief and question process, then present screenshot-style concept images for the owner's selection before building the theme preview. Carry existing answers forward; ask only about material unresolved choices. Base visual proposals on that skill, the supplied brief and these collection rules, rather than substituting an unrelated design workflow or external style catalog.",
-      "implementation": "Show coherent page compositions with representative content, label generated mockups honestly and retain the selected image for implementation. A verbal character choice is not approval of an unseen composition. Wait for the owner's visual choice unless they explicitly waive this stage or provide an already-approved visual."
+      "instruction": "Follow the Widgetizer design skill's brief and question process, then build one standalone responsive static homepage and separate styleguide for owner approval before Widgetizer conversion. This static-first process supersedes generated screenshot-style concept selection from 13 October 2026. Carry existing answers forward and ask only about material unresolved choices. Base the direction on that skill, the supplied brief and these collection rules, rather than unrelated design workflows or external style catalogs.",
+      "implementation": "Keep static prototypes separate from installable themes. Present browser links after inspecting desktop and mobile layouts and interactions. Refine the actual pages until explicitly approved; do not create Widgetizer theme files before that approval. Preserve the approved prototype, reuse its markup/styles/assets during conversion and compare the rendered theme against it. Individual image assets may be generated when useful; generated website mockups are not the review artifact."
     },
     {
       "id": "language-aware-subtitles",

@@ -6,9 +6,9 @@ For skill/tooling progress and remaining work, see [STATUS.md](STATUS.md). Premi
 
 ## widgetizer-theme-design
 
-The [design skill](widgetizer-theme-design/SKILL.md) covers the theme brief, selective questions, screenshot-style mockups for visual selection before implementation, a working responsive preview with a compact style guide and representative layouts, supplied or generated imagery, and a simple editing model. It works alongside the technical skill below.
+The [design skill](widgetizer-theme-design/SKILL.md) covers the theme brief, selective questions, author-selected visual review formats, including static homepage/styleguide approval before theme conversion, a working responsive preview with a compact style guide and representative layouts, supplied or generated imagery, and a simple editing model. It works alongside the technical skill below.
 
-Each exploration carries forward existing answers, asks about material gaps before mockups, and records its intended character. New explorations and replacements for rejected directions present visual options and wait for the author's selection before implementation, unless that stage is explicitly waived or an already-approved visual is supplied. The whole working preview is then checked against the selected image and brief. Premium themes can pursue different levels of intensity, with layouts and motion suited to each theme's character.
+Each exploration carries forward existing answers, asks about material gaps and records its intended character. Premium explorations now use a standalone static homepage and separate styleguide, reviewed in the browser and explicitly approved before Widgetizer conversion. Preserve the approved static source and compare the converted theme against it. Premium themes can pursue different levels of intensity, with layouts and motion suited to each theme's character.
 
 The Widgetizer premium collection's standing design rules live in [theme-collections/widgetizer-premium.json](theme-collections/widgetizer-premium.json). Read them for Common and new themes in that collection. This repository-specific brief stays outside the portable skills, so other theme authors keep their own preferences.
 

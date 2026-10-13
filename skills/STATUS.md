@@ -16,7 +16,7 @@ The collection notebook and theme sources belong together in the private reposit
 | Component | Current state |
 | --- | --- |
 | [Technical skill](widgetizer-theme/SKILL.md) | Authoring workflow, focused references, a minimal working starter and generated capability catalog |
-| [Design skill](widgetizer-theme-design/SKILL.md) | Brief and material questions, visual mockup selection before implementation, reference handling, responsive preview/styleguide with character review, imagery and simple editing guidance |
+| [Design skill](widgetizer-theme-design/SKILL.md) | Brief and material questions, author-selected visual review, including static-first approval, reference handling, responsive preview/styleguide with character review, imagery and simple editing guidance |
 | [Catalog generator](../scripts/build-theme-skill-contract.js) | Generates `contract.json` from the app; `--check` detects drift |
 | [App-owned validator](../scripts/validate-theme.js) | Static validation using the app's configured LiquidJS engine and Widgetizer rules |
 | [Theme-skill tests](../packages/builder-server/src/tests/themeSkill.test.js) | Catalog freshness, starter import/project/export, Arch/preset validation and invalid-theme regression coverage |
@@ -52,3 +52,5 @@ The original skill/tooling checkpoint recorded 204 passing targeted tests across
 The implementation checkpoint `3bebc423`, collection-rule checkpoint `c25c2219` and external-source handoff `180fe961` are present in the tracked `origin/0.9.10` history checked on 2026-10-05. The earlier “not pushed” note is superseded. Premium theme sources are maintained separately.
 
 When tooling or platform behavior changes, update the matching skill reference and regenerate its catalog as described in [README.md](README.md).
+
+On 2026-10-13, the owner replaced premium concept-image selection with static-first review: establish the brief, build one responsive static homepage and separate styleguide, inspect them in the browser, refine until approved, then convert to Widgetizer. The design skill supports the chosen review format; premium collection rules require this approval before conversion. Individual generated image assets remain optional.
