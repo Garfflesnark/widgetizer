@@ -183,15 +183,15 @@ Handles are not guaranteed to be unique. If several blocks can share the same ti
 `media_meta` looks up uploaded media metadata by filename or media path. Without a property name it returns the whole media record; with a property name it returns that field.
 
 ```liquid
-{% assign image_title = block.settings.image | media_meta: 'title' %}
+{% assign image_caption = block.settings.image | media_meta: 'caption' %}
 {% assign image_alt = block.settings.image | media_meta: 'alt' %}
 
-{% if image_title != blank %}
-  <figcaption>{{ image_title }}</figcaption>
+{% if image_caption != blank %}
+  <figcaption>{{ image_caption }}</figcaption>
 {% endif %}
 ```
 
-Typical properties are `alt` and `title`, but the available keys depend on the media record stored by the project.
+Typical properties are `alt`, `title` and `caption`, but the available keys depend on the media record stored by the project.
 
 ## `collection`
 
