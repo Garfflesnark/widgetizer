@@ -327,6 +327,16 @@ A theme draft discarded while its save was in flight came back wrong when the sa
 
 **Body at:** `a1d14619:docs-llms/TODO-agents.md`.
 
+### GH136 · Investigate the missing-icons preview warning
+
+**Done · Unrated · OSS · 2026-10-13**
+
+The issue reported an ENOENT warning while checking `assets/icons.json` in preview. It was log noise, not a rendering defect: the file is optional, and once the empty icon set was cached, every later preview render of a project without it failed the mtime check and warned.
+
+**Resolution:** the preview mtime check in `renderEngine.js` stays silent on a missing file and keeps the warning for other errors. A file deleted while the server runs now clears the cached icons instead of serving the old set until restart. Covered by two tests in `rendering.test.js`. Fix `c1ac03d6`.
+
+**Body at:** `c1ac03d6:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

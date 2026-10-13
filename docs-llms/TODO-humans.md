@@ -382,14 +382,6 @@ A theme cannot currently choose “|” instead of “-” between the page and 
 
 **Next:** Add an optional separator if this author option is wanted.
 
-### GH136 · Investigate the missing-icons preview warning
-
-**Investigate · Unrated · OSS · Unassigned**
-
-Preview has reported a missing icon file. It is not yet clear whether anything visible breaks.
-
-**Next:** Reproduce and distinguish missing icons from harmless log noise. [GitHub #136](https://github.com/tsiger/widgetizer/issues/136)
-
 ### GH137 · Check whether theme sync changes menus
 
 **Investigate · Unrated · OSS · Unassigned**

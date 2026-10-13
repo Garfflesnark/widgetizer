@@ -489,16 +489,6 @@ Keep SeoTag and renderEngine buildPageTitle aligned, including pagination; escap
 
 **Start:** [SeoTag.js](../packages/core/src/tags/SeoTag.js). **Source:** Original §73.
 
-### GH136 · Investigate the missing-icons preview warning
-
-**Investigate · Unrated · OSS · Unassigned**
-
-Issue reports ENOENT while checking assets/icons.json mtime. Check current icon-cache/preview path; absent optional assets should not masquerade as a project failure.
-
-**Done when:** Impact is established and the warning or rendering defect is handled appropriately.
-
-**Start:** [services](../packages/builder-server/src/services). **Source:** GitHub #136. [GitHub #136](https://github.com/tsiger/widgetizer/issues/136)
-
 ### GH137 · Check whether theme sync changes menus
 
 **Investigate · Unrated · OSS · Unassigned**
