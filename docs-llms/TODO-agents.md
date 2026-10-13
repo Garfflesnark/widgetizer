@@ -112,16 +112,6 @@ Use the existing image-optimization proposal rather than inventing requirements 
 
 **Start:** [future-image-optimization.md](future-image-optimization.md). **Source:** GitHub #128. [GitHub #128](https://github.com/tsiger/widgetizer/issues/128)
 
-### GH129 · Decide where Arch should display image captions
-
-**Decision needed · Unrated · OSS · tsiger**
-
-Gallery already has a caption setting/rendering. Confirm whether this means media-library captions, image widgets or other placements before implementation.
-
-**Done when:** Requested placements and caption source are specified, then verified.
-
-**Start:** [schema.json](../themes/arch/widgets/gallery/schema.json). **Source:** GitHub #129. [GitHub #129](https://github.com/tsiger/widgetizer/issues/129)
-
 ### GH130 · Decide the layout for downloadable files
 
 **Decision needed · Unrated · OSS · tsiger**

@@ -91,14 +91,6 @@ More ways to reduce image size have been proposed.
 
 **Next:** Choose the useful options and scope first. [GitHub #128](https://github.com/tsiger/widgetizer/issues/128)
 
-### GH129 · Decide where Arch should display image captions
-
-**Decision needed · Unrated · OSS · tsiger**
-
-Captions already exist in some widgets; the issue does not say where else they are wanted.
-
-**Next:** Identify the missing caption behaviour. [GitHub #129](https://github.com/tsiger/widgetizer/issues/129)
-
 ### GH130 · Decide the layout for downloadable files
 
 **Decision needed · Unrated · OSS · tsiger**

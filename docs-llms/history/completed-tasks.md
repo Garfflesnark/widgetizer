@@ -337,6 +337,16 @@ The issue reported an ENOENT warning while checking `assets/icons.json` in previ
 
 **Body at:** `c1ac03d6:docs-llms/TODO-agents.md`.
 
+### GH129 · Decide where Arch should display image captions
+
+**Done · Unrated · OSS · 2026-10-13**
+
+The issue asked for image captions in Arch without naming placements. The media library already stored a caption per image and language, and `media_meta` exposed it, but Arch never read it: only the Gallery widget had a caption, a text setting of its own.
+
+**Resolution:** the media-library caption shows under the Image widget, under the featured image on news, project and service pages, and under each image of a project or service gallery. The Gallery widget falls back to it when a block caption is blank, and the Masonry Gallery lightbox when a block title is blank. Rich-text images carry no caption, and the preset media manifests still have none. Fix `96fbd53a`.
+
+**Body at:** `96fbd53a:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.
