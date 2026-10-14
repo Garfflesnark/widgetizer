@@ -98,6 +98,14 @@ describe("BreadcrumbList", () => {
     ]);
   });
 
+  it("names the numbered copy with the page word it is given", () => {
+    const page = pageWithTrail("blog", { pageNumber: 2 });
+    const list = buildGraph({ page, project: { siteUrl: SITE }, pageLabel: "Σελίδα" }).find(
+      (node) => node["@type"] === "BreadcrumbList",
+    );
+    expect(trail(list).at(-1)).toEqual([3, "Σελίδα 2", `${SITE}/blog/page/2.html`]);
+  });
+
   it("ends a paginated copy on Page N, at the copy's own address", () => {
     const list = listOf(pageWithTrail("blog", { pageNumber: 2 }));
     expect(list["@id"]).toBe(`${SITE}/blog/page/2.html#breadcrumb`);

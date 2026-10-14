@@ -45,6 +45,8 @@ import { identityForTheme } from "@widgetizer/core/siteIdentity";
 import { resolveMenuSettings, schemaHasMenuSetting } from "./menuResolver.js";
 import { buildTranslations } from "@widgetizer/core/translations";
 import { readThemeSetting } from "@widgetizer/core/themeSettingChanges";
+// Without a loader the engine still has the built-in snippets' and widgets' English words.
+import coreSiteStringsEn from "@widgetizer/core/widgets/locales/en.json" with { type: "json" };
 
 /**
  * @typedef {object} RenderDeps
@@ -404,7 +406,8 @@ async function loadPagesByUuid(deps) {
 async function ensureSiteStrings(deps, globals) {
   if (!globals) return null;
   if (globals.siteStrings === undefined) {
-    globals.siteStrings = typeof deps.loadSiteStrings === "function" ? await deps.loadSiteStrings() : null;
+    globals.siteStrings =
+      typeof deps.loadSiteStrings === "function" ? await deps.loadSiteStrings() : { en: coreSiteStringsEn.site };
   }
   if (globals.defaultLanguage === undefined) {
     globals.defaultLanguage = (await languageSettings(deps, globals)).defaultLanguage;

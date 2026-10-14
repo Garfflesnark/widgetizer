@@ -38,7 +38,8 @@
     "./themeFonts": "./src/utils/themeFonts.js",
     "./config/settingTypes": "./src/config/settingTypes.js",
     "./config/fonts.json": "./src/config/fonts.json",
-    "./locales/*": "./src/locales/*"
+    "./locales/*": "./src/locales/*",
+    "./widgets/locales/*": "./src/widgets/locales/*"
   },
   "dependencies": {
     "liquidjs": "^10.26.0",

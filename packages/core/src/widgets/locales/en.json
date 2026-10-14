@@ -1,5 +1,9 @@
 {
   "site": {
+    "breadcrumbs": {
+      "label": "Breadcrumb",
+      "page": "Page"
+    },
     "core_form": {
       "required_note": "Required fields",
       "submit": "Send message",

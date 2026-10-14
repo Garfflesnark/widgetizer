@@ -306,6 +306,8 @@
     "menu"
   ],
   "coreSiteKeys": [
+    "site.breadcrumbs.label",
+    "site.breadcrumbs.page",
     "site.core_form.choice_label",
     "site.core_form.choice_options",
     "site.core_form.consent_label",

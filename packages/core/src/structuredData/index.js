@@ -10,7 +10,7 @@ export { emptyArticleFields } from "./articleNode.js";
 
 /**
  * The JSON-LD `<script>` for a page render, or "" when there is nothing to emit.
- * @param {{ page?: object, project?: object, mediaFiles?: object }} context
+ * @param {{ page?: object, project?: object, mediaFiles?: object, pageLabel?: string }} context
  */
 export function structuredDataScript(context) {
   return jsonLdScript(buildGraph(context));

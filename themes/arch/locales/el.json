@@ -14,6 +14,18 @@
       "unmute": "Κατάργηση σίγασης",
       "playback_speed_rate": "Ταχύτητα αναπαραγωγής {{ rate }}x"
     },
+    "business_details": {
+      "closed": "Κλειστά",
+      "days": {
+        "monday": "Δευ",
+        "tuesday": "Τρί",
+        "wednesday": "Τετ",
+        "thursday": "Πέμ",
+        "friday": "Παρ",
+        "saturday": "Σάβ",
+        "sunday": "Κυρ"
+      }
+    },
     "class_schedule": {
       "empty": "Δεν υπάρχουν προγραμματισμένα μαθήματα."
     },

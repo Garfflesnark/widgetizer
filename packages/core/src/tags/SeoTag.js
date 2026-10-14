@@ -2,6 +2,7 @@
 
 import { pageUrlAt, publishedImageUrl } from "../utils/publishedUrls.js";
 import { structuredDataScript } from "../structuredData/index.js";
+import { resolveSiteString } from "../filters/siteStringFilter.js";
 
 export const SeoTag = {
   parse(tagToken) {
@@ -129,7 +130,13 @@ export const SeoTag = {
 
       // Its own guard: a structured-data failure must not cost the page its title and meta tags.
       try {
-        const script = structuredDataScript({ page, project, mediaFiles });
+        const pageLabel = resolveSiteString(
+          context.globals?.siteStrings,
+          "site.breadcrumbs.page",
+          page.language,
+          project?.defaultLanguage,
+        );
+        const script = structuredDataScript({ page, project, mediaFiles, pageLabel });
         if (script) metaTags.push(script);
       } catch (error) {
         console.error("SEO Tag structured data error:", error);

@@ -131,7 +131,7 @@ Rich text is sanitized according to its declared schema at the server boundary. 
 {% render 'menu', menu: widget.settings.navigation, aria_label: 'Primary' %}
 ```
 
-`breadcrumbs` takes `class_nav`, `class_list`, `class_item`, `class_link`, `class_current`, `separator`, `home_label`, `page_label`, `aria_label`, `show_home`. It reads the trail from globals and emits nothing for an empty trail. Supply translated labels where needed. Override a core snippet by shipping a theme snippet of the same name only when intentionally taking responsibility for its behavior.
+`breadcrumbs` takes `class_nav`, `class_list`, `class_item`, `class_link`, `class_current`, `separator`, `home_label`, `page_label`, `aria_label`, `show_home`. It reads the trail from globals and emits nothing for an empty trail. `page_label` and `aria_label` default to the core site strings `site.breadcrumbs.page` and `site.breadcrumbs.label`, so they already follow the page language; pass them only to use different words. Override a core snippet by shipping a theme snippet of the same name only when intentionally taking responsibility for its behavior.
 
 ## What does not exist
 

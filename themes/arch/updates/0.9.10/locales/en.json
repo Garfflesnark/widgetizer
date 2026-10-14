@@ -14,6 +14,18 @@
       "unmute": "Unmute",
       "playback_speed_rate": "Playback speed {{ rate }}x"
     },
+    "business_details": {
+      "closed": "Closed",
+      "days": {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "saturday": "Sat",
+        "sunday": "Sun"
+      }
+    },
     "class_schedule": {
       "empty": "No classes scheduled."
     },

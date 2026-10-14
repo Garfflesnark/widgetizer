@@ -55,16 +55,26 @@
     {%- endif -%}
 
     {%- if has_hours -%}
+      {%- assign day_ids = 'monday,tuesday,wednesday,thursday,friday,saturday,sunday' | split: ',' -%}
+      {%- comment -%} Captured unescaped; each name is escaped once where it is printed. {%- endcomment -%}
+      {%- capture day_names -%}
+        {{- 'site.business_details.days.monday' | t | raw }}|{{ 'site.business_details.days.tuesday' | t | raw }}|{{ 'site.business_details.days.wednesday' | t | raw }}|{{ 'site.business_details.days.thursday' | t | raw }}|{{ 'site.business_details.days.friday' | t | raw }}|{{ 'site.business_details.days.saturday' | t | raw }}|{{ 'site.business_details.days.sunday' | t | raw -}}
+      {%- endcapture -%}
+      {%- assign day_names = day_names | split: '|' -%}
       <dl class="business-details-hours">
         {%- for run in identity.openingHours -%}
+          {%- for day in day_ids -%}
+            {%- if day == run.firstDay -%}{%- assign first_day = day_names[forloop.index0] -%}{%- endif -%}
+            {%- if day == run.lastDay -%}{%- assign last_day = day_names[forloop.index0] -%}{%- endif -%}
+          {%- endfor -%}
           <div class="business-details-hours-row">
             <dt>
-              {{- run.firstDay | slice: 0, 3 | capitalize -}}
-              {%- if run.lastDay != run.firstDay %}–{{ run.lastDay | slice: 0, 3 | capitalize }}{% endif -%}
+              {{- first_day -}}
+              {%- if run.lastDay != run.firstDay %}–{{ last_day }}{% endif -%}
             </dt>
             <dd>
               {%- if run.closed -%}
-                Closed
+                {{ 'site.business_details.closed' | t }}
               {%- else -%}
                 {%- for range in run.ranges -%}
                   {{ range.opens }}–{{ range.closes }}{% unless forloop.last %}, {% endunless %}

@@ -1,5 +1,9 @@
 {
   "site": {
+    "breadcrumbs": {
+      "label": "Διαδρομή πλοήγησης",
+      "page": "Σελίδα"
+    },
     "core_form": {
       "required_note": "Υποχρεωτικά πεδία",
       "submit": "Αποστολή μηνύματος",

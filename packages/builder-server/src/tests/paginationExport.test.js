@@ -483,6 +483,19 @@ describe("export — the same slug paginating in two languages", () => {
     projectRepo.updateProject(PROJECT_ID, { siteUrl: SITE });
   });
 
+  it("names the numbered crumb and the breadcrumb landmark in the page's language", async () => {
+    const dir = await exportWith(false);
+    const greek = await read(dir, "el/blog/page/2.html");
+    assert.deepEqual(trailOf(greek).labels.at(-1), "Σελίδα 2");
+    assert.ok(greek.includes('<nav class="bc" aria-label="Διαδρομή πλοήγησης">'), greek);
+    assert.match(greek, /"name": ?"Σελίδα 2"/, "the BreadcrumbList names the copy in Greek too");
+
+    const english = await read(dir, "blog/page/2.html");
+    assert.deepEqual(trailOf(english).labels.at(-1), "Page 2");
+    assert.ok(english.includes('<nav class="bc" aria-label="Breadcrumb">'), english);
+    assert.match(english, /"name": ?"Page 2"/);
+  });
+
   it("keeps each language's own plan and writes the copies under the language folder", async () => {
     const dir = await exportWith(false);
     assert.equal(await fs.pathExists(path.join(dir, "blog", "page", "3.html")), true, "English: 5 items, 2 per page");

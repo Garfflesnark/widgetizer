@@ -31,7 +31,8 @@ const { getProjectDir, getProjectPagesDir, getProjectMenusDir } = await import("
 
 const projectRepo = await import("../db/repositories/projectRepository.js");
 const { writeMediaFile } = await import("../controllers/mediaController.js");
-const { renderWidget, renderPageLayout } = await import("../services/renderingService.js");
+const { renderWidget, renderPageLayout, buildRenderDeps } = await import("../services/renderingService.js");
+const { renderWidget: engineRenderWidget } = await import("@widgetizer/render-engine");
 const { closeDb } = await import("../db/index.js");
 
 // ============================================================================
@@ -1035,5 +1036,24 @@ describe("renderWidget — the theme's date format", () => {
     const theme = { settings: { global: { dates: [{ id: "date_format", type: "select", value: "YYYY-MM-DD" }] } } };
     const html = await renderWidget(PROJECT_ID, "date-1", { type: "test-date", settings: {} }, theme, "preview", null, null);
     assert.ok(html.includes("<time>2026-01-05</time>"), html);
+  });
+});
+
+describe("renderWidget — the built-in words without a site-strings loader", () => {
+  before(async () => {
+    const widgetDir = path.join(getProjectDir(PROJECT_FOLDER), "widgets", "test-core-words");
+    await fs.ensureDir(widgetDir);
+    await fs.writeFile(
+      path.join(widgetDir, "widget.liquid"),
+      `<p>{{ 'site.breadcrumbs.label' | t }}|{{ 'site.breadcrumbs.page' | t }}</p>`,
+    );
+    await fs.writeFile(path.join(widgetDir, "schema.json"), JSON.stringify({ type: "test-core-words", settings: [] }));
+  });
+
+  it("still reads the app's English words when the host supplies no loader", async () => {
+    const { loadSiteStrings, ...deps } = await buildRenderDeps(PROJECT_ID);
+    assert.equal(typeof loadSiteStrings, "function");
+    const html = await engineRenderWidget(deps, "words-1", { type: "test-core-words", settings: {} }, RAW_THEME_SETTINGS, "preview");
+    assert.ok(html.includes("<p>Breadcrumb|Page</p>"), html);
   });
 });

@@ -571,7 +571,7 @@ Core builds one breadcrumb trail per rendered page and hands it to the layout as
 {% render 'breadcrumbs', class_nav: 'site-breadcrumbs', class_link: 'crumb', home_label: 'Home' %}
 ```
 
-Params: `class_nav`, `class_list`, `class_item`, `class_link`, `class_current`, `separator` (text between crumbs; most themes draw one in CSS instead), `home_label`, `page_label` (default "Page" — the word before the number on page 2+ of a paginated page), `aria_label` (default "Breadcrumb"), `show_home` (default true). It emits `<nav aria-label><ol><li>` with `aria-current="page"` on the last crumb, and **nothing at all** when the trail is empty — which is the case on the homepage's first page (its page 2 and later show `Home › Page 2`).
+Params: `class_nav`, `class_list`, `class_item`, `class_link`, `class_current`, `separator` (text between crumbs; most themes draw one in CSS instead), `home_label`, `page_label` (the word before the number on page 2+ of a paginated page; default the core site string `site.breadcrumbs.page`, "Page" in English), `aria_label` (default `site.breadcrumbs.label`, "Breadcrumb"), `show_home` (default true). It emits `<nav aria-label><ol><li>` with `aria-current="page"` on the last crumb, and **nothing at all** when the trail is empty — which is the case on the homepage's first page (its page 2 and later show `Home › Page 2`).
 
 Each entry carries:
 

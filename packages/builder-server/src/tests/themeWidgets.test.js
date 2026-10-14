@@ -167,13 +167,14 @@ describe("footer business details and social profiles", () => {
     const projectDir = getProjectDir(PROJECT_FOLDER);
     await fs.copy(path.resolve("themes", "arch", "widgets", "global", "footer"), path.join(projectDir, "widgets", "global", "footer"));
     await fs.copy(path.resolve("themes", "arch", "snippets"), path.join(projectDir, "snippets"));
+    await fs.copy(path.resolve("themes", "arch", "locales"), path.join(projectDir, "locales"));
   });
 
   after(() => {
     projectRepo.updateProject(PROJECT_ID, { siteIdentity: {} });
   });
 
-  const renderFooter = (block, { renderMode = "publish", identity = IDENTITY } = {}) => {
+  const renderFooter = (block, { renderMode = "publish", identity = IDENTITY, language } = {}) => {
     projectRepo.updateProject(PROJECT_ID, { siteIdentity: identity });
     return renderWidget(
       PROJECT_ID,
@@ -188,6 +189,7 @@ describe("footer business details and social profiles", () => {
         themeSettingsRaw: THEME_WITH_SOCIAL,
         enqueuedStyles: new Map(),
         enqueuedScripts: new Map(),
+        ...(language ? { currentPageData: { language } } : {}),
       },
       null,
     );
@@ -208,6 +210,64 @@ describe("footer business details and social profiles", () => {
     assert.ok(html.includes('<a href="mailto:hello@crumbly.example">hello@crumbly.example</a>'), html);
     assert.ok(html.includes("<dt>Mon–Fri</dt><dd>09:00–17:00</dd>"), html);
     assert.ok(html.includes("<dt>Sun</dt><dd>Closed</dd>"), html);
+  });
+
+  it("names the days and a closed day in the page's language", async (t) => {
+    // Site words load for the languages the project publishes.
+    projectRepo.updateProject(PROJECT_ID, { languages: ["el"] }, { seeded: true });
+    t.after(() => projectRepo.updateProject(PROJECT_ID, { languages: [] }, { seeded: true }));
+    const html = compact(
+      await renderFooter(
+        { type: "business_details", settings: { show_address: false, show_contact: false, show_hours: true } },
+        { language: "el" },
+      ),
+    );
+    assert.ok(html.includes("<dt>Δευ–Παρ</dt><dd>09:00–17:00</dd>"), html);
+    assert.ok(html.includes("<dt>Κυρ</dt><dd>Κλειστά</dd>"), html);
+
+    const early = [{ opens: "08:00", closes: "12:00" }];
+    const everyDay = compact(
+      await renderFooter(
+        { type: "business_details", settings: { show_address: false, show_contact: false, show_hours: true } },
+        {
+          language: "el",
+          identity: {
+            ...IDENTITY,
+            locations: [
+              {
+                ...IDENTITY.locations[0],
+                openingHours: {
+                  monday: WEEKDAY_HOURS,
+                  tuesday: early,
+                  wednesday: WEEKDAY_HOURS,
+                  thursday: early,
+                  friday: WEEKDAY_HOURS,
+                  saturday: early,
+                  sunday: [],
+                },
+              },
+            ],
+          },
+        },
+      ),
+    );
+    const days = [...everyDay.matchAll(/<dt>([^<]+)<\/dt>/g)].map((match) => match[1]);
+    assert.deepEqual(days, ["Δευ", "Τρί", "Τετ", "Πέμ", "Παρ", "Σάβ", "Κυρ"]);
+  });
+
+  it("escapes a translated day name once", async (t) => {
+    const localeFile = path.join(getProjectDir(PROJECT_FOLDER), "locales", "en.json");
+    const original = await fs.readFile(localeFile, "utf8");
+    t.after(() => fs.writeFile(localeFile, original));
+    const locale = JSON.parse(original);
+    locale.site.business_details.days.monday = "Mon & Tue";
+    locale.site.business_details.days.friday = "Fri's";
+    await fs.writeFile(localeFile, JSON.stringify(locale));
+
+    const html = compact(
+      await renderFooter({ type: "business_details", settings: { show_address: false, show_contact: false, show_hours: true } }),
+    );
+    assert.ok(html.includes("<dt>Mon &amp; Tue–Fri&#39;s</dt>"), html);
   });
 
   it("leaves out the parts that are switched off", async () => {

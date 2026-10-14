@@ -7,12 +7,13 @@ import { urlNodeId } from "./ids.js";
  * The absolute entries of the page's visible breadcrumb trail (`page.breadcrumbs`),
  * so both follow the same hierarchy. An entry with no address or no label is
  * skipped; fewer than two entries (the homepage) gives none. Gotcha: a numbered
- * copy's last crumb reads "Page N", the breadcrumbs snippet's default — a theme
- * passing its own `page_label` or `home_label` draws different words than this.
- * @param {{ page?: object, project?: object }} context
+ * copy's last crumb reads "<pageLabel> N", the word the breadcrumbs snippet
+ * defaults to (`site.breadcrumbs.page`, "Page" without one) — a theme passing its
+ * own `page_label` or `home_label` draws different words than this.
+ * @param {{ page?: object, project?: object, pageLabel?: string }} context
  * @returns {Array<{ name: string, url: string }>}
  */
-export function breadcrumbItems({ page, project } = {}) {
+export function breadcrumbItems({ page, project, pageLabel } = {}) {
   const trail = Array.isArray(page?.breadcrumbs) ? page.breadcrumbs : [];
   const items = [];
   for (const crumb of trail) {
@@ -24,7 +25,7 @@ export function breadcrumbItems({ page, project } = {}) {
       ? absoluteSiteUrl(project?.siteUrl, crumb.canonicalPath.replace(/index\.html$/, ""))
       : absoluteSiteUrl(project?.siteUrl, publicPath(crumb.canonicalPath, { cleanUrls: project?.cleanUrls }));
     const label = typeof crumb.label === "string" ? crumb.label.trim() : "";
-    const name = crumb.pageNumber ? `Page ${crumb.pageNumber}` : label;
+    const name = crumb.pageNumber ? `${pageLabel || "Page"} ${crumb.pageNumber}` : label;
     if (url && name) items.push({ name, url });
   }
   return items.length >= 2 ? items : [];

@@ -8,8 +8,8 @@ Params:
   class_current: Classes for the last (current) item
   separator: Text drawn between crumbs (default none; most themes use CSS)
   home_label: Overrides the first crumb's label (e.g. a translated "Home")
-  page_label: Word before the number on a paginated page's last crumb (default "Page")
-  aria_label: Accessible name for the nav element (default "Breadcrumb")
+  page_label: Word before the number on a paginated page's last crumb (default: site.breadcrumbs.page, "Page")
+  aria_label: Accessible name for the nav element (default: site.breadcrumbs.label, "Breadcrumb")
   show_home: Set to false to drop the first crumb
 Globals (via LiquidJS globals):
   breadcrumbs: Trail for the page being rendered, Home first and the current
@@ -19,7 +19,9 @@ Globals (via LiquidJS globals):
 {%- endcomment -%}
 
 {%- if breadcrumbs.size > 0 -%}
-  <nav class="{{ class_nav }}" aria-label="{{ aria_label | default: 'Breadcrumb' }}">
+  {%- assign default_aria_label = 'site.breadcrumbs.label' | t -%}
+  {%- assign default_page_label = 'site.breadcrumbs.page' | t -%}
+  <nav class="{{ class_nav }}" aria-label="{{ aria_label | default: default_aria_label }}">
     <ol class="{{ class_list }}">
       {%- for crumb in breadcrumbs -%}
         {%- unless crumb.home and show_home == false -%}
@@ -28,7 +30,7 @@ Globals (via LiquidJS globals):
             {%- assign label = home_label -%}
           {%- endif -%}
           {%- if crumb.pageNumber -%}
-            {%- assign label = page_label | default: 'Page' | append: ' ' | append: crumb.label -%}
+            {%- assign label = page_label | default: default_page_label | append: ' ' | append: crumb.label -%}
           {%- endif -%}
           <li class="{{ class_item }}{% if crumb.current and class_current != blank %} {{ class_current }}{% endif %}">
             {%- if crumb.current -%}

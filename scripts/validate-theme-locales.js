@@ -25,6 +25,8 @@ const rootDir = join(__dirname, "..");
 // Core widget locale definitions are read from the shared core package.
 const coreWidgetsDir = join(rootDir, "packages", "core", "src", "widgets");
 const coreLocalesDir = join(coreWidgetsDir, "locales");
+// The core dictionary also serves the app's own snippets (breadcrumbs).
+const coreSnippetsDir = join(rootDir, "packages", "core", "src", "snippets");
 
 /** Resolve the effective theme directory, preferring source themes during local dev. */
 function resolveThemeDir(themeName) {
@@ -267,7 +269,7 @@ function validateCoreLocales() {
   const schemaKeys = collectSchemaKeysFromDir(coreWidgetsDir);
   // The built-in widgets own their visitor words the way a theme owns its own,
   // so a key nobody wrote has to fail here for the same reason it does there.
-  return validateLocaleSet("core widgets", coreLocalesDir, schemaKeys, new Set(), collectSiteKeyUses(coreWidgetsDir));
+  return validateLocaleSet("core widgets", coreLocalesDir, schemaKeys, new Set(), coreSiteKeyUses());
 }
 
 function validateTheme(themeName, coreKeySet) {
@@ -305,6 +307,11 @@ function validateTheme(themeName, coreKeySet) {
 
 // ── Main ──────────────────────────────────────────────────────────────
 
+/** Where the core dictionary's words are asked for: the built-in widgets and the app's snippets. */
+function coreSiteKeyUses() {
+  return new Map([...collectSiteKeyUses(coreSnippetsDir), ...collectSiteKeyUses(coreWidgetsDir)]);
+}
+
 /** The built-in widgets' visitor words: what they define, and what they ask for. */
 let _coreSite = null;
 function coreSite() {
@@ -313,7 +320,7 @@ function coreSite() {
     const en = existsSync(enPath) ? JSON.parse(readFileSync(enPath, "utf-8")) : {};
     _coreSite = {
       defined: new Set(flattenKeys(en).filter((k) => k === "site" || k.startsWith("site."))),
-      used: new Set(collectSiteKeyUses(coreWidgetsDir).keys()),
+      used: new Set(coreSiteKeyUses().keys()),
     };
   }
   return _coreSite;
