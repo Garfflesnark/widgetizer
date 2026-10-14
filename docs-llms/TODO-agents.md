@@ -20,16 +20,6 @@ Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7), milesto
 
 ## Ready to review
 
-### GH115 · Finish multilingual documentation and close the feature
-
-**Review · Unrated · Docs · tsiger**
-
-Steps 0–24 and R1–R8 implemented; domain cleanup is part of this task. Check step 25 architecture/packages, theme contract and user checklist; old richtext and phase-status claims exist outside domain. Do not rebuild multilang.
-
-**Done when:** Current contracts/checklist agree and remaining issues, if any, have their own task.
-
-**Start:** [Multilingual rules](domain/multilingual.md), [theme language switcher](theming.md#the-language-switcher-pagetranslations) and [user checklist](user-test-checklist.md). **Source:** GitHub #115. [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
-
 ### GH122 · Review automatic search-engine information
 
 **Review · Unrated · OSS · tsiger**
@@ -818,7 +808,7 @@ These are historical suggestions, not an active audit plan or proof that tests a
 | O3 | Both real-project walkthroughs complete; no remaining task from this row. |
 | O4 | Actual language-name text/interpolation, repeated exports and project switching; one layout assertion does not cover all UI states |
 | O5 | Translated media/structured data combinations if relevant. Form collisions/limits were checked in R7. |
-| O6 | Completed switcher, month localization and upgrade checks; broad documentation reconciliation belongs to GH115. |
+| O6 | Completed switcher, month localization and upgrade checks; broad documentation reconciled 2026-10-14. |
 | R3 | Two simultaneous editor windows, only if reported or supported as a workflow. |
 | R5 | Site-wide media settings beyond favicon, when a theme introduces them. |
 

@@ -17,14 +17,6 @@ The same IDs appear in [the agent version](TODO-agents.md). Technical detail and
 
 ## Ready to review
 
-### GH115 · Finish multilingual documentation and close the feature
-
-**Review · Unrated · Docs · tsiger**
-
-Multilingual websites work and both real-project walkthroughs passed. Some broader documentation may still lag.
-
-**Next:** Reconcile the remaining documentation before closing the feature locally, starting with the [multilingual rules](domain/multilingual.md) and [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
-
 ### GH122 · Review automatic search-engine information
 
 **Review · Unrated · OSS · tsiger**

@@ -367,6 +367,16 @@ The project form showed the storage folder name, a technical detail most users d
 
 **Body at:** `06b7a29a:docs-llms/TODO-agents.md`.
 
+### GH115 · Finish multilingual documentation and close the feature
+
+**Done · Unrated · Docs · 2026-10-14**
+
+Multilingual sites were built and both real-project walkthroughs had passed; the remaining work was bringing the documentation in line with the code.
+
+**Resolution:** The docs-llms pass reconciled the multilingual rules, theme language switcher, architecture and package maps and the domain model with the code, and the user test checklist gained a Multilingual section (LANG-001 to LANG-042). Small leftovers found on the way (untranslated built-in text, a collection prefix that could match a language code) were reviewed and not logged by the owner's decision. Closed by the owner 2026-10-14. Docs `202e9dfa`. [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
+
+**Body at:** `7609a703:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.
