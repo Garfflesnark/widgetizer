@@ -132,16 +132,6 @@ Issue is title-only. Establish whether editing inactive projects should change a
 
 **Start:** [projects](../app/src/components/projects). **Source:** GitHub #138. [GitHub #138](https://github.com/tsiger/widgetizer/issues/138)
 
-### GH139 · Decide whether to hide the project folder name
-
-**Decision needed · Unrated · OSS · Unassigned**
-
-Distinguish display name from storage folder. Preserve existing project paths and rename rules; do not migrate folders merely to hide a field.
-
-**Done when:** Agreed form design is clear and existing projects remain accessible.
-
-**Start:** [projects](../app/src/components/projects). **Source:** GitHub #139. [GitHub #139](https://github.com/tsiger/widgetizer/issues/139)
-
 ### MEDIA-BLANK-ALT · Decide whether translated media text can be deliberately blank
 
 **Decision needed · Low · Shared**

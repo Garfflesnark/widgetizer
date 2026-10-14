@@ -357,6 +357,16 @@ The issue had a title and no body. It was about the `theme:sync` developer scrip
 
 **Body at:** `89b55d2a:docs-llms/TODO-agents.md`.
 
+### GH139 · Decide whether to hide the project folder name
+
+**Done · Unrated · OSS · 2026-10-14**
+
+The project form showed the storage folder name, a technical detail most users do not need.
+
+**Resolution:** Hidden behind a `SHOW_FOLDER_NAME` flag in `ProjectForm.jsx`, kept so it can come back. New projects still get a folder slugged from the name, and editing sends the saved folder unchanged, so no folders move. Closed by the owner 2026-10-14. Fix `06b7a29a`. [GitHub #139](https://github.com/tsiger/widgetizer/issues/139)
+
+**Body at:** `06b7a29a:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

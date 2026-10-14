@@ -107,14 +107,6 @@ You may want to edit a project’s details without opening it first.
 
 **Next:** Choose the interaction and which fields it should offer. [GitHub #138](https://github.com/tsiger/widgetizer/issues/138)
 
-### GH139 · Decide whether to hide the project folder name
-
-**Decision needed · Unrated · OSS · Unassigned**
-
-The folder-name field may expose a technical detail users do not need.
-
-**Next:** Decide whether to hide it, explain it or make it advanced. [GitHub #139](https://github.com/tsiger/widgetizer/issues/139)
-
 ### MEDIA-BLANK-ALT · Decide whether translated media text can be deliberately blank
 
 **Decision needed · Low · Shared**
