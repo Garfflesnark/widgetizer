@@ -1,6 +1,7 @@
 import { apiFetch, apiFetchJson, rethrowQueryError, throwApiError } from "../lib/apiFetch";
 import { uploadFormData } from "../lib/uploadRequest";
 import { announceActiveProjectChange } from "../lib/activeProjectChannel.js";
+import { invalidateThemeLocale } from "../hooks/useThemeLocale";
 
 // ---------------------------------------------------------------------------
 // Lightweight cache for getAllProjects() — single entry, not project-keyed.
@@ -355,6 +356,7 @@ export async function applyThemeUpdate(projectId) {
     }, { fallbackMessage: "Failed to apply theme update" });
     // Theme updates change project metadata (themeVersion), so invalidate the list
     invalidateProjectsListCache();
+    if (result?.success) invalidateThemeLocale(projectId);
     return result;
   } catch (error) {
     rethrowQueryError(error, "Failed to apply theme update");

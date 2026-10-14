@@ -426,6 +426,7 @@ The pure resolver `resolveThemeKey(str, locale)` is exported separately so it ca
 - 5-minute staleness window before re-fetching.
 - **Stale-while-revalidate**: when the cache expires, stale data keeps being served while the re-fetch runs in the background, preventing a flash of raw keys between expiry and fetch completion.
 - Single in-flight promise (tracked at module level) deduplicates concurrent fetches across instances.
+- **Refresh after a theme update**: `invalidateThemeLocale(projectId)` marks every language of that project stale and refetches wherever the hook is mounted, keeping the old labels until the new ones arrive; a per-project generation stops a fetch begun earlier from storing its older answer, and a failed reply never replaces cached labels. `projectManager.applyThemeUpdate` calls it after a successful update; an embedding app that applies updates through its own request should call it too.
 - **Developer-mode invalidation**: on first use the hook reads `/api/settings` once; if `developer.enabled` is true the cache is always treated as stale (`isStale()` returns true), so theme/locale edits show up without waiting out the TTL.
 - Backend endpoint: `GET /api/themes/project/:projectId/locales/:lang` (served by `themeController.js`).
 - Locale source: the project's copied `data/projects/<folder>/locales/`, merged server-side over the core widget locales in `packages/core/src/widgets/locales/` (the `themeController.js` `loadMergedLocale` / `CORE_WIDGET_LOCALES_DIR` path); requests for a missing language fall back to English.
