@@ -15,6 +15,8 @@ import SiteIdentityFields from "./SiteIdentityFields.jsx";
 import LanguagesSection from "./LanguagesSection.jsx";
 import { identityToForm, formToIdentity, isBusinessIdentityError } from "./siteIdentityForm.js";
 
+const SHOW_FOLDER_NAME = false;
+
 const READINESS_TARGETS = {
   siteUrl: { tab: "site", fieldId: "siteUrl" },
   name: { tab: "identity", fieldId: "identity-publicName" },
@@ -592,7 +594,7 @@ export default function ProjectForm({
         )}
 
         <div className="max-w-xl space-y-4">
-          {folderNameField()}
+          {SHOW_FOLDER_NAME && folderNameField()}
           {notesField()}
           {checkboxField(
             "receiveThemeUpdates",
