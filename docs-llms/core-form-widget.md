@@ -164,10 +164,10 @@ Defined in `schema.json`. Labels are `tTheme:` i18n keys resolved from
 | `form_name` | Text ≤ 200 chars (default "Contact") | Display name in the dashboard; source of the derived form identifier. Use a unique name per form on a site. |
 | `submit_label` | Text; English fallback "Send message" | Localized runtime default; an explicit edit is stored. |
 | `required_note` | Text; English fallback "Required fields" | Localized note above required fields. Clearing it removes the entire line, including its asterisk. |
-| `eyebrow` | Any text (default "Contact") | Small label above the headline; omit to hide. |
+| `eyebrow` | Text; English fallback "Contact" | Small label above the headline. Localized runtime default; clearing it hides the label. |
 | `eyebrow_uppercase` | `true` / `false` | Uppercases the eyebrow. |
-| `title` | Any text (default "Get in touch") | Section heading. Renders `<h1>` when first widget on the page, `<h2>` otherwise. |
-| `description` | Any text | Subtitle paragraph below the headline. |
+| `title` | Text; English fallback "Get in touch" | Section heading, localized runtime default. Renders `<h1>` when first widget on the page, `<h2>` otherwise. |
+| `description` | Text; localized runtime default | Subtitle paragraph below the headline. |
 | `heading_alignment` | `start`, `center` (default) | Aligns the eyebrow / title / description group. |
 | `style` | `outlined` (default), `underlined` | Outlined = full-bordered rounded inputs; underlined = single bottom border, editorial. |
 | `sidebar_position` | `end` (default), `start` | Which side the info/social sidebar sits on. |
@@ -190,10 +190,14 @@ names its own word through `defaultKeys`, so the three arrive in the language of
 the page being edited. They are then authored starting values like any other —
 a field's label is its submitted name, so the form cannot hold an unresolved
 suggestion there.
-The required-fields note, the submit label and the select placeholder are
+The required-fields note, the submit label, the eyebrow, title and description, and
+the blocks' select placeholder and info title are
 settings whose default comes from the built-in dictionary (`defaultKey`), so
 their unresolved defaults read in the page's language and are not written
-into content when adding a form. An owner's explicit edits are stored. The form's `form_name` is deliberately **not** localized: it is
+into content when adding a form. An owner's explicit edits are stored. A new
+`choice` block's label and options and a new `consent` block's label also arrive in
+the page's language, but are stored (they carry a literal `default` beside their
+`defaultKey`). The form's `form_name` is deliberately **not** localized: it is
 not visitor-facing text; it supplies the form key and the manifest's display name.
 
 ---

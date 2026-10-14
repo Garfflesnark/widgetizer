@@ -18,12 +18,12 @@ Changes to a normal widget belong to the current page version. Changes to the sh
 | --- | --- |
 | Save | Keeps the current page-editor changes, including changed shared sections and theme settings involved in that edit. |
 | Autosave | Attempts to keep pending page-editor changes after roughly a minute without a new edit; failures can delay retries. |
-| Undo | Moves back through supported editor changes. |
+| Undo | Moves back through supported editor changes, including ones already saved. Quick successive edits to one value count as one step. |
 | Redo | Reapplies a change you just undid. |
 | Open separate preview | Shows saved work, so save first to include the latest edits. |
 | Export | Builds website files from saved work; it is a separate operation. |
 
-Undo and redo also produce changes that need saving if you want the restored result to become the saved version. They are not recovery tools for every action elsewhere in the app, such as project deletion.
+Saving does not clear the undo history: undoing past a save makes the page unsaved again, and Save or autosave keeps the restored result. Opening another page starts a fresh history. Undo and redo are not recovery tools for every action elsewhere in the app, such as project deletion.
 
 If you continue typing while a save is underway, those newer edits still need to be kept by a subsequent save. A page can show current text in its editor while the saved version is a little older.
 
@@ -73,7 +73,9 @@ These are in-memory changes until the corresponding save succeeds. A block or wi
 3. Capture the session generation and content snapshots; verify loaded and active project identity.
 4. Save dirty header/footer and page content concurrently, carrying the page language for globals.
 5. After those guarded writes succeed, save shared theme settings through the canonical theme store.
-6. Invalidate media cache and rebaseline against the content sent, leaving newer edits detectable as dirty. A reset suppresses ordinary old-session write-back. If a theme save finishes after discard, reread the server and reconcile the theme baseline/draft and undo snapshots only within the guarded project/load context; preserve a newer draft.
+6. Invalidate media cache and rebaseline against the content sent, leaving newer edits detectable as dirty. A reset suppresses ordinary old-session write-back. If a theme save finishes after discard, take the saved values as the baseline and keep only edits made after the discard on top, within the guarded project/load context.
+
+**Undo history** holds up to 150 steps of page, header/footer and theme-settings snapshots and survives a successful save; undoing past one makes the page dirty again through the normal value comparison. Edits to the same single value within 500 ms, with no undo/redo in between, merge into one step. Loading a page clears the history. When the theme store takes the server's copy, history entries are rewritten to its corrected values, and a different theme version clears the history.
 
 Autosave uses a 60-second base delay and increases delay after failures, capped at ten minutes. Manual ordinary failures reject; autosave failures return a failure result and can retry. A project mismatch marks the workspace stale and stops autosave. A reset increments the generation so an older response cannot overwrite the new session's baselines.
 

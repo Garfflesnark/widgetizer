@@ -60,7 +60,7 @@ All single-document operations resolve the requested language, defaulting to the
 | --- | --- | --- |
 | Create | New UUID/group; unique slug; starts with empty widgets | Store version-specific SEO and initialize usage |
 | Read/list | Read page JSON and expose language | Missing single page is 404; globals are not ordinary pages |
-| Edit details | Preserve UUID, creation date, group; sanitize SEO; optional rename | Preserve widgets when omitted; validate slug conflict; reject direct self-parent |
+| Edit details | Preserve UUID, creation date, group; sanitize SEO; optional rename | Preserve widgets when omitted; validate slug conflict; a self-referencing parent is dropped and the save succeeds |
 | Save editor content | Persist widget map/order/settings and page metadata | Enforce widget count and pagination; update usage; may move another page's listing anchor |
 | Rename | Write new filename, preserve stable identity, then remove old file | UUID-backed links follow current slug; old-file removal is best effort |
 | Duplicate | New UUID/group and unique copy name/slug; copy content | Clear listing/pagination flags; retain referenced shared media and add usage |
@@ -70,7 +70,9 @@ All single-document operations resolve the requested language, defaulting to the
 
 Metadata update and editor-content save remain distinct handlers. The reviewed create/duplicate/version paths mint fresh identities; updates preserve them. Create and duplicate start independent translation groups, while versions join the source group. Derived creation slugs are made unique; explicitly typed invalid or conflicting rename/save slugs are refused. A duplicate clears listing roles because it competes in the same language; a version keeps them for its own language.
 
-Implementation: [pageController](../../../packages/builder-server/src/controllers/pageController.js), [linkEnrichment](../../../packages/builder-server/src/utils/linkEnrichment.js). Tests: [pages](../../../packages/builder-server/src/tests/pages.test.js), [paginationExport](../../../packages/builder-server/src/tests/paginationExport.test.js).
+**Slugs are claimed inside the content-write section.** A new page that finds its picked slug taken meanwhile moves on to a free one (the response names the slug written); a rename, or a save whose file is gone, is refused (`SLUG_TAKEN`, `RESERVED_SLUG`, `SECOND_HOMEPAGE`); a save keeps its own file only when the stored UUID matches. Two concurrent writes therefore cannot both take one slug or both become a language's homepage. Page and menu slugs and theme ids from a request must be a single path segment (collection slugs keep the strict `[a-z0-9-]` rule), so an encoded `../` cannot reach outside its folder ([slugValidators](../../../packages/builder-server/src/middleware/slugValidators.js)).
+
+Implementation: [pageController](../../../packages/builder-server/src/controllers/pageController.js), [linkEnrichment](../../../packages/builder-server/src/utils/linkEnrichment.js). Tests: [pages](../../../packages/builder-server/src/tests/pages.test.js), [requestSlugs](../../../packages/builder-server/src/tests/requestSlugs.test.js), [paginationExport](../../../packages/builder-server/src/tests/paginationExport.test.js).
 
 ## Menus
 
@@ -136,7 +138,7 @@ A collection folder that cannot be listed is reported the same way. Skipping it 
 
 Nothing repairs this automatically. The remaining references render as dead destinations and are fixed by editing the content that holds them; automatic repair is not part of this behaviour.
 
-Implementation: [linkEnrichment](../../../packages/builder-server/src/utils/linkEnrichment.js). Tests: [deletedReferenceCleanup](../../../packages/builder-server/src/tests/deletedReferenceCleanup.test.js).
+Implementation: [linkEnrichment](../../../packages/builder-server/src/utils/linkEnrichment.js). Tests: [deletedReferenceCleanup](../../../packages/builder-server/src/tests/deletedReferenceCleanup.test.js); the parent moves are in [pages](../../../packages/builder-server/src/tests/pages.test.js).
 
 ## Count limits
 

@@ -586,6 +586,10 @@ These are part of the preset's identity:
 
 Do not treat them as defaults. They help separate presets even before content loads.
 
+### 8.4 Sample social links
+
+Every preset also sets the six sample social links (`facebook_url`, `instagram_url`, `twitter_url`, `linkedin_url`, `youtube_url`, `tiktok_url`) to `"#"`, so the footer of a new project shows icons rather than the "add your social profiles" hint. See [theme-preset-file-format.md](theme-preset-file-format.md) §2.
+
 ---
 
 ## 9. Color Scheme Composition

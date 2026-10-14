@@ -65,12 +65,8 @@ const openDeleteConfirmation = (itemId, itemName) => {
 
 #### Used In
 
-- Media file deletion (`useMediaSelection`)
-- Page deletion and bulk operations (`Pages.jsx`)
-- Project deletion (`Projects.jsx`)
-- Menu deletion (`Menus.jsx`)
-- Export deletion (`ExportHistoryTable.jsx`)
-- Widget deletion (`PageEditor.jsx`)
+- Media file deletion (`useMediaSelection`, which snapshots the file ids into the modal `data` so the set deleted is exactly the set confirmed)
+- `useConfirmationAction` (below), which every other destructive list surface goes through
 
 ### `useConfirmationAction` (`packages/editor-ui/src/hooks/useConfirmationAction.js`)
 
@@ -88,6 +84,10 @@ Thin wrapper around `useConfirmationModal` that removes the repeated modal-wirin
 - `confirmationModal` (React element): A ready-to-render `<ConfirmationModal />` already wired to the hook's state.
 
 Pages still own their mutation logic and localized copy; this hook only eliminates the `modalState`/`openModal`/`closeModal`/`handleConfirm` plumbing and the manual `<ConfirmationModal />` props.
+
+Used in `Pages.jsx`, `CollectionItems.jsx`, `CollectionItemForm.jsx`, `Menus.jsx`, `ExportHistoryTable.jsx`, and the OSS shell's `Projects.jsx` and `Themes.jsx`.
+
+`ConfirmationModal` itself (shared by all three confirmation APIs) owns the keyboard while open: a capture-phase `document` listener swallows every key except Escape (cancel), Tab (trapped inside the dialog), Enter and Space, so page-editor shortcuts, Escape-listening drawers and a browser Ctrl/Cmd+S cannot act behind it. With two dialogs open only the newest answers keys. Focus moves to Cancel on open and returns on close to `returnFocusTo` or the previously focused element, skipping a target that has left the DOM. A window-capture keydown listener would fire before this guard, so none may be registered (a repo test, `noCaptureKeydown`, enforces it).
 
 ### `useConfirm` (`packages/editor-ui/src/components/ui/ConfirmProvider.jsx`)
 
@@ -136,14 +136,14 @@ function PageEditor() {
 
 - Integrates with `saveStore` to check for unsaved changes
 - Uses React Router's `useBlocker` to intercept navigation
-- Awaits the app-level `useConfirm()` dialog when blocking navigation
+- Awaits the app-level `useConfirm()` dialog when blocking navigation; on confirm it calls `saveStore.reset()` (which also discards the theme draft) and proceeds
+- Blocks a change of pathname **or** search, so switching pages in the editor (`?pageId=`) or changing `?language=` is guarded too
+- Unmounting mid-prompt (a project switch tearing down the editor) cancels the open dialog
 - Uses the `beforeunload` event for browser navigation protection
 
 #### Integration Points
 
-- **Page Editor**: Primary use case for protecting page editing workflows
-- **Layout Component**: Integrates with sidebar navigation when on editor routes
-- **Editor Top Bar**: Used for page switching within the editor
+Called only from `PageEditor.jsx`; because `useBlocker` intercepts every router navigation, that one call also covers the sidebar and the top bar's page switcher and language menu.
 
 This hook is purpose-built for the page editor's `saveStore`. Form pages (Projects, Pages, Menus, Settings) use the form-state variant below instead.
 
@@ -224,6 +224,14 @@ The language tab of a content list (pages, collection items, menus), kept in the
 - A code the site does not have (a removed language, a hand-typed URL) is dropped from the URL. A fallback tab is written into it. Both replace the history entry, as does choosing a tab, so back leaves the list rather than stepping through its tabs.
 - A single-language site ignores the parameter.
 
+### `useTranslationVersions` (`packages/editor-ui/src/hooks/useTranslationVersions.js`)
+
+Groups a list holding every language's pages or items into translation groups (by `translationGroupIdOf`) and creates a missing version. Takes `{ entries, defaultLanguage, createVersion, onCreated, keys? }` and returns `{ siblingsOf(entry), createIn(entry, targetLanguage), pendingKey }`: `siblingsOf` maps language → entry for the entry's group, `createIn` calls `createVersion`, toasts success or the error, then calls `onCreated` (usually a navigation), and `pendingKey` (`<id>:<language>`) marks the creation in progress. A created version is patched into the groups until `entries` itself carries it, so a navigation cancelled by a guard cannot offer the same version again. Feeds `LanguageMenu` in the page editor's top bar and the collection item form.
+
+### `useStaleActiveProjectDetection` (`packages/editor-ui/src/hooks/useStaleActiveProjectDetection.js`)
+
+OSS single-tenant only, mounted by the shell in the editor scope. On every focus/visibility regain it asks the server for the active project and sets or clears the "project" warning in `staleProjectStore` (rendered by `StaleProjectCurtain`), so re-activating this project elsewhere and returning dismisses the curtain. No polling. A removed-language warning (raised by `saveStore`, shown by `StaleLanguageBanner`) is left alone by the probe, and comes back when a project warning covering it clears. `isActiveProjectStale` is exported for tests.
+
 ## Selection & Shortcut Hooks
 
 ### `usePageSelection` (`packages/editor-ui/src/hooks/usePageSelection.js`)
@@ -241,6 +249,8 @@ Provides selection state management for list interfaces that support bulk operat
 - `selectedPages` (array): Currently selected page IDs
 - `togglePageSelection(pageId)` (function): Toggles selection state for a specific page
 - `selectAllPages(pageIds)` (function): Selects all pages from the provided ID array
+- `deselectPage(pageId)` (function): Removes one id if present, never adds. Called after a row-menu delete so a deleted page cannot linger in the selection
+- `deselectPages(pageIds)` (function): Removes the given ids. A bulk delete prunes only the ids it submitted, so rows selected while the request ran stay selected
 - `clearSelection()` (function): Clears all selected pages
 - `isAllSelected(pages)` (function): Returns true if all provided pages are selected
 
@@ -248,6 +258,8 @@ Provides selection state management for list interfaces that support bulk operat
 
 - **Pages Interface**: Used in `Pages.jsx` for bulk page operations
 - **Bulk Operations**: Powers bulk deletion and other multi-page actions
+
+`CollectionItems.jsx` keeps its own slug selection with the same pruning rules (functional filters over the deleted slugs).
 
 ### `useDeleteKeyShortcut` (`packages/editor-ui/src/hooks/useDeleteKeyShortcut.js`)
 
@@ -296,9 +308,9 @@ Used in `PageForm.jsx` and `CollectionItemForm.jsx`.
 The media library is built from four cooperating hooks. They are documented in full in [Media Library](core-media.md); the one-line roles:
 
 - `useMediaState` (`packages/editor-ui/src/hooks/useMediaState.js`) — core state, data loading, view-mode persistence, and search filtering for the media library.
-- `useMediaUpload` (`packages/editor-ui/src/hooks/useMediaUpload.js`) — file upload operations with per-file XHR progress and toast feedback.
+- `useMediaUpload` (`packages/editor-ui/src/hooks/useMediaUpload.js`) — file upload operations with per-file XHR progress and toast feedback; uploaded files go to the top of the list (and the shared media cache), matching the library's newest-first order.
 - `useMediaSelection` (`packages/editor-ui/src/hooks/useMediaSelection.js`) — file selection and deletion workflows, with usage-protection validation via `useConfirmationModal`.
-- `useMediaMetadata` (`packages/editor-ui/src/hooks/useMediaMetadata.js`) — metadata-edit drawer state and saving (alt text, title) plus image viewing.
+- `useMediaMetadata` (`packages/editor-ui/src/hooks/useMediaMetadata.js`) — metadata-edit drawer state and saving (alt text, title, caption; these three are per language, sent with `?language=`) plus image viewing.
 
 See [Media Library](core-media.md) for the full architecture, API, and usage-protection rules.
 
@@ -361,17 +373,17 @@ Only the newest load updates `items`, `loading` and `error`: a load still runnin
 
 ### `useLinkTargets` (`packages/editor-ui/src/hooks/useLinkTargets.js`)
 
-Loads the link-target options for the active project — all pages plus the items of every `hasItemPages` collection — as a flat, grouped option list the shared `<Combobox>` renders (a "Pages" group plus one group per collection).
+Loads the link-target options for the active project — all pages plus the items of every `hasItemPages` collection, in **every** language of the site — as a flat, grouped option list the shared `<Combobox>` renders (per language, a "Pages" group then one group per collection, each A–Z). Every option carries its `language`, which the picker uses for its language filter and badges.
 
 #### Purpose
 
-Powers the link picker in `LinkInput.jsx` and the menu editor (`MenuEditor`). Each option carries a stable `value` that is a **uuid**, so a stored link reference survives renames; the rendered `href` is re-derived at render time from the uuid, so a briefly-stale picker label can never produce a wrong link. Collection-item options additionally carry `collectionType`, `slugPrefix`, and `slug`.
+Powers the link picker in `LinkInput.jsx`, the richtext internal-link picker (`RichTextInput.jsx`) and the menu editor (`MenuEditor`). Each option carries a stable `value` that is a **uuid**, so a stored link reference survives renames; the rendered `href` is re-derived at render time from the uuid, so a briefly-stale picker label can never produce a wrong link. Collection-item options additionally carry `collectionType`, `slugPrefix`, and `slug`.
 
 #### API Reference
 
 **Returns:**
 
-- `options` (array): Grouped option objects. Page options have `{ value: uuid, label, slug, isPage, group: "Pages" }`; collection-item options have `{ value: uuid, label, isCollectionItem, collectionType, slugPrefix, slug, group }`.
+- `options` (array): Grouped option objects. Page options have `{ value: uuid, label, slug, isPage, group: "Pages", language }`; collection-item options have `{ value: uuid, label, isCollectionItem, collectionType, slugPrefix, slug, group, language }`.
 - `loading` (boolean): True while the first load is in flight.
 
 **Named export:**
@@ -380,7 +392,7 @@ Powers the link picker in `LinkInput.jsx` and the menu editor (`MenuEditor`). Ea
 
 #### Caching
 
-- Per-project module-level cache (1-minute TTL) shared across all `LinkInput` instances, so the many link inputs a page can host don't each refetch.
+- Module-level cache (1-minute TTL) keyed by project **and** its language list (adding, removing or reordering languages changes the answer under the same project id), shared across all pickers, so the many link inputs a page can host don't each refetch.
 - Single in-flight promise per project deduplicates concurrent loads.
 - A load that was in flight when the cache was invalidated still answers the picker that started it, but doesn't refill the cache, so the next picker loads afresh.
 
@@ -388,7 +400,7 @@ Powers the link picker in `LinkInput.jsx` and the menu editor (`MenuEditor`). Ea
 
 - `LinkInput.jsx` (settings link picker)
 - `MenuEditor/index.jsx` (menu link picker)
-- Cache invalidated from `CollectionItemAdd.jsx`, `CollectionItemEdit.jsx`, and `CollectionItems.jsx` after item writes.
+- Cache invalidated from `PagesAdd.jsx`, `PagesEdit.jsx`, `Pages.jsx`, `CollectionItemAdd.jsx`, `CollectionItemEdit.jsx`, and `CollectionItems.jsx` after writes.
 
 ## Theme Locale Hook
 
@@ -420,7 +432,7 @@ The pure resolver `resolveThemeKey(str, locale)` is exported separately so it ca
 
 #### Used In
 
-~10 editor components including `SettingsPanel`, `ThemeSelector`, `PreviewPanel`, `BlockList`, `WidgetList`, `WidgetSelector`, `BlockSelector`, `WidgetItem`, `BlockItem`, and `EditorTopBar`.
+About a dozen components, including the page editor's `SettingsPanel`, `ThemeSelector`, `ThemeSettingsSection`, `PreviewPanel`, `WidgetSelector`, `BlockSelector`, `WidgetItem`, `FixedWidgetItem` and `BlockItem`, plus `SettingsRenderer`, the Theme Settings `SettingsPanel` and `CollectionItemForm`.
 
 ---
 

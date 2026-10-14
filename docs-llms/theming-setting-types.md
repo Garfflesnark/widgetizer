@@ -10,6 +10,7 @@ All setting types share the following common properties:
 - `label` (string, required): Usually a `tTheme:` prefixed key that references a translation in the theme's locale files (e.g., `"tTheme:carousel.settings.title.label"`). The frontend resolves `tTheme:` values to human-readable strings at runtime. Direct strings like `"Title"` also work for small one-off themes, but `tTheme:` remains the recommended authoring convention.
 - `description` (string, optional): Usually a `tTheme:` prefixed key for help text displayed below the input (e.g., `"tTheme:carousel.settings.title.description"`). Direct strings are also supported.
 - `default` (any, optional): The default value for the setting if none is provided.
+- `defaultKey` (string, optional, widget and block settings): Names a visitor-facing site string (`"site.news_grid.empty"`) whose wording, in the language of the page being rendered, is the starting value until the owner types one. Beside a literal `default`, the resolved word is instead written into the widget when it is added. A `defaultBlocks` entry names its words through a `defaultKeys` map (`{ "label": "site.core_form.name_field" }`). See [Visitor-facing text](theming.md#visitor-facing-text).
 - `outputAsCssVar` (boolean, optional): For a **global theme setting**, `true` makes `{% theme_settings %}` output its value as a CSS custom property. This flag does not automatically generate variables for widget/block settings; render those explicitly in the widget's scoped styling.
 
 ---
@@ -367,13 +368,15 @@ A specialized input with two dropdowns for selecting a font family and its corre
 }
 ```
 
-**Privacy Option**: When users select Google Fonts, they can optionally enable the "Use Privacy-Friendly Font CDN" setting (checkbox type, `use_bunny_fonts`) to serve fonts via Bunny Fonts instead of Google Fonts CDN. This provides GDPR compliance without tracking or data sharing with Google, while maintaining the same font selection and appearance.
+The family list is the shared catalogue in `packages/core/src/config/fonts.json` — system stacks plus about 210 Google Fonts (including Instrument Sans and STIX Two Text), each with its available weights. `{% fonts %}` loads a Google font only for a `font_picker` in the global `typography` group whose `stack` matches a catalogue entry's stack string exactly, so presets and defaults must copy the stack verbatim; a picker in another group, or an unknown stack, gets its CSS variables but no stylesheet.
+
+**Privacy Option**: When users select Google Fonts, they can optionally enable the "Use Privacy-Friendly Font CDN" setting (checkbox type, `use_bunny_fonts`) to serve fonts via Bunny Fonts instead of Google Fonts CDN. This provides GDPR compliance without tracking or data sharing with Google, while maintaining the same font selection and appearance. `{% fonts %}` finds the checkbox by its id in whichever global settings group holds it, and honours its schema `default` until the project saves a value, so a theme can ship it switched on.
 
 **Smart Bold Loading**: For `body_font` font pickers, when the selected weight is 400 (normal), the system automatically loads an appropriate bold weight (700, or 600, or 500 if 700 is unavailable) to prevent browser faux-bold rendering. This ensures `<strong>`, `<b>`, and bold UI elements render with proper typography. For other selected weights (500, 600, 700, etc.), only the selected weight is loaded. The auto-loaded bold weight is available via the `--typography-body_font_bold-weight` CSS variable.
 
 ### Icon
 
-An icon picker that renders a searchable grid of icons fetched from the project's `assets/icons.json`. The value is the icon name/identifier.
+An icon picker that renders a searchable grid of icons fetched from the project's `assets/icons.json`. The value is the icon name/identifier. `icons.json` is optional: a theme without it renders normally (the icon set is just empty) and logs no warning.
 
 **Additional Properties:**
 
@@ -747,7 +750,7 @@ Render with the `format_date` filter, which honours the theme's **Date format** 
 {{ item.settings.published_on | format_date: 'D MMM YYYY' }}
 ```
 
-Supported format tokens: `MMMM D, YYYY`, `D MMMM YYYY`, `MMM D, YYYY`, `D MMM YYYY`, `MM/DD/YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`. A blank or unrecognised value formats to `""`.
+Month names follow the page language; the format itself does not change. Supported format tokens: `MMMM D, YYYY`, `D MMMM YYYY`, `MMM D, YYYY`, `D MMM YYYY`, `MM/DD/YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`. A blank or unrecognised value formats to `""`.
 
 ### Gallery
 

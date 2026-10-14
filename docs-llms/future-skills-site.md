@@ -29,7 +29,7 @@ A theme is plain files. A site project is files **plus rows in the SQLite databa
 Two more catches:
 
 - **The open editor wins.** The editor keeps the loaded page in memory and saves the whole page back (autosave after 60 s). An agent's edit to a page that is open in the editor gets overwritten. The user should close the page, or the app, while the agent works.
-- **No validator.** Nothing checks page JSON against widget schemas. Bad values are silently cleaned at render time instead of reported. The agent has to read each widget's `schema.json` and get it right.
+- **No validator for project content.** `npm run validate:theme` (`scripts/validate-theme.js`) checks a theme's templates and preset pages against widget schemas, but nothing checks a project's saved page JSON. Bad values there are silently cleaned at render time instead of reported. The agent has to read each widget's `schema.json` and get it right.
 
 ---
 
@@ -82,7 +82,7 @@ Not decided yet.
 
 ### What already exists
 
-- `POST /api/projects` with `{ name, theme, preset }` (optional: `description`, `siteUrl`, `receiveThemeUpdates`, languages, site identity). This is the same endpoint the app's "New project" button uses; see `routes/projects.js` and `createProject` in `projectController.js`.
+- `POST /api/projects` with `{ name, theme, preset }` (optional: `description`, `siteUrl`, `receiveThemeUpdates`, `defaultLanguage`, site identity). Create refuses additional languages; add each one afterwards with `POST /api/languages`. This is the same endpoint the app's "New project" button uses; see `routes/projects.js` and `createProject` in `projectController.js`.
 - The new project only becomes active automatically if no project is active. Otherwise the agent must switch it with `PUT /api/projects/active/:id`, because every content write goes to the **active** project.
 
 ### Proposed app change: `server.json`
@@ -120,10 +120,9 @@ This changes how the local scope resolver (`LocalScopeResolver`) picks the proje
 ## 5. Facts the skill must encode
 
 - **Page shape** (check a real file, e.g. any preset page):
-  - Top level: `name`, `slug`, `uuid`, `created`, `updated`, `widgetsOrder[]`, `widgets{}`, optional `seo` and `parentPageUuid`.
+  - Top level: `name`, `slug`, `uuid`, `created`, `updated`, `widgetsOrder[]`, `widgets{}`, optional `seo`, `parentPageUuid` and `translationGroupId` (relates a page to its versions in other languages).
   - Each widget: `{ type, settings, blocks{}, blocksOrder[] }`.
   - The agent must create a new `uuid` for new pages; menus and links point to pages by `pageUuid`.
-  - Note: `core-pages.md`'s example (`widgets.main[]`) is outdated.
 - **Menus:** `{ id, uuid, name, items[{ label, link, pageUuid, items }] }`. Widget `menu` settings reference a menu by `uuid`.
 - **Images** in settings are path strings (`"/uploads/images/x.jpg"`); galleries are arrays of them.
 - **Languages:** another language's content lives in its own folder (`pages/el/`, `menus/el/`, `collections/<type>/el/`).
@@ -145,5 +144,5 @@ This changes how the local scope resolver (`LocalScopeResolver`) picks the proje
 2. Accept the active-project switch (with the notice), or build "target a project without activating it" first (§4)?
 3. Should the agent also choose theme settings (colors, fonts), or only content?
 4. Images: does the user supply photos, or does the agent use preset media / generated images?
-5. Is a validation script (page JSON vs widget schemas) worth building first? It would help this skill, the MCP server and preset authoring alike.
+5. Is a validation script for project page JSON worth building first? The theme validator already covers theme templates and preset pages; extending it to a project's saved content would help this skill and the MCP server.
 6. One skill that does the whole flow, or small ones: "plan a site", "write a page", "add a collection item"?

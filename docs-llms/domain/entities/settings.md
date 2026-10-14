@@ -52,7 +52,7 @@ The canonical [setting-type list](../../../packages/core/src/config/settingTypes
 | --- | --- | --- |
 | Text/content | `text`, `textarea`, `richtext`, `code` | Richtext can embed media and stable links; code has a different trust/output contract |
 | Primitive/design | `number`, `date`, `color`, `range`, `select`, `checkbox`, `radio`, `font_picker` | Validation/defaults vary by owner and type |
-| Media | `image`, `gallery`, `file`, `youtube`, `icon` | Uploaded media is referenced, not owned; external video/icon values are not uploaded media records |
+| Media | `image`, `gallery`, `file`, `video`, `youtube`, `icon` | Uploaded media is referenced, not owned; external video/icon values are not uploaded media records |
 | Navigation | `link`, `menu` | Stable target IDs plus fallback/display data where supported |
 | Structured content | `table` | Rows/cells live inside the setting, not as collection items |
 | Presentation | `header` | Schema/editor grouping, not a content entity |

@@ -86,7 +86,7 @@ Read the attribute through `dataset` and put it into `textContent` or an appropr
 
 Use `page.language` and `page.dir` on the document. `format_date` preserves the selected format while localizing date words. Image metadata can vary per language without duplicating the media library.
 
-`page.translations` contains the site's configured language entries: `language`, `hreflang`, `label`, `href`, `seoUrl`, `active`, `fallback`, `dir`. It is empty for a single-language site. A fallback link points at that language's homepage when a translated counterpart is unavailable. Use the supplied `href`; do not construct a path by replacing a language segment.
+`page.translations` contains one entry for the default language and one for each additional language that has a homepage: `language`, `hreflang`, `label`, `href`, `seoUrl`, `active`, `fallback`, `noindex`, `dir`. It is empty for a single-language site. A fallback link points at that language's homepage when a translated counterpart is unavailable. Use the supplied `href`; do not construct a path by replacing a language segment.
 
 ```liquid
 {% if page.translations.size > 1 %}

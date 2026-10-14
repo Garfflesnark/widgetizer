@@ -24,7 +24,7 @@ Website details are shared across its languages. Individual page text, menus and
 | --- | --- |
 | Create | Starts a website from a theme and optional preset, with one default language. |
 | Open or switch | Makes it the website you are currently working on. |
-| Edit details | Changes project or shared website information; changing the website address does not purchase or configure a domain. |
+| Edit details | Changes project or shared website information for the project you have open; changing the website address does not purchase or configure a domain. |
 | Duplicate | Makes an independent editable copy, including its languages and uploaded media. |
 | Back up | Downloads the editable project in an archive for later import. |
 | Import | Creates a new project from a compatible backup; it does not overwrite the existing project of the same name. |
@@ -49,7 +49,7 @@ A project is the ownership boundary for one website. It owns content in every si
 | Part | Meaning |
 | --- | --- |
 | `id` | Stable project UUID; database ownership and request scope |
-| `folderName` | Filesystem location, separate from display name and UUID; can be changed through project editing |
+| `folderName` | Filesystem location, separate from display name and UUID; the project form hides the field, but the update API still accepts `folderName` |
 | `name` | Human-facing project name |
 | SQLite project row | Theme/version/preset, site title/URL, Clean URLs, site identity, language configuration, timestamps, update preferences |
 | Project content directory | Pages, globals, menus, collection items, installed theme files, uploaded binaries |
@@ -59,11 +59,11 @@ A project is the ownership boundary for one website. It owns content in every si
 ## Relationships and rules
 
 - Pages, menu trees, globals, and collection items belong to this project. Their references must resolve inside its scope.
-- `siteIdentity` is shared project metadata, including business/person details and a media-backed logo reference. Its logo participates in media usage tracking.
+- `siteIdentity` is shared project metadata, including business/person details and a media-backed logo reference. Its logo participates in media usage tracking. Themes read it resolved as `project.identity` (`identityForTheme`), and it drives the site nodes of [structured data](../operations/output.md#structured-data-json-ld). Validation caps it at 15 known profile networks, 20 locations and 4 opening-hour ranges per day, with text limits such as 200 characters for the name and 500 for the description.
 - Theme settings and the media library are shared across languages.
 - The active project is an application-level selection pointing to a project, not another copy of its data.
 - A project duplication creates a new ownership boundary. Its content identities are remapped; import uses a different restoration path. See [the comparison](../operations/projects.md#duplicate-a-project).
-- Deletion removes the project row and related metadata, attempts export cleanup, reassigns the active project, and removes its directory. These span database and filesystem boundaries.
+- Deletion removes the project row and related metadata, attempts export cleanup, reassigns the active project, and removes its directory. These span database and filesystem boundaries; a directory that cannot be fully removed is reported as `folderLeftBehind` and its name is never reused.
 
 ## Evidence and review
 

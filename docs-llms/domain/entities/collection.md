@@ -52,7 +52,7 @@ Change a staff member's photograph in their saved entry. Places that display tha
 
 A collection type is a theme-provided schema, such as news or team members. It defines fields, title selection, ordering, and optionally a public item-page template and URL prefix. The type definition is shared across project languages; items are not.
 
-The type is identified by its folder name under `collection-types/`. A project author creates and edits items through the UI; collection-type authoring belongs to theme development. A collection may feed widgets without generating standalone item pages.
+The type is identified by its folder name under `collection-types/`. Schema validation refuses item-page `slugPrefix` `assets`; it does not check enabled language codes — that clash is refused when a language is added (see [languages](../operations/languages.md#add-a-language)). A project author creates and edits items through the UI; collection-type authoring belongs to theme development. A collection may feed widgets without generating standalone item pages.
 
 ## Collection item
 
@@ -68,7 +68,7 @@ An item owns schema-defined `settings`, timestamps, a stable UUID, a mutable slu
 
 ## Generated item page
 
-The output page is derived from the item and the collection's Liquid template, composed with the project's layout/globals. It is not a `pages/*.json` entity with separately editable widgets. Collection listing anchors and pagination connect ordinary pages to collection output; see [Page](page.md#listing-and-pagination).
+The output page is derived from the item and the collection's Liquid template, composed with the project's layout/globals. It is not a `pages/*.json` entity with separately editable widgets. Collection listing anchors and pagination connect ordinary pages to collection output; see [Page](page.md#listing-and-pagination). The listing anchor also decides the item page's [breadcrumb](page.md#breadcrumbs) parent.
 
 Implementation: [collectionService](../../../packages/builder-server/src/services/collectionService.js), [collectionController](../../../packages/builder-server/src/controllers/collectionController.js), [collection routes](../../../packages/builder-server/src/routes/collections.js).
 

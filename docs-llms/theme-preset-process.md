@@ -179,7 +179,11 @@ npm run preset:sync -- --project <folder> --preset <preset-id> [--theme arch]  #
   mirror and exits — use this to publish a new preset/registry change to the
   project-creation picker. With `--project` it also mirrors shared theme files
   (CSS, JS, widgets, fonts) into the project and keeps watching `themes/<theme>/`.
-  The project folder must already exist.
+  The project folder must already exist. It never writes the theme's `menus/`
+  (nor `templates/`, `presets/`, `updates/`, `latest/`, `preset-media/`) into the
+  project: menus are project content after creation, stamped with the uuids the
+  widgets point at, and copying the theme's over would leave every menu setting
+  pointing at nothing.
 - **`preset:sync`** (`scripts/preset-sync.js`) additionally rebuilds the project's
   pages/menus from `themes/arch/presets/<id>/` when preset content
   (`preset.json`, `templates/`, `menus/`) changes — so settings overrides and
@@ -259,6 +263,15 @@ Sync the registry to the runtime location with `npm run theme:sync` (it mirrors
 3. Upload the exported files to `demos.widgetizer.org/<preset-id>/`.
 4. Verify the live demo is accessible.
 5. If not already set, add the `liveDemo` URL to `presets.json` (Step 8).
+
+### Rebuilding every demo before a release
+
+`npm run demos:release` (`scripts/release-demos.js`) rebuilds the demos in bulk against the running local server, after a `theme:sync`:
+
+- **Pass 1 (demos):** for every preset with a `liveDemo`, creates a fresh `DEMO: <name>` project, exports it, checks the export (placeholder text, missing files, HTML validation issues, export warnings) and compares it with the current demo (pages added or dropped, text only on one side, fewer images). Unless `--check` is passed, it replaces the demo in the demos folder (`--demos-dir` or `DEMOS_DIR`) and saves a project backup ZIP under `<backups>/<theme version>/` (`--backups-dir` or `DEMO_BACKUPS_DIR`).
+- **Pass 2 (upgrade):** applies the theme update to projects still on an older theme version and exports them, exercising the path existing users take; when none exist it offers to import backup ZIPs (`--import-from`). Nothing is copied.
+
+Options: `--theme` (default `arch`), `--only` / `--except` preset ids, `--replace` (delete earlier DEMO projects without asking), `--no-import`, `--skip-demos`, `--skip-upgrade`, `--api`. It ends with a summary of what needs a look.
 
 ---
 

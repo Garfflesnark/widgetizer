@@ -63,8 +63,9 @@ Migrations live in `db/migrations.js` as an ordered list, each wrapped in a tran
 - **v3 — Add `caption` to `media_files`.** Guarded `ALTER` (`columnExists` check), so it is a no-op on databases that already have the column.
 - **v4 — Backfill `projects.owner_id`.** Forward-only, idempotent: ensures `owner_id` (and its index, via `CREATE INDEX IF NOT EXISTS`) is present on every database.
 - **v5 — Add `clean_urls` to `projects`.** Guarded `ALTER TABLE projects ADD COLUMN clean_urls INTEGER DEFAULT 0`: the project's Clean URLs setting (extensionless internal links, canonicals, sitemap and robots).
-- **v7 — Add site languages to `projects`.** Guarded `ALTER TABLE`s adding `default_language TEXT NOT NULL DEFAULT 'en'` and `languages TEXT NOT NULL DEFAULT '[]'`: the site's own language and the JSON array of additional codes. `projectRepository` reads them back as `defaultLanguage` / `languages`, and unreadable JSON reads as `[]`. Rules in [Project Management](core-projects.md#7-site-languages).
 - **v6 — Add `site_identity` to `projects`.** Guarded `ALTER TABLE projects ADD COLUMN site_identity TEXT NOT NULL DEFAULT '{}'`: the project's site identity and business details as JSON, validated by `normalizeSiteIdentity` before every write. `projectRepository` parses it back to `siteIdentity`, and unreadable JSON reads as `{}`. Shape in [Project Management](core-projects.md#6-site-identity-and-business-details).
+- **v7 — Add site languages to `projects`.** Guarded `ALTER TABLE`s adding `default_language TEXT NOT NULL DEFAULT 'en'` and `languages TEXT NOT NULL DEFAULT '[]'`: the site's own language and the JSON array of additional codes. `projectRepository` reads them back as `defaultLanguage` / `languages`, and unreadable JSON reads as `[]`. Rules in [Project Management](core-projects.md#7-site-languages).
+- **v8 — Per-language media metadata.** Creates `media_file_translations` (`media_file_id`, `language`, `alt`, `title`, `caption`; primary key `(media_file_id, language)`, `ON DELETE CASCADE` from `media_files`). The `media_files` columns stay the default language, so nothing is backfilled. A NULL column (or no row) inherits the default language, while `""` is deliberately blank — so a decorative image can have empty alt text in a translated language.
 
 > The guarded `ALTER`s and the v4 backfill keep databases from different histories convergent on the same final schema.
 
@@ -94,7 +95,7 @@ SQLite does **not** replace project content files. Most small project-content fi
 - `data/projects/<folderName>/collections/<type>/<slug>.json` (one file per collection item — see `core-collections.md`)
 - the same four shapes under a language folder for a non-default site language: `pages/<lang>/*.json`, `pages/<lang>/global/`, `menus/<lang>/`, `collections/<type>/<lang>/` (see `core-pages.md`)
 - `data/projects/<folderName>/theme.json` (and theme assets/templates/widgets)
-- `data/projects/<folderName>/uploads/images/*`
+- `data/projects/<folderName>/uploads/images/*` and `uploads/files/*` (PDF, MP3, MP4)
 
 ---
 
@@ -102,7 +103,7 @@ SQLite does **not** replace project content files. Most small project-content fi
 
 Controllers and services call repository/wrapper functions directly:
 
-- `getProjectById()`, `createProject()`, `updateProject()`, `deleteProject()` — project metadata (`db/repositories/projectRepository.js`)
+- `getProjectById()`, `createProject()`, `updateProject()`, `deleteProject()` — project metadata (`db/repositories/projectRepository.js`); `deleteProjectAndReassignActive()` deletes a row and moves the active project in one transaction
 - `readProjectsData()` / `writeProjectsData()` — bulk read/write (`projectRepository.js`, tests only)
 - `readMediaFile(projectId)` — media metadata (`services/mediaService.js`)
 - `writeMediaFile(projectId, data)` — media metadata wrapper (`controllers/mediaController.js`)

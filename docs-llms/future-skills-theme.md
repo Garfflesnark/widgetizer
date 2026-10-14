@@ -1,6 +1,6 @@
 # Future: Widgetizer Theme Skill
 
-> **Status: Technical authoring foundation implemented; distribution remains a proposal.** The repository-maintained [Widgetizer Theme skill](../skills/widgetizer-theme/SKILL.md) contains references, a starter theme and a generated capability catalog. Validation is owned by the app: `npm run validate:theme -- <theme-folder>` uses the app's configured LiquidJS engine and Widgetizer-specific static checks. `themeSkill.test.js` checks catalog freshness, validator behavior and the starter's real import/project/export flow. See [skills/README.md](../skills/README.md) for coverage and limitations. The skill is not published. The design layer, desktop validation UI, distribution and packaging remain open; the proposals below were recorded on 2026-09-27. Third-party platform facts must be re-verified before distribution work.
+> **Status: Technical authoring foundation implemented; distribution remains a proposal.** The repository-maintained [Widgetizer Theme skill](../skills/widgetizer-theme/SKILL.md) contains references, a starter theme and a generated capability catalog. Validation is owned by the app: `npm run validate:theme -- <theme-folder>` uses the app's configured LiquidJS engine and Widgetizer-specific static checks. `themeSkill.test.js` checks catalog freshness, validator behavior and the starter's real import/project/export flow. See [skills/README.md](../skills/README.md) for coverage and limitations. A companion [design skill](../skills/widgetizer-theme-design/SKILL.md) covers the brief, visual review and editing model; its remaining visual-design guidance is still being developed. The skill is not published. The desktop-user flow, desktop validation UI, distribution and packaging remain open; the proposals below were recorded on 2026-09-27. Third-party platform facts must be re-verified before distribution work.
 
 ---
 
@@ -47,9 +47,9 @@ widgetizer-theme/
 - Master: a top-level folder such as `skills/widgetizer-theme/`. Deliberately **not** `.claude/skills/` — this is a shipped product, not the maintainer's local dev tooling, and it must stay tool-neutral. It sits beside the code and docs it describes, so a theme-format change and the skill update can land in the same commit.
 - Public: a separate repo (e.g. `widgetizer-skills`) holding only the skill plus the per-ecosystem wrappers. This repo is far too heavy to install from (~355 MB of pack files, ~185 MB of `themes/` with preset media), and Anthropic's directory caps a submitted repo at ~50 MiB archived.
 - A small publish script copies `skills/widgetizer-theme/` into the public repo, adds the wrappers and pushes. Run it at release time so the skill version tracks the app version.
-- Once built, add a line to `CLAUDE.md`: when the theme format, widget/setting rules or theming docs change, check whether `skills/widgetizer-theme/` needs the same change.
+- Done: `CLAUDE.md` ("Theme tooling must match the app") requires updating the matching skill reference and regenerating `references/contract.json` with `node scripts/build-theme-skill-contract.js` when theme contracts change; `npm test` checks catalog freshness.
 
-**Open decision — the single source of truth for the reference content.** The skill must be self-contained (end users don't have `docs-llms/`), so its `references/` will contain theming knowledge. Two options, and one must be chosen so nothing is maintained twice by hand:
+**Open decision — the single source of truth for the reference content.** Today the skill's `references/` are hand-written and audited against the app (sources listed in `skills/README.md`), while `docs-llms/` keeps its own copies; only `contract.json` is generated. The skill must be self-contained (end users don't have `docs-llms/`), so its `references/` will contain theming knowledge. Two options, and one must be chosen so nothing is maintained twice by hand:
 
 1. Generate `references/` from `docs-llms/theming*.md` etc. in the publish script.
 2. Make the skill's `references/` canonical and trim the `docs-llms/` files to point at them.
@@ -185,7 +185,7 @@ Projects only pick up theme changes through the update mechanism (`theme-updates
 | Security constraints themes must respect (autoescape, `\| raw`, `safe_url`, image-path allowlist) | `core-security.md`, CLAUDE.md "Sanitization & Safety" |
 | Presets (if in scope) | `theme-presets.md`, `theme-preset-file-format.md`, `theme-preset-generator.md`, `theme-preset-process.md` |
 | A real from-scratch theme build (phases, Tailwind build rules, conversion workflow) | `themes/widgetizer-saas-theme/PLAN.md`, `BUILD.md`, `STATUS.md`, `WIDGETS.md`, `tools/apply_page.py` |
-| Existing validation | `scripts/validate-theme-locales.js` |
+| Existing validation | `scripts/validate-theme.js` (`npm run validate:theme`, app-owned static checks), `scripts/validate-theme-locales.js` |
 | Working examples | `themes/arch/` (reference theme), `themes/widgetizer/`, `themes/widgetizer-saas-theme/` |
 
 The saas-theme process docs are effectively a hand-built skill for one theme. They are the best starting point for the workflow section.
@@ -212,7 +212,7 @@ The saas-theme process docs are effectively a hand-built skill for one theme. Th
    - "Change my theme's fonts and ship it as an update"
 4. Test in at least one non-Claude agent (Codex) to prove tool neutrality.
 5. Write the publish script and public repo wrappers. Verify install commands and upload paths against current docs.
-6. Add the `CLAUDE.md` "keep the skill in sync" line.
+6. ~~Add the `CLAUDE.md` "keep the skill in sync" line.~~ Done.
 7. Optionally submit to the Anthropic directory.
 
 ---

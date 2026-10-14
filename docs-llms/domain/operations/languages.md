@@ -8,7 +8,7 @@
 
 **You begin with:** an existing project, perhaps written in English.
 
-**You choose:** another supported website language, such as Greek.
+**You choose:** another website language, such as Greek, from the picker's list.
 
 **Widgetizer prepares:** Greek copies of the starting menus, header and footer. Their contents initially match the default language. It does not create Greek copies of every page or collection entry.
 
@@ -54,7 +54,7 @@ Add Greek, create Greek Home and About, and translate the Greek menu. Leave your
 
 ## Add a language
 
-**Before:** supported normalized code, not the default or already enabled, no clash with a root page slug or public collection URL prefix.
+**Before:** a well-formed normalized code — any left-to-right `xx` or `xx-subtag` (no numeric region), not only the picker's curated list (`LANGUAGE_CODE_RE`, `isValidLanguageCode`) — not the default or already enabled, not the reserved name `assets`, and no clash with a root page slug or an item-page collection's `slugPrefix`.
 
 Inside a per-project language-operation queue, read fresh project metadata; give the language the menus it needs, each with its own UUID; give it globals whose schema-declared menu selections point at those menus; create global media-usage rows; finally record the new additional language in the project row. Copied menu items retain their original page/item targets. No pages or collection items are copied.
 

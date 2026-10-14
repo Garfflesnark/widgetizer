@@ -27,6 +27,7 @@ All incoming data is validated and sanitized before reaching controllers.
 - **`link`** — `sanitizeLink` runs the href through `sanitizeHref` (§12); `link.text` is left for autoescape.
 - **`image`** — `sanitizeImageSettingValue`: keeps any safe in-project absolute path (so a non-upload theme asset like `/default-logo.png` survives), blanks anything else.
 - **`file`** — selected upload path string for `/uploads/files/...`; currently not schema-sanitized like `image`, so templates should use controlled upload paths and basename-derived labels. Static export rewrites referenced `/uploads/files/` paths into `assets/files/`.
+- **`video`** — `sanitizeVideoPath`: keeps only an MP4 in the project's file uploads (`^/uploads/files/[A-Za-z0-9._-]+\.mp4$`, no `..`); external URLs, other file types and non-strings are blanked (theme settings fall back to the schema default), so templates can build the playable URL from the basename.
 - **`gallery`** — `sanitizeGalleryValue`: an ordered array; each entry must pass the **strict** `sanitizeImagePath` (`/uploads/images/…` only); non-strings and bad paths are dropped, a fully-invalid gallery collapses to `[]`.
 - **`table`** (collection items) — `sanitizeTableValue`: rows are rebuilt **only** from the schema's declared column ids, so stale/unknown keys (e.g. a smuggled `__proto__`) are never read or copied (no prototype pollution). Each cell is normalized by its column type (`text` → string-or-`""` in v1); fully-empty rows are dropped.
 - **`date`** — `sanitizeDateValue`: coerces to a valid `YYYY-MM-DD` calendar date or `""` (rejects impossible dates like `2026-02-30`).
@@ -50,7 +51,7 @@ The image-path allowlists are strict allowlists (not blocklists) because the val
 
 ### 4. Cross-Origin Resource Sharing (CORS)
 
-- Permissive defaults (`app.use(cors())` in `createApp.js`) for local-only usage. Tightening to an environment-based allowlist is tracked under [Pending](#cors--csp-hardening).
+- Local origins only (`applySharedMiddleware` in `createApp.js`): `cors` is given an origin predicate that allows `http:`/`https:` origins on `localhost`, `127.0.0.1` and `[::1]` (any port), plus requests with no `Origin` header. That keeps the dev split-origin flow (Vite :3000 → API :3001) working; same-origin consumers (Electron, the packaged web build serving the SPA) need no CORS at all. Any other origin gets no `Access-Control-Allow-Origin` header, so a foreign website open in the same browser cannot read the unauthenticated local API cross-origin. A configurable, environment-specific allowlist for embedding hosts is still [pending](#cors--csp-hardening).
 
 ### 5. Multi-layered SVG Sanitization
 
@@ -97,6 +98,7 @@ File-size and image-dimension safety limits are enforced inline in each upload h
 - **Image dimensions** — Sharp `limitInputPixels` (100M pixels) in `mediaController` and `themeController`
 - **File sizes** — multer size limits derived from app settings in `mediaController`, `themeController`, and `projectController`; the per-tenant `MAX_UPLOAD_SIZE_BYTES` ceiling is the cross-tenant floor (§11)
 - **Request body sizes** — the two-tier JSON body parser (§6)
+- **Stored file names** — `normalizeUploadName` (`packages/builder-server/src/utils/uploadFileName.js`) keeps the uploaded name but reduces it to lower-case ASCII `[a-z0-9-]` (transliterated, at most 60 characters) plus a lower-case extension, falling back to `image`/`file`; the image-path allowlist in §12 relies on that charset. Collisions are numbered case-insensitively so a legacy `photo.JPG` is never overwritten
 
 See [Media Library](core-media.md) for the upload pipeline.
 
@@ -146,6 +148,8 @@ See [Site Exporting](core-export.md) for the export/import flow detail.
 - **Export serve** binds to `req.scope.folderName` via `exportDirBelongsToScope()` (`exportController.js`): it rejects `/`, `\`, and `..`, then anchors the directory to `<folderName>` or `<folderName>-v<digits>` (an anchored allowlist, not a prefix match) (TI-02/SA-13). See [Site Exporting](core-export.md).
 - **Slugs and ids from a request** become storage keys or folders before they are used (`middleware/slugValidators.js`); Express decodes `%2F` in params, so `..%2Ftheme` would otherwise reach the project's `theme.json`. Collection slugs and types must match `^[a-z0-9-]+$`; page and menu slugs (route params, the page save's body `slug`, bulk-delete lists) and theme ids on every `/api/themes/:id` route must be a single name (`isSafePathSegment`, `utils/pathSecurity.js`: no separator, NUL, `.` or `..`), because a theme's own page files and uploaded theme folders keep names outside the strict form.
 - **Theme and preset names on project creation** must each be a single name; `scaffoldProjectContent` and `resolvePresetPaths` re-check them for callers that skip the route.
+- **Files the render engine opens** go through `resolveInside` (`packages/render-engine/src/safePath.js`): widget templates and schemas (a widget `type` comes straight from page JSON), `layout.liquid`, `assets/icons.json` and each menu file. It checks the lexical path, then the symlink-resolved path, against the roots the caller passed in `deps`; a refusal renders the usual "template not found" placeholder rather than throwing. Author-controlled values on the engine's error paths (widget type/id, error messages) go through `escapeHtml` from `@widgetizer/core`.
+- **The export viewer** (`routes/export.js`) resolves an extensionless request to `<path>.html` then `<path>/index.html` for Clean URLs, and only inside the export directory (`isWithinDirectory`).
 - **Paths read from theme and project files** are kept inside their folder: a theme template's stored `slug` that is not a single name gives way to the template's file name (creation and theme update), a theme-update recovery plan only removes paths inside the project, export copies media only from the project's `uploads/images` or `uploads/files`, and the collection reader skips an item whose stored slug is not a plain slug, so no item page is written outside its collection folder. These checks compare resolved paths; they do not follow symlinks, which project import does not create.
 
 **DoS limit keys** (enforced via the `LimitsAdapter` over `scope`; OSS `LocalLimitsAdapter` returns the App Settings upload cap for `MAX_UPLOAD_SIZE_BYTES` and `Infinity` for the count/quota keys, while hosted `CloudLimitsAdapter` returns finite tenant ceilings — see [Packages & Adapter Architecture](core-packages.md)):
@@ -262,7 +266,7 @@ Preview isolation variables are described in §13 above.
 
 ### CORS & CSP Hardening
 
-- [ ] Environment-based CORS branching: strict allowlist in production, permissive in local dev
+- [ ] Environment-specific CORS allowlist configurable by an embedding host (the shipped policy is a fixed local-origin predicate)
 - [ ] Implement Content Security Policy with nonce or hash-based validation for inline scripts
 - [ ] Provide a whitelist of allowed external script sources
 

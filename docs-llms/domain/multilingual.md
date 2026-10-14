@@ -85,8 +85,9 @@ Example: default language `en`, additional language `el`.
 | Menu | `menus/main.json` | `menus/el/main.json` |
 | Item | `collections/news/story.json` | `collections/news/el/istoria.json` |
 | Item order | `collections/news/_order.json` | `collections/news/el/_order.json` |
+| Listing copy 2 (output) | `news/page/2.html`; homepage `page/2.html` | `el/news/page/2.html`; homepage `el/page/2.html` |
 
-Storage and public output use different segment orders for collections: an item's additional-language output address is `el/news/istoria.html`. The shared address builders define storage keys, output paths, usage IDs, and preview routes. Clean URLs changes emitted hrefs, not the underlying editable documents.
+Storage and public output use different segment orders for collections: an item's additional-language output address is `el/news/istoria.html`. The shared address builders define storage keys, output paths, usage IDs, and preview routes. Clean URLs changes emitted hrefs, not the underlying editable documents. Numbered listing copies are output only; their standalone preview route is `/preview/page/<language>/<slug>/page/<n>`.
 
 A slug identifies content within a language (and collection type for items); a UUID identifies a document version. A translation-group ID identifies the relationship between versions. A page's slug may change while its UUID and group stay stable.
 

@@ -22,8 +22,8 @@ The Express API is almost a 1:1 map to what MCP tools would look like:
 | `create_menu` | `POST /api/menus` |
 | `update_menu` | `PUT /api/menus/:id` |
 | `update_theme_settings` | `PATCH /api/themes/project/:projectId` (changed settings only, each with its starting value) |
-| `export_site` | `POST /api/export/:projectId` |
-| `list_widgets` | `GET /api/projects/:projectId/widgets` |
+| `export_site` | `POST /api/export` (active project) |
+| `list_widgets` | `GET /api/widgets?language=<code>` |
 
 The MCP server should be a thin translation layer over the existing API, not a parallel implementation. The main value is not "new backend logic" but:
 
@@ -106,8 +106,8 @@ This is also possible, but it should be treated as a later phase because it is f
 | `widgetizer://fonts` | `packages/core/src/config/fonts.json` | Available fonts with stacks and weights |
 | `widgetizer://projects` | `GET /api/projects` | List all projects |
 | `widgetizer://projects/active` | `GET /api/projects/active` | Current active project |
-| `widgetizer://projects/{id}/widgets` | `GET /api/projects/:projectId/widgets` | All widget schemas available in a project, including globals/core/theme widgets |
-| `widgetizer://projects/{id}/icons` | `GET /api/projects/:projectId/icons` | Available icon names |
+| `widgetizer://projects/{id}/widgets` | `GET /api/widgets` | All widget schemas available in a project, including globals/core/theme widgets |
+| `widgetizer://projects/{id}/icons` | `GET /api/icons` | Available icon names |
 | `widgetizer://projects/{id}/pages` | `GET /api/pages` | List pages in the active project |
 | `widgetizer://projects/{id}/pages/{slug}` | `GET /api/pages/:id` | Full page JSON with widgets |
 | `widgetizer://projects/{id}/menus` | `GET /api/menus` | List menus in the active project |
@@ -175,7 +175,7 @@ This is also possible, but it should be treated as a later phase because it is f
 **Full theme authoring (later phase / possibly separate package):**
 - `scaffold_theme(themeId, metadata)` — Create minimal valid theme structure
 - `write_theme_widget(themeId, widgetName, schema, template)` — Create or update widget files
-- `validate_theme(themeId)` — Validate package structure before install/import
+- `validate_theme(themeId)` — Validate package structure before install/import (could wrap the app-owned `validateTheme(themeDir)` in `scripts/validate-theme.js`, which already checks templates, preset pages, locales and updates against the app's Liquid dialect and widget schemas)
 
 ---
 
@@ -223,6 +223,7 @@ Most Widgetizer API calls are scoped to the active project (via `X-Project-Id` h
 - `set_active_project(id)` should call Widgetizer's real active-project API
 - the MCP should read the current active project from Widgetizer when needed
 - write calls should include `X-Project-Id` so Widgetizer's mismatch guard can protect against stale context
+- content calls for a non-default language pass `?language=<code>` (or `body.language`); additional languages are added with `POST /api/languages`, and `POST /api/pages/:id/translations` creates a page's version in another language
 
 This keeps the MCP aligned with the real application state instead of creating a second source of truth.
 

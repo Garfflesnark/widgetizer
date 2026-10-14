@@ -16,7 +16,7 @@
 
 The project list lets you find and open a website. Opening it changes the workspace you are using; it does not merge it with the previous project.
 
-Editing project details can change its name, shared website information, business details, logo or intended website address. Changing its storage folder moves the local project files while keeping the project as the same website in the app. Changes to shared details apply across languages; they do not translate page text.
+Project details open for the active project only; the project list does not link to another project's details. Editing them can change its name, shared website information, business details, logo or intended website address. The project form no longer offers changing its storage folder; a direct API request can still move the local files while keeping the project as the same website in the app. Changes to shared details apply across languages; they do not translate page text.
 
 ### Making an independent copy
 
@@ -42,7 +42,7 @@ This is not the same as deleting one page, and the page editor's Undo history do
 
 ### If an operation fails
 
-An invalid backup, unavailable required theme or invalid project details can prevent the operation. Some creation, copy or import steps can also finish while a supporting step fails. Do not assume an error always means “nothing changed,” or that a returned project proves every image description was restored. The technical notes below identify the current partial-success cases.
+An invalid backup, unavailable required theme or invalid project details can prevent the operation. Creating, copying and importing a project each try to remove what they had made when they fail, so you can usually simply try again; if that cleanup also fails, the problem is logged and a partial project or folder can be left behind. Deleting a project, or moving its folder, can succeed while an old folder stays on disk (for example, a file another program holds open); Widgetizer then names that folder in a warning, and never reuses it.
 
 ### Example
 
@@ -65,7 +65,7 @@ Back up the café website, import that archive into a second installation with t
 7. Seed optional media binaries and database metadata, now that the owning row exists.
 8. Refresh media usage. Select the new project if there was no active project.
 
-**Failure:** creation is all-or-nothing. A failure at any step — copying the theme, processing templates, reading or applying the preset's menus, settings, collection items or media — removes the project directory and the row if one was inserted, and reports failure. Creating the project again afterwards works.
+**Failure:** a failure at any step — copying the theme, processing templates, reading or applying the preset's menus, settings, collection items or media — attempts to remove the project directory and the row if one was inserted, and reports failure. Cleanup is best-effort: a cleanup failure is logged and can leave a row or directory behind. Creating the project again afterwards works.
 
 **A preset the user chose and did not fully get is a failed creation, not a warning**, because the project would record that preset while missing its content and nothing later would say so. The distinction is between *absent* and *unreadable*: a preset that ships no menus, no collections or no `preset.json` creates normally, while one whose files are present and cannot be read stops the creation.
 
@@ -73,11 +73,11 @@ Evidence: [projectController](../../../packages/builder-server/src/controllers/p
 
 ## Edit project metadata or folder
 
-Validate fields and conflicts before moving content. Preserve project UUID. If the folder changes, copy to the new folder and remove the old folder, then update the row. When site identity changes, refresh its media usage. Site title/URL/Clean URLs affect rendering rather than rewriting every content document. Shared identity/settings apply across languages.
+Validate fields and conflicts before moving content. Preserve project UUID. If the folder changes (API only; the form hides the field), copy to the new folder, update the row, then remove the old folder. When site identity changes, refresh its media usage. An update that leaves out the notes (`description`) keeps the stored notes; sending an empty value clears them. Site title/URL/Clean URLs affect rendering rather than rewriting every content document. Shared identity/settings apply across languages.
 
-Changing `defaultLanguage` is allowed only with no additional languages. Adding/removing additional codes through the generic update is rejected; use [language lifecycle](languages.md).
+Changing `defaultLanguage` is allowed only with no additional languages. Adding/removing additional codes through the generic update is rejected; use [language lifecycle](languages.md). These language rules are checked again inside the project's content-write section, against the current row, so an update cannot race a language being added.
 
-Failure boundary: the folder move and SQLite update are separate operations. Validate recovery from failure after one succeeds; the current handler does not provide a distributed transaction.
+Failure boundary: a failed copy or row update attempts to remove only the copy (a cleanup failure is logged and can leave it on disk) and leaves the project in its old folder; once the row names the new folder, an old folder that cannot be fully removed is reported as `folderLeftBehind`. There is no distributed transaction.
 
 ## Activate or switch project
 
@@ -112,12 +112,16 @@ The library is read before the response starts streaming: once the ZIP is being 
 
 ## Import an editable-project backup
 
-1. Validate upload size, ZIP paths, nonempty archive, one media-metadata entry, manifest shape, restorable languages, and installed theme availability.
+1. Validate upload size, ZIP safety, nonempty archive, one media-metadata entry, manifest shape, restorable languages, and installed theme availability.
 2. Allocate a new project name/folder/UUID and extract into a temporary directory.
 3. Recover theme version from the manifest or copied theme metadata.
 4. Copy source files into the destination, excluding the export manifest; insert the project row after successful copying.
 5. Restore media metadata into SQLite with new media file IDs, then remove the intermediate media JSON.
 6. Refresh usage and remove the temporary extraction directory.
+
+**ZIP safety.** Import and theme upload unpack through [zipSafety](../../../packages/builder-server/src/utils/zipSafety.js): each entry is streamed to disk and the archive is refused (400) once the bytes it actually produces pass 100 times its size, whatever sizes it records; entry names must be plain paths, no file may appear twice (case-insensitively), and entry length/CRC must match. The manifest is read through the same budget, capped at 16 MB. A file that is not a readable ZIP is a 400. Top-level dot entries (a theme update's working folders) are left out of the import.
+
+**Content a backup made by the app never holds** refuses the whole backup with a 400 naming the problem: a media path that is not one file directly in an upload folder, media text for the default language or one the project lacks, a collection item slug that is not a plain slug, a theme or preset that is not a single folder name, or a project detail of the wrong kind. Markup is stripped from the name, title and notes as on the create form. Legacy `audios`/`videos` upload folders and an older unchecked Site Address are still accepted ([backupContentChecks](../../../packages/builder-server/src/utils/backupContentChecks.js)).
 
 Unlike project duplication, this path does **not** run the content-UUID remapper: page/item/menu identities in the backup remain project-scoped. Both paths regenerate media database IDs. Both preserve translation membership and translated metadata.
 
@@ -127,11 +131,11 @@ Unlike project duplication, this path does **not** run the content-UUID remapper
 
 **A media library that cannot be read, is not a library, or cannot be written fails the import.** A `files` that is absent or not a list is refused rather than read as empty, because a project with no media and a file this version cannot interpret are different claims. An empty list is a supported library and restores as one. The intermediate media JSON is removed only after a successful restore: it is the restore's input, and deleting it after a failure would turn a recoverable state into a silent loss.
 
-Failure: the inner failure handler deletes the new row and directories, so a refusal leaves nothing to clean up by hand. The server's own copy of the uploaded ZIP is removed on every exit, successful or not; the user's backup file is never touched.
+Failure: the inner failure handler attempts to delete the new row and directories; cleanup failures are logged and can leave remnants. The server's own copy of the uploaded ZIP is removed on every exit, successful or not; the user's backup file is never touched.
 
 Verified against one bilingual fixture through both workflows, plus the refusal cases above. That fixture is broad rather than exhaustive — it is not an audit of every way a backup can be malformed, and a successful restore of it does not prove every archive shape is handled.
 
-Evidence: [projectController](../../../packages/builder-server/src/controllers/projectController.js) `exportProject` / `importProject`, [projects tests](../../../packages/builder-server/src/tests/projects.test.js), [media rewrite tests](../../../packages/builder-server/src/tests/media.test.js).
+Evidence: [projectController](../../../packages/builder-server/src/controllers/projectController.js) `exportProject` / `importProject`, [projects tests](../../../packages/builder-server/src/tests/projects.test.js), [backupCloneCompleteness](../../../packages/builder-server/src/tests/backupCloneCompleteness.test.js), [backupImportChecks](../../../packages/builder-server/src/tests/backupImportChecks.test.js), [media rewrite tests](../../../packages/builder-server/src/tests/media.test.js).
 
 ## Delete a project
 
@@ -139,6 +143,6 @@ Under the per-project export lock, attempt generated-export cleanup, delete the 
 
 Export cleanup can warn and proceed. Directory removal occurs after row deletion, so a filesystem failure (a file locked by another program, on Windows) can leave files without a project row. The deletion still succeeds: the response names the folder as `folderLeftBehind`, and the Projects screen shows a warning with its path that stays until dismissed. Nothing removes the leftover automatically. Create, import, duplicate and folder rename all treat a folder that exists on disk as taken, so a leftover folder is never reused or merged into.
 
-Changing a project's folder name copies the folder, points the project row at the copy, then removes the old folder. A failed copy or row update removes only the copy and leaves the project in its old folder; an old folder that cannot be fully removed is reported (`folderLeftBehind`) and the project keeps its complete new folder.
+Changing a project's folder name copies the folder, points the project row at the copy, then removes the old folder. A failed copy or row update attempts to remove only the copy and leaves the project in its old folder; an old folder that cannot be fully removed is reported (`folderLeftBehind`) and the project keeps its complete new folder.
 
 Evidence: [projectService](../../../packages/builder-server/src/services/projectService.js), [projectRepository](../../../packages/builder-server/src/db/repositories/projectRepository.js), [exportController](../../../packages/builder-server/src/controllers/exportController.js), [projects](../../../packages/builder-server/src/tests/projects.test.js) and [export](../../../packages/builder-server/src/tests/export.test.js) tests.

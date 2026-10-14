@@ -68,19 +68,19 @@ Read-only setup + validation phase:
 
 1. **Resolve project** — `projectRepo.getProjectById(projectId)` yields `folderName`, `siteUrl`, theme, etc. Missing project throws.
 2. **Compute version + output path** — `exportRepo.getNextVersion(projectId)` (auto-incrementing v1, v2, …); the output dir is `<publishDir>/<folderName>-v<version>`.
-3. **Load theme + pages** — `readProjectThemeData` (then `preprocessThemeSettings`), `listProjectPagesData`.
-4. **Homepage validation** — the default language must have a homepage: a page slugged `index` or `home` (page `id` is derived from filename), both of which publish as `index.html`. Otherwise throws `statusCode 400` / "Export failed: No homepage found". A language holding both an `index` and a `home` page throws `statusCode 400` / "Export failed: two homepages", since both would write that language's `index.html`; the editor refuses the pair, but older projects, imports and theme updates can carry one.
+3. **Load theme + pages** — `readThemeDataFromDir` (then `preprocessThemeSettings`), `listPagesFromDir` (every language folder; `utils/projectContentFs.js`).
+4. **Homepage validation** — the default language must have a homepage: a page slugged `index` or `home` (page `id` is derived from filename), both of which publish as `index.html`. Otherwise throws `statusCode 400` / "Export failed: No homepage found". A language holding both an `index` and a `home` page throws `statusCode 400` / "Export failed: two homepages", since both would write that language's `index.html`; the editor refuses the pair, but older projects, imports and theme updates can carry one. An additional language with no homepage does not fail the export: it is left out entirely and reported as a `{ code: "LANGUAGE_SKIPPED", language }` warning. Link resolution is seeded from the exported pages and items only (`pagesByUuidForExport`, `collectionItemsByUuidForExport`), so a link into a skipped language reads as absent and is cleared like a link to deleted content.
 5. **Two-pass collection validation** (only when `collectionDeps` supplies storage + scope) — see [§3](#3-collection-item-page-export).
    Then **pagination plans**: `planPagination` runs per page, and the totals (`pageCounts`) feed the sitemap and the page loop. If the homepage paginates while a `hasItemPages` collection uses `slugPrefix: "page"`, the export throws `statusCode 400` / "Export failed: homepage pages clash with a collection" — both would write into `page/`.
 
-Once validation passes, the writes begin (`fs.ensureDir(outputDir)` onward).
+Once validation passes, the writes begin with `fs.emptyDir(outputDir)` — emptied rather than just created, so a crash leftover or a reused version number cannot leak stale files into the new bundle.
 
 ### Generation phase
 
 6. **Site icons** — `generateExportSiteIcons(...)` writes favicon/app-icon assets at the export root when `general.favicon` is set (`favicon.svg` for SVG sources, `favicon.ico`, `favicon-32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, and `site.webmanifest`). `favicon.ico` (a single-entry ICO wrapping the 32px PNG) exists for agents that request `/favicon.ico` directly and is intentionally never linked in the HTML; `icon-192.png` is linked via `site_icons.serpIconHref` (export-only — runtime renders leave it blank). See [Media Library](core-media.md) and [App Settings](core-appSettings.md).
-7. **SEO files** (conditional on `siteUrl`) — `buildSitemap` and `buildRobotsTxt` (`services/seoArtifacts.js`) write `sitemap.xml` and `robots.txt` with absolute URLs. Collection item pages are included via `itemPagesForSeo` (valid items of `hasItemPages` collections, in listing order). When the project's **Clean URLs** setting (`projects.clean_urls`) is on, sitemap/robots URLs and the auto-generated canonicals (SeoTag + collection item pages) drop the `.html` extension to match hosts that publish extensionless paths, and every uuid-resolved internal link is emitted in the same shape (step 13); exported filenames are unaffected. The flag is read once per export and seeded into each page's `sharedGlobals.cleanUrls`, so a toggle landing mid-export cannot split one bundle. Paginated copies (page 2+) join the sitemap through `pageCounts`, and a noindex page disallows its copies too.
+7. **SEO files** (conditional on `siteUrl`) — `buildSitemap` and `buildRobotsTxt` (`services/seoArtifacts.js`) write `sitemap.xml` and `robots.txt` with absolute URLs. Collection item pages are included via `itemPagesForSeo` (valid items of `hasItemPages` collections, in listing order). When the project's **Clean URLs** setting (`projects.clean_urls`) is on, sitemap/robots URLs and the auto-generated canonicals (SeoTag + collection item pages) drop the `.html` extension to match hosts that publish extensionless paths, and every uuid-resolved internal link is emitted in the same shape (step 13); exported filenames are unaffected. The flag is read once per export and seeded into each page's `sharedGlobals.cleanUrls`, so a toggle landing mid-export cannot split one bundle. Paginated copies (page 2+) join the sitemap through `pageCounts`, and a noindex page disallows its copies too. Both files cover every exported language; sitemap entries carry hreflang alternates from the same `buildTranslations` the page's own `<link rel="alternate">` tags use, and a noindex page is left out of every alternate set (x-default included).
    Every page render also carries its JSON-LD graph when `siteUrl` is usable — see [Structured data](#structured-data-json-ld) below.
-8. **Render global widgets** — header and footer are rendered per page (so each page captures its own enqueued styles/scripts) in `"publish"` render mode, which keeps asset paths relative (`assets/images/logo.png`) instead of absolute API URLs.
+8. **Render global widgets** — each language's pages use that language's own header and footer (read once per exported language; a language with none renders none). They are rendered per page (so each page captures its own enqueued styles/scripts) in `"publish"` render mode, which keeps asset paths relative (`assets/images/logo.png`) instead of absolute API URLs.
    - **Transparent header**: when the header has `transparent_on_hero`, the first widget of each page is checked; if its `schema.json` declares `"supportsTransparentHeader": true` (`widgetSupportsTransparentHeader`), a `transparent-header` class is added to that page's `<body>`.
 9. **Render pages** — for each page, and for a paginating page once per copy (`blog.html`, then `blog/page/2.html`, …): render its widgets in order (skipping `header`/`footer`), wrap via `renderPageLayout` (which applies `layout.liquid`), then post-process (steps 10–13). The page `sharedGlobals` carry `renderMode: "publish"`, `assetVersion` (the cache-busting token stamped on CSS/JS URLs — see [§Asset cache busting](#asset-cache-busting)), `siteIcons`, and `currentCanonicalPath`. Each render also carries `outputPathPrefix` (`outputPathPrefixFor(outputFilename)`) and, on a paginating page, `paginationPlan` with that copy's number. Copies keep the base page's `currentCanonicalPath`, so menus and breadcrumbs match page 1.
 10. **Format** — each page's HTML is run through **Prettier** (`formatHtml`). On failure the unformatted HTML is written with a warning.
@@ -95,7 +95,7 @@ Once validation passes, the writes begin (`fs.ensureDir(outputDir)` onward).
     -->
     ```
 
-    The file is written as `index.html` when the page slug is `index` or `home`, otherwise `<slug>.html`. Paginated copies go to `<slug>/page/<n>.html`, or `page/<n>.html` for the homepage (`pageOutputPath`). Internal links inside the HTML follow the project's Clean URLs setting (see `internalHref.js`); file names do not.
+    The file is written as `index.html` when the page slug is `index` or `home`, otherwise `<slug>.html`. Paginated copies go to `<slug>/page/<n>.html`, or `page/<n>.html` for the homepage (`pageOutputPath`). A non-default language's pages go under its folder (`el/index.html`, `el/about.html`, `el/blog/page/2.html`). Internal links inside the HTML follow the project's Clean URLs setting (see `internalHref.js`); file names do not.
 14. **Markdown alternate + `.md`** (when `exportMarkdown` is true; page 1 only on a paginating page) — a `<link rel="alternate" type="text/markdown" href="…">` is injected into `<head>` (absolute href when `siteUrl` is a valid URL, otherwise the relative `.md` filename). The page content (widget HTML only, no layout) is then converted to Markdown via `TurndownService` (ATX headings, fenced code blocks, `-` bullets). Non-content elements (`style`, `script`, `noscript`, `form`, `input`, `button`, `select`, `textarea`) are removed and inline style/script/form blocks plus placeholder images are stripped before conversion. Each `.md` is written with YAML frontmatter (`title`, `description`, `source_url.html`, `source_url.md`). Markdown errors are logged and do **not** fail the export.
 
 After pages: collection item pages ([§3](#3-collection-item-page-export)), the validation report ([§5](#5-developer-mode-html-validation)), asset copying ([§4](#4-asset-copying)), and metadata files ([§6](#6-export-metadata-files)).
@@ -133,15 +133,15 @@ Every collection read in the export goes through one `createCollectionReader` sn
 
 Before any HTML is written, `exportProjectToDir` enumerates `listCollectionSchemas(storage, scope)` and, for each schema, `collectionReader.sorted(type)`:
 
-- **Pass 1 — gather.** Every collection contributes to `manifestCollections` (`{ type, itemPages, itemCount, itemCountByLanguage }`, feeds `manifest.json`; the counts are accumulated over the exported languages and pushed once per collection). Invalid items (`item.invalid`) are accumulated into `invalidCollectionItems` with their per-field `validationErrors`. For `hasItemPages` collections, valid items (in listing order) are pushed into `itemPagesForSeo` (feeds sitemap/robots) and the item render loop.
+- **Pass 1 — gather.** Items are read and validated in every exported language, so an untranslated required field blocks the export. Every collection contributes to `manifestCollections` (`{ type, itemPages, itemCount, itemCountByLanguage }`, feeds `manifest.json`; the counts are accumulated over the exported languages and pushed once per collection). Invalid items (`item.invalid`) are accumulated into `invalidCollectionItems` with their per-field `validationErrors`. For `hasItemPages` collections, valid items (in listing order) are pushed into `itemPagesForSeo` (feeds sitemap/robots) and the item render loop.
 - **Pass 1 — template preflight.** A `hasItemPages` collection that has renderable (valid) items but **no** `template.liquid` (`loadCollectionTemplate` returns `null`) is recorded in `missingTemplates`.
 - **Pass 2 — refuse.** If any invalid items exist, the export throws `statusCode 400` / "Export failed: invalid collection items" with the full per-item-per-field error list. If any templates are missing, it throws `statusCode 400` / "Export failed: missing collection template". Either way **no HTML is written**.
 
 ### Item-page render loop
 
-After the page loop, for each `hasItemPages` collection with valid items, every item is rendered to `<slugPrefix>/<itemSlug>.html`:
+After the page loop, for each `hasItemPages` collection with valid items, every item is rendered to `<slugPrefix>/<itemSlug>.html` (`<lang>/<slugPrefix>/<itemSlug>.html` for a non-default language, with that language's header and footer):
 
-- Fresh per-item `sharedGlobals` (new enqueue Maps) so enqueued assets never bleed between items, plus `outputPathPrefix` derived from the item's output path (`../` — items live one directory deep) and `currentCanonicalPath`.
+- Fresh per-item `sharedGlobals` (new enqueue Maps) so enqueued assets never bleed between items, plus `outputPathPrefix` derived from the item's output path (`../` — items live one directory deep; `../../` under a language folder) and `currentCanonicalPath`.
 - A `pagesByUuid` map and `loadCollectionItemsByUuid(storage, scope, collectionReader)` map are built once and shared, so `menu`/`link`-type item settings that target a page or another item resolve correctly.
 - `renderCollectionItemPage(projectId, { schema, item, template, …, headerData, footerData, projectData, siteUrl }, collectionDeps)` returns the full layout-wrapped HTML plus the content-only `mainContentHtml` (for markdown).
 - The same post-processing as pages applies, at item depth: Prettier, storage-path rewrite to `../assets/images/` and `../assets/files/`, dev-mode validation (issues join the same report), the easter-egg comment, and — when `exportMarkdown` — a markdown alternate link and a content-only `.md` (frontmatter adds `collection` and `slug`).
@@ -157,7 +157,8 @@ All copying happens **after** HTML generation, into the export's `assets/` tree:
 - **Core placeholder assets** — `placeholder.svg`, `placeholder-portrait.svg`, `placeholder-square.svg` from `STATIC_CORE_ASSETS_DIR` are copied to `assets/` so placeholder-using widgets work.
 - **Widget assets** — the project's `widgets/` tree is searched recursively for `.css`/`.js` files, but only filenames registered by script/style enqueues during rendering are selected for copying. Selected files are intentionally flattened into `assets/`. The supported authoring contract requires CSS/JS directly in each widget folder, with widget-prefixed filenames (`slideshow.css`, `comparison-slider.js`) unique across widgets and shared theme assets. Recursive discovery does not imply nested widget asset support: generated URLs retain subpaths while copying drops them. Later copies overwrite filename conflicts. See [Widget asset rules](theming-widgets.md#enqueuing-external-css--js); the app does not currently enforce these requirements, and automated checks belong to the future theme-author CLI.
 - **Used images only** — media metadata is read (`readMediaFile` from `mediaService.js`) and only images with a non-empty `usedIn` whose `path` starts with `/uploads/images/` are copied to `assets/images/`. For each, all generated public sizes except `thumb` are copied; raster originals are copied only when there is no public `large` variant; SVG originals are always copied. The count copied vs. skipped is logged. If media tracking fails, it falls back to copying the entire `uploads/images/` tree.
-- **Used file assets only** — the same usage-based approach copies non-image file assets (PDFs): media files with non-empty `usedIn` whose `path` starts with `/uploads/files/` are copied to `assets/files/`. Files have no size variants. If tracking fails, it falls back to copying the entire `uploads/files/` tree.
+- **Used file assets only** — the same usage-based approach copies non-image file assets (PDFs, audio, video): media files with non-empty `usedIn` whose `path` starts with `/uploads/files/` are copied to `assets/files/`. Files have no size variants. If tracking fails, it falls back to copying the entire `uploads/files/` tree.
+- **Containment** — a tracked path is copied only when it resolves inside the project's `uploads/images/` or `uploads/files/` (`uploadSourcePath`); media metadata can arrive from a backup made elsewhere, and a `../` path would otherwise publish a file from outside the project.
 
 The file-asset path (copy to `assets/files/`, `/uploads/files/` → `assets/files/` rewrite, and the `filePath` render variable supplied to widget templates) is what makes referenced PDFs downloadable and MP4/MP3 files playable from the exported static site. See [Media Library](core-media.md) for the shared image/file media model and usage tracking, and [Setting Types](theming-setting-types.md) for the `file` and `video` setting types that themes use to reference a file asset.
 
@@ -198,6 +199,8 @@ Finally `recordExport(projectId, version, "<folderName>-v<version>", "success")`
 
 ### Versioning & History
 
+Every export operation on a project — create, delete, and project-deletion cleanup — runs through one per-project serializer (`withExportOpLock`, built on `createKeyedSerializer` in `utils/serializeByKey.js`, exported from the package for embedding hosts). An export allocates its version at the start and records it at the end, so overlapping exports would otherwise claim the same version and output dir. A failed export's row is also written inside the lock. The lock is in-process and not reentrant; history reads and downloads are not serialized.
+
 Each export gets an auto-incrementing version. Records live in the SQLite `exports` table (via `exportRepository.js`) and store the **relative** directory name only (e.g. `my-project-slug-v1`); `resolveOutputDir()` prepends the publish path at runtime. Retention is user-configurable (1–50) via `export.maxVersionsToKeep` in [App Settings](core-appSettings.md). See [Database](core-database.md) for the `exports` schema.
 
 ### History response enrichment
@@ -211,11 +214,11 @@ The response also returns `maxVersionsToKeep` and `developerMode` (the latter ga
 
 ### Automatic cleanup (retention)
 
-`recordExport` calls `exportRepo.trimExports(projectId, max)`; for each trimmed record it removes the physical directory (`resolveOutputDir` + `fs.remove`) and the history entry.
+`recordExport` calls `exportRepo.trimExports(projectId, max)`; for each trimmed record it removes the physical directory (`resolveOutputDir` + `fs.remove`) and the history entry. `deleteExport` likewise removes the directory before the row, so a failed removal keeps the version reserved instead of handing its number to the next export.
 
 ### Project deletion — `cleanupProjectExports(projectId)`
 
-Exported as a standalone function: removes **all** export directories and history records for a project. Used when a project is deleted so its publish artifacts don't outlive it.
+Exported as a standalone function: removes **all** export directories and history records for a project. Used when a project is deleted so its publish artifacts don't outlive it; project deletion holds the export lock across this cleanup and the row removal (`{ withinLock: true }`). Directories go first; one that cannot be removed is logged and returned in `orphanedDirs` rather than blocking the deletion.
 
 ### Failed-export recording
 
@@ -227,7 +230,7 @@ All export actions mount under `/api/export` (the `export` router is attached to
 
 | Method & Path | Scoping | Purpose |
 | --- | --- | --- |
-| `POST /api/export` | `X-Project-Id` → `req.scope` | Create a new export (`{ exportMarkdown }` optional in body); the response includes `structuredData: { readiness, warnings }` |
+| `POST /api/export` | `X-Project-Id` → `req.scope` | Create a new export (`{ exportMarkdown }` optional in body); the response includes `structuredData: { readiness, warnings }` and `warnings` (skipped languages) |
 | `GET /api/export/history` | `X-Project-Id` → `req.scope` | Export history (with `sizeBytes`, `hasIssuesReport`, `maxVersionsToKeep`, `developerMode`) |
 | `DELETE /api/export/:version` | `X-Project-Id` → `req.scope` | Delete a specific export version |
 | `GET /api/export/files/:exportDir` | `exportDir` (scope-bound) | Entry-file info for an export |
@@ -243,7 +246,7 @@ When viewing/serving an export, `findEntryFile` prefers `index.html`, then `home
 
 ### Downloads
 
-ZIPs (`archiver`, level 9) bundle all generated HTML, the full `assets/` tree, root metadata (`manifest.json`, and when present `widgetizer.forms.json` / `site.webmanifest` / site icons), and the preserved directory structure — ready to deploy to any static host.
+ZIPs (`archiver`, level 9) bundle all generated HTML, the full `assets/` tree, root metadata (`manifest.json`, and when present `widgetizer.forms.json` / `site.webmanifest` / site icons), and the preserved directory structure — ready to deploy to any static host. OS metadata (`.DS_Store`, `Thumbs.db`, `__MACOSX/`, …) is left out of both the export directory and the ZIP (`isExportableEntry`).
 
 ## 8. Storage & Cross-Tenant Safety
 

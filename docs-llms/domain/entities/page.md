@@ -50,7 +50,7 @@ A page is a complete document in one project language. It owns its widget instan
 | `id` / `slug` | Address and filename; unique within a language |
 | `translationGroupId` | Joins independent language versions |
 | `widgets` / `widgetsOrder` | Instance map plus explicit display order |
-| `parentPageUuid` | Reference to another page, not ownership; direct self-parenting is rejected |
+| `parentPageUuid` | Reference to another page, not ownership; a self-reference is dropped on save and the save succeeds |
 | `seo` | Version-specific metadata; can reference media |
 
 The default path is `pages/<slug>.json`; an additional-language path is `pages/<code>/<slug>.json`. Slug `page` is reserved for pagination; enabled language codes are reserved as root-page slugs. `index` and `home` both make a page its language's homepage, published as `index.html`, so a language holds at most one of them: a new page gets the next free slug instead, and a rename onto the other one is refused. Export requires a default-language homepage and refuses a language holding both.
@@ -61,9 +61,13 @@ Header and footer are language-specific project singletons. Media files, menu ob
 
 ## Listing and pagination
 
-A collection-aware widget may mark this page as its collection's listing anchor. Saving that claim clears competing anchors in the same language. Pagination implies the listing-anchor flag; only one widget per page may paginate, with a positive integer page size. Duplicating a page clears these flags; creating another-language version keeps them because it belongs to another language partition.
+A collection-aware widget may mark this page as its collection's listing anchor, which also decides where that collection's items sit in [breadcrumbs](#breadcrumbs). Saving that claim clears competing anchors in the same language. Pagination implies the listing-anchor flag; only one widget per page may paginate, with a positive integer page size. Duplicating a page clears these flags; creating another-language version keeps them because it belongs to another language partition.
 
-The listing and its valid-item count use this page's language. Pager links, generated copies and their sitemap addresses stay in that language; an English count cannot determine a Greek page's number of copies. Live widget preview updates receive the page language too. See [collection behavior](collection.md#listings-and-multilingual-output) and [export eligibility](../operations/output.md#which-languages-are-included).
+The listing and its valid-item count use this page's language. Pager links, generated copies and their sitemap addresses stay in that language; an English count cannot determine a Greek page's number of copies. Live widget preview updates receive the page language too. Copy *N* is published at `<slug>/page/N.html` (homepage: `page/N.html`, under `<language>/` for another language) and its title gets a ` - N` suffix; see [addresses](../multilingual.md#addresses-and-identity). See [collection behavior](collection.md#listings-and-multilingual-output) and [export eligibility](../operations/output.md#which-languages-are-included).
+
+## Breadcrumbs
+
+The trail comes only from `parentPageUuid`, never from menus or URLs. Walking up stops at the homepage, a cycle, a missing UUID or `MAX_DEPTH` (10). A parent that exists only in another language, with no sibling in the trail's language, ends the chain. A collection item hangs under its collection's listing-anchor page in the same language, else the anchor chosen in any language (via its sibling here), else the only page listing the collection; several listing pages and no anchor put it directly under Home. The homepage has no trail; a numbered copy ends with its number. Export warns about items whose listing parent is ambiguous or missing (see [structured data](../operations/output.md#structured-data-json-ld)), and the trail also feeds the `BreadcrumbList`. Core ships a `breadcrumbs.liquid` snippet that themes render. Source: [breadcrumbs](../../../packages/core/src/utils/breadcrumbs.js), [snippet](../../../packages/core/src/snippets/breadcrumbs.liquid).
 
 ## Failure and cleanup
 

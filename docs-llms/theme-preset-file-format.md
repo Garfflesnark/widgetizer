@@ -123,7 +123,13 @@ Flat map of setting overrides applied to `theme.json` defaults at project creati
     },
     "corner_style": "slightly-rounded",
     "spacing_density": "default",
-    "button_shape": "auto"
+    "button_shape": "auto",
+    "facebook_url": "#",
+    "instagram_url": "#",
+    "twitter_url": "#",
+    "linkedin_url": "#",
+    "youtube_url": "#",
+    "tiktok_url": "#"
   }
 }
 ```
@@ -140,6 +146,8 @@ All 18 color tokens must be present. Typography and style fields:
 | `corner_style` | `"sharp"`, `"slightly-rounded"`, `"rounded"` | `theme.json` schema |
 | `spacing_density` | `"compact"`, `"default"`, `"airy"` | `theme.json` schema |
 | `button_shape` | `"auto"`, `"pill"`, `"sharp"` | `theme.json` schema |
+
+Every Arch preset also sets the six sample social links above (`facebook_url`, `instagram_url`, `twitter_url`, `linkedin_url`, `youtube_url`, `tiktok_url`, each `"#"`), so a new project's footer `social_block` shows icons instead of the "add your social profiles" hint.
 
 ---
 

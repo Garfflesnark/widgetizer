@@ -110,6 +110,7 @@ themes/arch/updates/             # In the seed directory
 | `snippets/`     | ✅ Yes          | Theme infrastructure   |
 | `locales/`      | ✅ Yes          | Theme infrastructure   |
 | `layout.liquid` | ✅ Yes          | Theme infrastructure   |
+| `collection-types/` | ✅ Yes      | Theme-owned schemas    |
 | `templates/`    | ❌ No           | User content, add-only |
 | `menus/`        | ❌ No           | User content, add-only |
 | `pages/`        | ❌ No           | Protected user content |
@@ -138,6 +139,7 @@ The `latest/` folder is a **composed, ready-to-use snapshot** built in `data/the
   §Two audiences below
 - If a file exists in multiple versions, the **latest version wins**
 - `latest/` is rebuilt when a theme author clicks "Update" on the Themes page
+- The rebuild never exposes a half-built tree: it layers into `latest.tmp/`, then swaps it in by renaming the old `latest/` to `latest.old/` and `latest.tmp/` to `latest/`, deleting `latest.old/` only once the new tree is live. A failed build keeps the previous snapshot; a crash between the two renames is repaired at the next build's start. Builds of one theme run one at a time
 - Projects read theme files from `latest/` (or base if `latest/` doesn't exist). `getThemeSourceDir` returns `latest/` only when `latest/theme.json` exists; otherwise it falls back to the root theme — and this resolution is subject to the 5s source cache described above.
 - The seed directory (`themes/{name}/`) is never modified — only the user data directory is
 
@@ -181,7 +183,7 @@ These paths receive additions but preserve existing files:
 
 This allows theme authors to add new menus or page templates without overwriting user customizations.
 
-`locales/` belongs to the project-owned theme package. The editor locale API reads `data/projects/<folder>/locales/`, so locale changes only affect an existing project after that project applies a theme update (or is recreated).
+`locales/` belongs to the project-owned theme package. The editor locale API reads `data/projects/<folder>/locales/`, and so does rendering for the visitor `site` strings (`loadSiteStrings` in `siteStringsService.js`), so locale changes — including new or translated visitor words — only affect an existing project after that project applies a theme update (or is recreated).
 
 ## Theme Settings Merge
 
@@ -312,7 +314,9 @@ So a release that touches a bundled theme needs **both**: the base files fixed (
 installs) *and* an `updates/<that version>/` folder carrying the changed files (for everyone
 already installed). Fixing only the base leaves existing users with the old files and no
 notification; adding only the folder leaves the shipped theme wrong for new installs.
-Nothing in the build enforces this pairing.
+For Arch, `themeUpdateCopies.test.js` (run by `npm test`) checks one direction: every file in
+the newest `updates/<version>/` must be byte-identical to its base counterpart. Nothing checks
+the other direction — a base change missing from the folder goes unnoticed.
 
 **Note**: The `latest/` folder in the zip (if present) is ignored; it's always rebuilt from scratch.
 
@@ -331,12 +335,18 @@ After the theme is updated:
 2. User edits the project
 3. User clicks "Apply Theme Update" (or similar action)
 4. System copies updated files, merges settings
-5. Project's `themeVersion` is updated
+5. Project's `themeVersion` is updated — only after the files are in place, so a failed update stays available to retry. This write is outside the file rollback: if it fails, the new files stay with the old recorded version, and the next update re-applies them
 6. Frontend invalidates the cached projects list so refreshed project reads immediately show the new version and cleared update badge
+
+### Applying is staged and rolled back
+
+`applyThemeUpdateToDir` prepares the whole update in `.theme-update-stage/` inside the project folder before touching anything; a failure there changes nothing. It then writes a plan (what it will add, which paths it will create where the project had none) into `.theme-update-backup/`, moves each displaced path into that backup, and swaps the staged paths, the merged `theme.json` and the new menus/pages in. A failure during the swap attempts to remove what was placed and put back what was displaced; if that undo fails, the backup and plan stay on disk and the update fails without claiming the project was left as it was. A run killed partway, or a failed undo, leaves the plan behind, and the next update of that project tries to undo it first (`recoverInterruptedUpdate`), stopping and keeping the plan if that undo fails again; a backup without a plan belonged to a run that had already finished and is discarded. Both folders start with a dot, which keeps them out of backup exports.
+
+One update runs at a time per project, inside the project's content-write section, so a theme-settings save that arrives during an update waits for it and then applies on top.
 
 ## Version Validation
 
-The system enforces strict validation when building `latest/`:
+The system enforces strict validation when building `latest/`, on the version folders newer than the base (the ones it will layer):
 
 ### Requirements
 

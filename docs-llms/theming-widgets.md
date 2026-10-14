@@ -638,7 +638,7 @@ Enqueued assets are rendered by `{% header_assets %}` (styles) and `{% footer_as
 >
 > Put shared libraries or dependencies requiring subfolders in the theme's `assets/` directory and enqueue them with `theme: true`, for example `{% enqueue_script src: "vendor/slider.js", theme: true %}`. Theme asset subfolders are preserved on export. A nested widget asset working in preview does not make it supported in exports. See [Export](core-export.md).
 
-These are authoring requirements; the app does not currently validate nested widget assets or filename conflicts. Automated checks are reserved for the future theme-author CLI, not theme upload or update validation.
+These are authoring requirements; theme upload and update do not check them. `npm run validate:theme` reports a widget CSS/JS file whose name collides with another widget's or a top-level theme asset (error `asset-name-collision`) and one the widget never enqueues (warning `unused-widget-asset`); it does not look into nested widget folders.
 
 ### Re-initialization on Partial Updates (external scripts)
 
@@ -832,6 +832,7 @@ For small one-off themes, direct strings also work at runtime (e.g. `"displayNam
   "maxBlocks": 10,
   "aliases": ["alternative name", "keyword"],
   "supportsTransparentHeader": false,
+  "collection": { "type": "news", "perPageSetting": "limit" }, /* only on a widget that lists a collection */
   "settings": [ /* Widget settings */ ],
   "blocks": [ /* Block definitions (optional) */ ],
   "defaultBlocks": [ /* Default block instances */ ]
@@ -848,6 +849,10 @@ For small one-off themes, direct strings also work at runtime (e.g. `"displayNam
 - `{widget_type}.blocks.{block_type}.settings.{setting_id}.label` — block setting label
 
 For the full catalogue of setting types and their JSON shapes, see [Setting Types Reference](theming-setting-types.md).
+
+A widget that lists collection items declares the collection at the top level (`"collection": { "type": … }`) so breadcrumbs can find an item's parent page and the editor can offer the "Main {collection} page" checkbox; adding `perPageSetting` also offers "Split into pages". See [The `collection` declaration](theming.md#schema-properties).
+
+Words a visitor reads (button text, `aria-label`s, empty-state copy) come from the theme's `site` strings through `| t`, never hardcoded. A setting the owner may reword uses `defaultKey` instead of a literal `default`. See [Visitor-facing text](theming.md#visitor-facing-text).
 
 ### Transparent Header Support
 
@@ -901,6 +906,7 @@ The JSON for individual setting types is documented in [Setting Types Reference]
 - **`link` and button links** — a compound `{ href, text, target, pageUuid }` value. The picker also offers **collection-item targets**: selecting a collection item stores `collectionType` + `collectionItemUuid` (instead of `pageUuid`), and the renderer resolves it to the item's URL at render/export time. So a single `link` setting can point at a page *or* a collection item. See [Collections](core-collections.md).
 - **`richtext`** — beyond `placeholder` / `allow_source`, the field accepts `allow_headings` (enables H2–H4 in the toolbar), `allow_images` (enables inline image insertion), and `min_height` (minimum editor height in px). Use these to scope the editor to what the widget actually renders.
 - **`gallery`** — an ordered list of images for slideshow/gallery/logo-cloud-style widgets.
+- **`video`** — an uploaded MP4 path for a native `<video>`; resolve it from `filePath` like a `file` setting, and leave `data-setting` off the `<video>`.
 - **`table`** — a row/column grid (v1 is `text`-celled, aimed at collection-type schemas).
 
 ### Richtext Emptiness Guard (`rte_text` / `rte_blank`)
@@ -1102,8 +1108,8 @@ To keep shared block types consistent across widgets, use these standardized def
 <!-- Images -->
 <img src="..." alt="Descriptive text" />
 
-<!-- Icon-only buttons -->
-<button aria-label="Close menu"><svg>...</svg></button>
+<!-- Icon-only buttons (label from the theme's site strings) -->
+<button aria-label="{{ 'site.lightbox.close' | t }}"><svg>...</svg></button>
 
 <!-- Interactive accordion -->
 <button aria-expanded="false" aria-controls="panel-1">Question</button>
@@ -1193,7 +1199,7 @@ Also use semantic elements (`<nav>`, `<main>`, `<article>`, `<section>`); `<butt
 {% youtube src: block.settings.youtube_video, class: 'widget-youtube-embed' %}
 
 <!-- Get embed URL only -->
-{% youtube src: block.settings.youtube_video, output: 'path' %}
+{% youtube src: block.settings.youtube_video, output: 'url' %}
 ```
 
 ### Links
@@ -1234,12 +1240,12 @@ Many card-based widgets support switching between grid and carousel layout via a
 ```liquid
 {% if widget.settings.layout == 'carousel' %}
   <div class="carousel-container">
-    <button type="button" class="carousel-btn carousel-btn-prev" aria-label="Previous">
+    <button type="button" class="carousel-btn carousel-btn-prev" aria-label="{{ 'site.common.previous' | t }}">
       <svg class="carousel-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
-    <button type="button" class="carousel-btn carousel-btn-next" aria-label="Next">
+    <button type="button" class="carousel-btn carousel-btn-next" aria-label="{{ 'site.common.next' | t }}">
       <svg class="carousel-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
@@ -1259,17 +1265,17 @@ Many card-based widgets support switching between grid and carousel layout via a
 {% endif %}
 ```
 
-No per-widget JavaScript is needed — `carousel.js` (loaded globally via `layout.liquid`) auto-initializes all `.carousel-container` elements. Remember to enqueue it conditionally with `theme: true` when `layout == 'carousel'`.
+No per-widget JavaScript is needed — `carousel.js` (a theme asset, not loaded by `layout.liquid`) auto-initializes all `.carousel-container` elements once enqueued. Enqueue it conditionally with `theme: true` when `layout == 'carousel'`.
 
 ### Social Icons Snippet
 
-The `social-icons.liquid` snippet renders social-media link icons from theme-level social settings (16 platforms: Facebook, Instagram, Twitter, LinkedIn, YouTube, TikTok, Pinterest, GitHub, Mastodon, Bluesky, Discord, Reddit, Telegram, Threads, WhatsApp, Email):
+Arch's `social-icons.liquid` snippet renders social-media link icons (16 platforms: Facebook, Instagram, Twitter, LinkedIn, YouTube, TikTok, Pinterest, GitHub, Mastodon, Bluesky, Discord, Reddit, Telegram, Threads, WhatsApp, Email). The project's profiles from Project details (`project.identity.profiles`) win when any are set; otherwise it falls back to the theme's Social Media settings:
 
 ```liquid
-{% render 'social-icons', social: theme.social %}
+{% render 'social-icons', social: theme.social, identity: project.identity %}
 ```
 
-Each link renders as `<a class="social-link">` with the platform icon via `{% render 'icon', icon: 'platform-name' %}`; links with blank URLs are hidden. Some widgets (accordion, contact-form) include a `social` block type that renders these inline.
+Each link renders as `<a class="social-link">` with the platform icon via `{% render 'icon', icon: 'platform-name' %}`; links with blank URLs are hidden, and with none set it prints a hint pointing to where profiles are added. The footer, `social-icons`, accordion, contact-details, map and schedule-table widgets render it.
 
 ---
 
@@ -1299,6 +1305,7 @@ Before submitting a widget:
 - [ ] Widget asset filenames are widget-prefixed and unique across widgets and shared theme assets
 - [ ] Scroll-reveal animations added to content elements (`.reveal .reveal-up` with `--reveal-delay`)
 - [ ] `maxBlocks` set where block count should be limited
+- [ ] Visitor-facing words (labels, `aria-label`s, empty states) read from `site` strings with `| t`; a listing widget declares its `collection`
 - [ ] All `tTheme:` keys in schema have matching entries in `locales/*.json`, and no orphaned keys exist (run `npm run validate:theme-locales`)
 
 ---

@@ -67,9 +67,13 @@ A theme is organized as a directory with the following structure:
 │       ├── header.json     # Global header configuration
 │       └── footer.json     # Global footer configuration
 ├── locales/                # Theme locale translations
-│   └── en.json             # English locale (nested key-value pairs)
+│   ├── en.json             # English locale (editor labels + visitor `site` block)
+│   └── el.json             # Another language: the `site` block only
 ├── menus/                  # Navigation menu definitions
 │   └── main-nav.json       # Menu structure and items
+├── collection-types/       # Optional collection schemas + item templates (see core-collections.md)
+├── updates/                # Optional per-version update folders (see theme-updates.md)
+├── preset-media/           # Optional starter images per preset (see theme-preset-file-format.md)
 ├── presets/                # Optional preset variants
 │   ├── presets.json        # Preset registry (names, descriptions, default)
 │   ├── financial/
@@ -253,7 +257,7 @@ Each setting in a group (and each widget/block setting) declares a `type`. The f
 - `text` — single-line text input _(can use `outputAsCssVar` when the value is a valid CSS value)_
 - `textarea` — multi-line text input _(can use `outputAsCssVar`)_
 - `number` — numeric input with optional min/max/step
-- `richtext` — Tiptap HTML editor (bold/italic/link/lists). The server sanitizes stored HTML with DOMPurify at the save/render boundary; the editor is not the security boundary. Optional flags: `allow_source` (HTML source toggle), `allow_headings`, `allow_images`, `min_height`. Internal page/collection-item links authored in richtext (in widget/block/global and collection-item fields, not theme settings) are **stable refs** — stored as `data-*-uuid` anchor attributes that follow renames and clear on delete, like the structured `link` field; no schema flag needed. Output requires `| raw` — see [Liquid filters](#liquid-filters)
+- `richtext` — Tiptap HTML editor (bold/italic/link/lists). The server sanitizes stored HTML with DOMPurify at the save/render boundary; the editor is not the security boundary. Optional flags: `allow_source` (HTML source toggle), `allow_headings`, `allow_images`, `min_height`. Internal page/collection-item links authored in richtext (in widget, block, global, collection-item and theme-settings fields) are **stable refs** — stored as `data-*-uuid` anchor attributes that follow renames and clear on delete, like the structured `link` field; no schema flag needed. Output requires `| raw` — see [Liquid filters](#liquid-filters)
 - `code` — raw, intentionally **unsanitized** code editor (`language`, `rows`); used for CSS/HTML/JS injection
 - `color` — color picker with hex input and swatch _(ideal for `outputAsCssVar`)_
 - `checkbox` — boolean toggle switch
@@ -420,6 +424,8 @@ Contains project metadata resolved from the SQLite-backed project store:
 {{ project.id }}          <!-- Project ID -->
 {{ project.name }}        <!-- Project name -->
 {{ project.description }} <!-- Project description -->
+{{ project.siteTitle }}   <!-- Site Title from Project details -->
+{{ project.defaultLanguage }} <!-- Default language code (e.g. "en") -->
 {{ project.theme }}       <!-- Active theme ID -->
 {{ project.siteUrl }}     <!-- Full site URL -->
 {{ project.cleanUrls }}   <!-- Clean URLs setting (boolean); {% seo %} reads it for the canonical -->
@@ -483,7 +489,7 @@ Widgetizer provides powerful Liquid tags to simplify common tasks in your templa
 
 A snippet pulled in with `{% render 'card', item: item %}` sees two things only: the arguments you pass and the render globals. It does not see the calling template's `page`, `widget`, `theme`, `project` or `item`, so pass it what it needs. Liquid's older `{% include %}` shares the caller's variables in both directions; the bundled themes use `render` only.
 
-The following tags and filters work the same inside a snippet as at the top level, because what they read is on the globals: `{% image %}` and `media_meta` (the media library, the image base path and the page's language), `page_url` / `item_url`, `collection`, `format_date` and `t`. Other core tags depend on the calling template. `{% seo %}` reads `page` and `project`, so a snippet needs both passed in. The asset and enqueue tags (`{% asset %}`, `{% enqueue_style %}`, `{% enqueue_script %}`, `{% enqueue_preload %}`) work in a snippet but load from the theme `assets/` folder, never from a widget's own folder (see [Widget Styles & Scripts](#widget-styles--scripts)).
+The following tags and filters work the same inside a snippet as at the top level, because what they read is on the globals: `{% image %}` and `media_meta` (the media library, the image base path and the page's language — alt, title and caption resolve per page language), `page_url` / `item_url`, `collection`, `format_date` and `t`. Other core tags depend on the calling template. `{% seo %}` reads `page` and `project`, so a snippet needs both passed in. The asset and enqueue tags (`{% asset %}`, `{% enqueue_style %}`, `{% enqueue_script %}`, `{% enqueue_preload %}`) work in a snippet but load from the theme `assets/` folder, never from a widget's own folder (see [Widget Styles & Scripts](#widget-styles--scripts)).
 
 **Globals a theme may read**, by name, in any template or snippet. A widget, layout or item template can also reach them as `globals.<name>`; a snippet cannot.
 
@@ -504,6 +510,19 @@ Adding a name to the render globals means adding it to the table or the internal
 ### Liquid filters
 
 LiquidJS runs with autoescape enabled globally (`outputEscape: "escape"`), so every `{{ ... }}` is HTML-escaped by default. Append `| raw` when the value is already trusted HTML: layout variables (`{{ header | raw }}`, `{{ main_content | raw }}`, `{{ footer | raw }}`), SVG icons, embed code, and **richtext** output.
+
+Core filters besides LiquidJS's built-ins (`packages/core/src/filters/`):
+
+| Filter | Use |
+| :--- | :--- |
+| `page_url`, `item_url` | Internal hrefs — see [Link filters](#link-filters) |
+| `collection` | `{% assign posts = 'news' \| collection: limit: 6, sort: 'date_desc' %}` — items of a collection type; see [Collections §5](core-collections.md) |
+| `format_date` | A `date` value in the theme's Date format setting, or `format_date: 'D MMM YYYY'`; month names follow the page's language |
+| `media_meta` | `{{ path \| media_meta: 'caption' }}` — one field (`alt`, `title`, `caption`, …) of a media-library file, in the page's language; without an argument the whole metadata object. `""` for a file not in the library |
+| `t` | A visitor-facing site string — see [Visitor-facing text](#visitor-facing-text) |
+| `safe_url` | Returns `""` for an author-typed URL with an unsafe scheme (`javascript:`, `data:`, `vbscript:`) |
+| `handleize` | Kebab-case handle, transliterating non-Latin letters (`"Το όνομα"` → `"to-onoma"`) |
+| `rte_text`, `rte_blank` | Richtext emptiness tests (below) |
 
 Two helper filters exist for richtext (`registerRteFilters` in `packages/core/src/filters/rteFilter.js`):
 
@@ -536,6 +555,8 @@ Richtext fields are never truly `blank` when "empty" — the editor leaves marku
 | on | item page | `../` | `../contact` |
 
 The home link is the case worth using the filter for: with Clean URLs on it is `./` at the root and `../` one level deep, which plain prefixing cannot produce. Both filters return `""` for a missing slug (and `item_url` for a missing prefix), and work identically inside a `{% render %}`'d snippet.
+
+Both link within the rendered page's language: on a Greek page `{{ 'index' | page_url }}` is the Greek homepage. A deliberate cross-language link passes `lang:` — `{{ 'index' | page_url: lang: 'en' }}`, `{{ item.slug | item_url: 'news', lang: 'en' }}`.
 
 These are for hrefs the theme builds itself. Menu items, `link` settings and richtext links are already resolved into the right shape before the template sees them, and an author-typed URL is emitted as written — pass those through `| safe_url` instead.
 
@@ -577,6 +598,8 @@ For an item trail to work at all, the listing widget's schema must declare what 
 The `{% image %}` tag is the recommended way to render images in your theme. It automatically handles generating the correct `src` for different image sizes, adds important attributes like `width`, `height`, and `alt`, and enables lazy loading by default.
 
 The tag works the same inside a `{% render %}`'d snippet; pass the image path as an argument (see [Snippets and reserved names](#snippets-and-reserved-names)).
+
+A path that is not in the media library still renders, as a plain `<img>` with the given `alt` (empty when none) and no size variants.
 
 **SVG behavior:** SVGs always render from the original file (no size variants). The `size` parameter is ignored for SVGs, and `width`/`height` attributes are omitted. In path-only mode, SVGs always return the original file path.
 
@@ -667,48 +690,37 @@ For cases where you need just the image URL (e.g., CSS background images), use t
 
 ### YouTube tag
 
-The `{% youtube %}` tag parses the data from a `youtube` setting type and renders a responsive YouTube embed.
+The `{% youtube %}` tag renders an embed from a `youtube` setting (the stored embed object) or from a URL / video ID string (`packages/core/src/tags/youtubeTag.js`).
 
 #### Basic Usage
 
 ```liquid
 {% youtube src: widget.settings.myYoutubeVideo %}
+{% youtube src: widget.settings.heroVideo, class: 'hero-youtube', title: 'Product tour' %}
 ```
 
-#### Custom Class
+#### Parameters
 
-You can provide a custom CSS class for the wrapper element:
+`width` (`'560'`), `height` (`'315'`), `class` (`'youtube-embed'`), `loading` (`'lazy'`), `title` (default "YouTube video player"); player options `autoplay` (false), `controls` (true), `mute` (false), `loop` (false), `modestbranding` (false), `rel` (true), and optional `start` / `end` in seconds. The tag's player options override those stored in the setting's embed object.
 
-```liquid
-{% youtube src: widget.settings.heroVideo, class: 'hero-youtube-wrapper' %}
-```
-
-#### Path-only output
-
-If you need only the embed URL (e.g., for use in a custom `<iframe>` or JavaScript), use the `output` parameter with `'path'` or `'url'`:
+#### Other outputs
 
 ```liquid
-{% youtube src: widget.settings.introVideo, output: 'path' %}
+{% youtube src: widget.settings.introVideo, output: 'url' %}        <!-- embed URL only -->
+{% youtube src: widget.settings.introVideo, output: 'thumbnail' %}  <!-- https://img.youtube.com/vi/<id>/hqdefault.jpg; pass quality: to change -->
 ```
 
 #### Output Structure
 
-By default, the tag outputs a container with a responsive aspect ratio:
+By default the tag outputs a bare `<iframe>` (no wrapper), so size it in CSS — for example `aspect-ratio: 16 / 9; width: 100%; height: auto;` on its class:
 
 ```html
-<div
-  class="youtube-embed-wrapper [custom-class]"
-  style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden;"
->
-  <iframe
-    src="https://www.youtube.com/embed/[videoId]?[options]"
-    style="position:absolute; top:0; left:0; width:100%; height:100%;"
-    frameborder="0"
-    allow="autoplay; encrypted-media"
-    allowfullscreen
-  ></iframe>
-</div>
+<iframe src="https://www.youtube.com/embed/[videoId]?[options]" width="560" height="315"
+  title="YouTube video player" frameborder="0" loading="lazy" allowfullscreen class="youtube-embed"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
 ```
+
+A blank `src` outputs nothing; an invalid URL or ID outputs an HTML comment.
 
 ### Asset Management Tags
 
@@ -954,6 +966,7 @@ Directly includes CSS, JavaScript, or image assets in your templates. Unlike `en
 | `integrity`   | String  | `null`  | Subresource Integrity hash for security (e.g., `"sha384-..."`)           |
 | `media`       | String  | `null`  | For CSS files, specifies media query (e.g., `"print"`, `"screen"`)       |
 | `id`          | String  | `null`  | Adds an `id` attribute to the generated tag                              |
+| `alt`         | String  | `null`  | For images, the `alt` text; falls back to the media alt text, else `""`  |
 
 **File Location:**
 
@@ -968,7 +981,7 @@ This means `{% asset src: "styles.css" %}` in the slideshow widget loads from `w
 
 - **CSS files** (`.css`): Outputs `<link rel="stylesheet">` tag
 - **JavaScript files** (`.js`): Outputs `<script>` tag
-- **Image files** (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.svg`): Outputs `<img>` tag with metadata (alt, title) when available
+- **Image files** (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.svg`): Outputs `<img>` tag that always carries `alt` (the `alt` option, else the media alt text, else empty) and a title when available
 - **Other file types**: Returns the asset URL as a string
 
 **Asset Tag vs Enqueue Tags:**
@@ -1025,8 +1038,9 @@ Outputs a placeholder image for development and preview purposes. Theme authors 
 
 | Option    | Description                             |
 | :-------- | :-------------------------------------- |
-| `alt`     | Alt text (default: "Placeholder image") |
+| `alt`     | Alt text (default: "Placeholder")       |
 | `class`   | CSS class for the `<img>` tag           |
+| `style`   | Inline `style` attribute                |
 | `loading` | Loading attribute (`"lazy"`, etc.)      |
 | `width`   | Width attribute                         |
 | `height`  | Height attribute                        |
@@ -1249,7 +1263,7 @@ The built-in widgets (`core-form` and friends) keep their own `site` block in `p
 <span>{{ 'site.slideshow.go_to_slide' | t: number: forloop.index }}</span>
 ```
 
-Keyword arguments fill `{{ name }}` placeholders in the string. A key nothing defines renders its last segment (`next`) rather than nothing, so a gap is visible without taking a control's label away.
+Keyword arguments fill `{{ name }}` placeholders in the string. A key nothing defines renders its last segment with underscores turned into spaces (`site.slideshow.go_to_slide` reads `go to slide`) rather than nothing, so a gap is visible without taking a control's label away.
 
 #### A setting that starts in the page's language
 
@@ -1283,9 +1297,10 @@ A script that creates controls in the browser runs long after the language is go
 | `hreflang` | the same code in the case hreflang wants — use it for the link's `lang` attribute |
 | `label` | the language's name in that language (`Ελληνικά`) — what a switcher shows |
 | `href` | link to that language's version of this page, depth-aware and Clean-URLs-aware |
-| `seoUrl` | the same page's absolute canonical address, for metadata rather than links |
+| `seoUrl` | the same page's absolute canonical address, for metadata rather than links; empty without a usable Site URL |
 | `active` | true for the language being rendered |
 | `fallback` | true when this language has no version of this page, so `href` points at its homepage |
+| `noindex` | true when the destination (for a fallback, that homepage) asked not to be indexed; `{% seo %}` skips it, a switcher may ignore it |
 | `dir` | `ltr` or `rtl` |
 
 A switcher may link every entry, fallbacks included — landing someone on a language's homepage beats a dead end. Mark the active one with `aria-current`:
@@ -1306,9 +1321,9 @@ A switcher may link every entry, fallbacks included — landing someone on a lan
 {%- endif -%}
 ```
 
-`{% render %}` gets no parent scope, so a snippet like the one above must be passed what it needs: `{% render 'language-switcher', translations: page.translations, label: widget.settings.language_switcher_label %}`. Arch ships exactly this as `snippets/language-switcher.liquid`.
+`{% render %}` gets no parent scope, so a snippet like the one above must be passed what it needs: `{% render 'language-switcher', translations: page.translations, label: widget.settings.language_switcher_label %}`. Arch ships a variant as `snippets/language-switcher.liquid`: its `landmark` argument picks a bare `<ul>` (`false`, for the copy inside the mobile navigation) or a `<nav>` wrapping a `<details>` dropdown (`true`), and the header renders it twice.
 
-The hreflang tags in `<head>` are built from the same array by `{% seo %}` — a theme does not emit them itself.
+The hreflang tags in `<head>` are built from the same array by `{% seo %}` — a theme does not emit them itself. Fallback and `noindex` entries are left out of the language alternates; `x-default` points at the default-language entry, even when that entry is a fallback to its homepage. None are emitted without a Site URL, on a `noindex` page, or on page 2+ of a paginated page.
 
 ### Global Widgets
 
@@ -1716,7 +1731,7 @@ A `link`-type setting stores an **object**, not a string. The resolved shape car
 - `text` — the link label
 - `target` — `"_self"` or `"_blank"`
 
-Internally a link can hold a stable ref (`pageUuid`, or `collectionItemUuid` + `collectionType`) so it follows renames; the editor resolves these to a live `href` (see `resolveStoredLink` in `packages/editor-ui/src/utils/linkValueResolver.js`). In templates, read the resolved object:
+Internally a link can hold a stable ref (`pageUuid`, or `collectionItemUuid` + `collectionType`) so it follows renames and clears when its target is deleted. The render engine resolves it to an `href` in the right shape (depth, Clean URLs, the page's language) before the template runs (`resolveLinkValue` in `packages/render-engine/src/renderEngine.js`); the editor does the same for its own display (`resolveStoredLink` in `packages/editor-ui/src/utils/linkValueResolver.js`). `link`, `menu` and `richtext` settings declared in `theme.json`'s global settings are references too, resolved, duplicated and cleaned up exactly like widget settings (`resolveThemeSettingReferences`), so `{{ theme.footer.cta_link.href }}` works. In templates, read the resolved object:
 
 ```liquid
 {% assign link = block.settings.link %}
@@ -1810,7 +1825,7 @@ When a project is exported to static HTML, theme `assets/` are copied with their
 
 ## 11. Theme Locales
 
-Theme locale files provide the translated strings for all theme-owned `tTheme:` prefixed keys used in theme widget schemas and global settings. They live in the `locales/` directory at the theme root.
+Theme locale files provide the translated strings for all theme-owned `tTheme:` prefixed keys used in theme widget schemas and global settings. They live in the `locales/` directory at the theme root. The same files also carry the visitor `site` block — see [Visitor-facing text](#visitor-facing-text).
 
 Core widget translations are owned separately by the app in `packages/core/src/widgets/locales/`. When a project is created, the theme's `locales/` directory is copied into the project. At runtime, the server merges the shared core locale data with the active project's copied theme locale data before returning it to the editor.
 
@@ -1900,11 +1915,13 @@ Widget types with hyphens are converted to underscores in keys: `bento-grid` bec
 
 ### Validation
 
-Run `npm run validate:theme-locales` to validate theme locale files. The validator performs three checks:
+Run `npm run validate:theme-locales` to validate theme locale files (all themes under `themes/`, or one: `node scripts/validate-theme-locales.js arch`). The validator performs three checks:
 
 1. Every theme-owned `tTheme:` key referenced in theme widget schemas and `theme.json` exists in the theme's `en.json`
 2. The theme's `en.json` contains no orphaned theme-owned keys that aren't referenced by any theme schema
 3. Shared core-widget locales are validated separately against `packages/core/src/widgets/`
+
+It also checks `site.*` keys: a key asked for by `| t` or `defaultKey` that neither the theme's `en.json` nor core defines is an error; a `site` key nothing asks for, and another language missing or adding `site` keys against `en.json`, are warnings. Editor keys are only compared in another language when that file carries any.
 
 ## 12. Advanced Features
 
@@ -2076,6 +2093,7 @@ Automatic font loading and optimization:
 - Support for Google Fonts and Bunny Fonts (GDPR-compliant alternative)
 - Privacy-friendly font delivery can be enabled via theme settings (a `use_bunny_fonts` checkbox; `{% fonts %}` finds it by id in whichever settings group the theme puts it — Arch keeps it under `advanced`)
 - Automatically generates optimized font URLs with only the weights being used
+- Only `font_picker` settings in the global `typography` group are loaded, and only when their `stack` matches an entry in the shared catalogue (`packages/core/src/config/fonts.json`) exactly
 - **Smart Bold Loading**: When body font weight is 400 (normal), automatically loads an appropriate bold weight (700/600/500) to prevent browser faux-bold rendering for `<strong>`, `<b>`, and bold UI elements. This also generates a CSS variable `--typography-body_font_bold-weight` that you can use in your CSS.
 
 **Example:**
@@ -2224,7 +2242,7 @@ Then add the corresponding tags in your `layout.liquid` where you want the conte
 
 Presets are named variants of a theme that can override **settings** (colors, fonts, etc.) and/or **demo content** (templates, menus, global widgets) while sharing the same theme codebase (layout, widgets, assets, snippets). Users pick a preset when creating a project; once created, the project is independent from the preset.
 
-An optional `presets/` directory at the theme root holds a `presets.json` registry plus one folder per preset. Each preset folder may contain a `preset.json` (a flat `setting_id → value` override map applied over `theme.json` defaults), an optional `screenshot.png`, and optional `templates/` and `menus/` that fully replace the root ones. Content resolves with a per-preset → root fallback chain (`templates/`, `menus/`, `preset.json`, `screenshot.png`). The registry's `default` preset falls through to the root `templates/`/`menus/`/`theme.json` (no `presets/default/` directory needed), and themes without a `presets/` directory work unchanged.
+An optional `presets/` directory at the theme root holds a `presets.json` registry plus one folder per preset. Each preset folder may contain a `preset.json` (a flat `setting_id → value` override map applied over `theme.json` defaults), an optional `screenshot.png`, optional `templates/` and `menus/` that fully replace the root ones, and optional `collections/` item data seeded into the new project. Content resolves with a per-preset → root fallback chain (`templates/`, `menus/`, `preset.json`, `screenshot.png`). Starter images ship either in `presets/<id>/media/` or in a theme-root `preset-media/<id>/` pool (images plus a `manifest.json`) and are registered in the new project's media library. The registry's `default` preset falls through to the root `templates/`/`menus/`/`theme.json` (no `presets/default/` directory needed), and themes without a `presets/` directory work unchanged.
 
 ```
 presets/
@@ -2236,7 +2254,7 @@ presets/
     menus/                  # Custom navigation
 ```
 
-When a user picks a theme with presets during project creation, a card grid of preset screenshots/names/descriptions appears below the theme dropdown, with the default pre-selected. The `presets/` directory is never copied into projects.
+When a user picks a theme with presets during project creation, a card grid of preset screenshots/names/descriptions appears below the theme dropdown, with the default pre-selected. The `presets/` and `preset-media/` directories are never copied into projects.
 
 > For the registry/preset file formats, the resolution algorithm, and the project-creation seeding flow, see [Theme Presets](theme-presets.md), [Theme Preset File Format](theme-preset-file-format.md), and [Project Management](core-projects.md).
 
@@ -2265,7 +2283,7 @@ This theming system provides a powerful and flexible foundation for creating bea
 When a new project is created, the selected theme is copied into the project's data directory so it can be customized independently of the source theme:
 
 - **Destination**: `/data/projects/<folderName>/`
-- **Copied items**: `layout.liquid`, `templates/`, `widgets/`, `assets/`, and `menus/`
+- **Copied items**: the theme source (`latest/` when present, else the root) — `theme.json`, `layout.liquid`, `widgets/`, `snippets/`, `assets/`, `locales/`, `menus/`, `collection-types/` — minus `updates/`, `latest/`, `presets/` and `preset-media/`. `templates/` is not copied as-is: each template becomes a page under `pages/`
 
 If a preset was selected during creation, the system also applies preset overrides (custom templates, menus, and/or settings) after the theme copy. The `presets/` directory itself is never copied into projects. See [Project Management](core-projects.md) for the full creation workflow and [Theme Presets](theme-presets.md) for preset details.
 

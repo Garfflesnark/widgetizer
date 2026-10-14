@@ -39,6 +39,7 @@ Before testing starts, the test owner should provide these. If something is not 
 - A valid project backup ZIP created by Widgetizer.
 - An invalid project backup file that is not a ZIP.
 - A malformed project backup ZIP, if available.
+- A tampered project backup ZIP (e.g. a media entry moved into a subfolder, or media text for a language the project lacks), if available.
 - A project backup ZIP larger than the configured import limit, if available.
 - A valid theme ZIP for a new theme.
 - A valid newer-version theme ZIP for an installed theme.
@@ -52,6 +53,7 @@ Before testing starts, the test owner should provide these. If something is not 
 - A project with a page containing a Core Form widget, or time to create one during testing.
 - An Arch project with a Site Address, at least one News item with date, excerpt, featured image and body, and a News grid split into pages, for the structured-data tasks.
 - An Arch project still on a theme version before 0.9.10, if available.
+- An Arch project with a second language (e.g. Greek) added in Project details > Site, with a Greek homepage, at least one translated page and News item, a Greek menu, a Core Form widget, and an image whose alt text is translated. A second copy of it with no Greek homepage, for the export-skip task.
 - Internet access to Google's Rich Results Test (its "Code" option accepts pasted page source).
 - An older Electron desktop build for auto-update testing, if desktop update testing is in scope.
 
@@ -135,8 +137,10 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 
 ### Project Folder and Optional Details
 
-- [ ] PROJ-011 - Type a project title with spaces and capital letters, then look at Folder Name under General.
-  Expected: Folder Name is auto-filled with a lowercase hyphenated value.
+The Folder Name field is currently hidden. Mark PROJ-012, PROJ-013, PROJ-015 and PROJ-038 **Skipped** while PROJ-011 passes.
+
+- [ ] PROJ-011 - Look at the General tab of the New project form and of Project details.
+  Expected: There is no Folder Name field. Projects are created and saved without one.
 
 - [ ] PROJ-012 - Change Folder Name to a valid value using lowercase letters, numbers, and hyphens.
   Expected: No validation error appears.
@@ -150,17 +154,17 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 - [ ] PROJ-015 - Clear Folder Name and submit.
   Expected: An inline folder-required error appears and the project is not created.
 
-- [ ] PROJ-016 - Set Folder Name to the same folder name as an existing project and submit.
-  Expected: The project is created with a collision-free folder name suffix, and a colliding project title is disambiguated with "(Copy)".
+- [ ] PROJ-016 - Create a project with the same title as an existing project.
+  Expected: The project is created with "(Copy)" added to its title, and both projects open with their own content.
 
 - [ ] PROJ-017 - Clear Theme back to "Select a theme" and submit, if the UI allows it.
   Expected: An inline theme-required error appears and the project is not created.
 
-- [ ] PROJ-018 - Fill Notes, Site Title, and Site Address, create the project, then reopen Project details.
+- [ ] PROJ-018 - Fill Notes on General, and Site Title and Site Address on Site, create the project, then reopen Project details.
   Expected: All entered values are still present.
 
-- [ ] PROJ-019 - Enter an invalid Site Address such as `not a url` and submit.
-  Expected: An inline URL validation error appears and the project is not created.
+- [ ] PROJ-019 - Enter an invalid Site Address such as `not a url`, switch to General, and click Save.
+  Expected: The Site tab opens with an inline URL error, the tab shows a dot, and the project is not created.
 
 - [ ] PROJ-020 - Enter a very long project title and notes.
   Expected: The form remains readable and long text does not break the layout.
@@ -208,7 +212,7 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 
 ### Edit, Duplicate, Backup, Import, Delete
 
-- [ ] PROJ-033 - Open Project details for a project.
+- [ ] PROJ-033 - Open Project details for the active project from the Manage menu.
   Expected: The form opens pre-filled with that project's values.
 
 - [ ] PROJ-034 - Look at the Theme field in Project details.
@@ -259,6 +263,15 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 - [ ] PROJ-049 - Import an oversized backup ZIP, if provided.
   Expected: The import is rejected with a message naming the maximum size.
 
+- [ ] PROJ-049B - Zip an ordinary folder of files (not a Widgetizer backup) and import it.
+  Expected: The import is refused with a message saying it is not a valid project export. No project row appears.
+
+- [ ] PROJ-049C - Import the tampered backup ZIP from the test pack, if provided.
+  Expected: The whole backup is refused with a message naming the problem. No project row appears, and importing the untampered backup afterwards still works.
+
+- [ ] PROJ-049D - Import a valid backup of a project with media, pages, collections, menus and site settings.
+  Expected: Everything comes back, and the Media library shows the same files with their alt text and captions, not an empty or older library.
+
 - [ ] PROJ-050 - Open the Import Backup modal and close it with Cancel, X, Escape, and outside click where supported.
   Expected: The modal closes and nothing is imported.
 
@@ -273,6 +286,9 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 
 - [ ] PROJ-054 - Delete one inactive project, then check other projects.
   Expected: Only the targeted project is removed.
+
+- [ ] PROJ-054B - On Windows, open a Command Prompt inside an inactive project's folder under `data/projects/` (so the folder is locked), then delete that project.
+  Expected: The row disappears and a warning that stays until dismissed says the project was deleted but some of its files couldn't be removed, naming the folder. A new project with the same title gets a new folder in `data/projects/`, not the leftover one.
 
 ### Project Isolation
 
@@ -380,6 +396,9 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 
 - [ ] SHELL-013 - Click Documentation and Changelog links.
   Expected: They open externally in a new tab/window.
+
+- [ ] SHELL-014 - Look at the browser tab title and the version line at the bottom of the sidebar.
+  Expected: Both say "Widgetizer Desktop" (the sidebar adds the version number).
 
 ---
 
@@ -576,7 +595,7 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
   Expected: The app shows a sensible no-page or not-found state.
 
 - [ ] PAGE-031 - Open a page's More settings and look for Page Hierarchy.
-  Expected: A Parent page picker is there, set to "None - this is a top-level page".
+  Expected: A Parent page picker is there, set to "None — this is a top-level page".
 
 - [ ] PAGE-032 - Open the Parent page picker on a page that has children.
   Expected: The page itself, its own children, and the homepage are not offered.
@@ -743,6 +762,9 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 - [ ] EDIT-045D - Change a theme setting from the editor, save, then press Undo.
   Expected: The theme setting reverts in the preview and in Theme Settings, and the editor shows unsaved changes.
 
+- [ ] EDIT-045E - Open the page editor in one tab and Site settings in another. Change the same theme setting to a different value in each: save Site settings first, then save the editor.
+  Expected: The editor's save is refused: it says Site settings were changed elsewhere and keeps its theme change on top as an unsaved draft (the unsaved dot stays). Save the editor again, or wait for autosave, then reload Site settings: it shows the editor's value. The Site settings tab does not pick up the value until it is reloaded.
+
 - [ ] EDIT-046 - Save with the button.
   Expected: Save shows a loading state, then becomes disabled and the unsaved dot disappears.
 
@@ -801,7 +823,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: Values change visibly and persist.
 
 - [ ] FIELD-012 - Use the font picker search and weight selector.
-  Expected: Selected font and weight are shown.
+  Expected: Selected font and weight are shown. Instrument Sans and STIX Two Text are in the list.
 
 - [ ] FIELD-013 - Choose a menu in a menu field.
   Expected: The chosen menu is shown and persists.
@@ -1046,7 +1068,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] COLL-042 - Repeat COLL-041 with Clean URLs on, served from a host or local server.
   Expected: Same pages, addresses without .html.
 
-- [ ] COLL-043 - With a Site URL set, export and view the source of page 2.
+- [ ] COLL-043 - With a Site Address set, export and view the source of page 2.
   Expected: The title reads "News - 2 - Site title", the canonical points at page 2, prev and next links are present, and `sitemap.xml` lists pages 2 onwards.
 
 - [ ] COLL-044 - Set items per page to at least the number of items and export.
@@ -1063,6 +1085,9 @@ Test each control type wherever it appears: widget settings, collection forms, S
 
 - [ ] COLL-048 - Apply the Arch 0.9.10 theme update to a project on 0.9.9, then reload the editor tab.
   Expected: The News, Projects and Services grids offer "Split into pages".
+
+- [ ] COLL-049 - On a News Grid, a Projects Grid and a Services Grid in the Card layout with the button shown, change "Button text" (e.g. "Keep reading"), then preview and export.
+  Expected: Each card's button shows the new text in the editor, Site preview and the exported site, and its accessible name reads "Keep reading: <item title>". Clearing the field brings back the default ("Read more", "View project", "View service").
 
 ---
 
@@ -1165,6 +1190,9 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] MEDIA-004C - Upload an image with a very long sentence as its name, then use it in a widget and export.
   Expected: The stored name is cut at about 60 characters on a word boundary, the image renders in preview and the exported page, and the file is in the export's `assets/images`.
 
+- [ ] MEDIA-004D - In a library that already has files, upload six images at once, then open an image picker from a widget, then reload Media.
+  Expected: The new files appear at the top of the library straight away, in the picker too, and are still at the top after reload.
+
 - [ ] MEDIA-005 - Upload an unsupported `.txt` or `.exe` file.
   Expected: Upload is rejected with a clear reason.
 
@@ -1186,7 +1214,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] MEDIA-011 - Search by original filename.
   Expected: Matching files appear.
 
-- [ ] MEDIA-012 - Filter All, Images, Audio, and Files.
+- [ ] MEDIA-012 - Filter All, Images, Audio, Videos, and Files.
   Expected: The library shows the correct file types.
 
 - [ ] MEDIA-013 - Select/deselect one file and all filtered files.
@@ -1244,7 +1272,19 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: The app gives useful recovery information rather than crashing.
 
 - [ ] MEDIA-031 - Choose an uploaded MP4 in the Video widget, save, reopen the editor, play and seek; then remove it.
-  Expected: The video plays and seeks in the editor and standalone preview; removing it brings back the YouTube/Vimeo URL. A corrupt MP4 shows a "can't be played" message.
+  Expected: The video plays and seeks in the editor and standalone preview; removing it brings back the YouTube/Vimeo URL. A corrupt MP4 shows "This video can't be played in your browser."
+
+- [ ] MEDIA-032 - In the Video widget with an uploaded MP4, set a Poster image, then export and open the page.
+  Expected: The poster shows before playback starts; the exported video plays from the export's own files.
+
+- [ ] MEDIA-033 - Leave "Video title (for accessibility)" empty on an English and a Greek page, preview, and check the player's name (screen reader or page source).
+  Expected: It is "Video" on the English page and "Βίντεο" on the Greek one, for both an uploaded video and a YouTube/Vimeo one.
+
+- [ ] MEDIA-034 - In the Video and Video Popup widgets, try a YouTube watch link, a `youtu.be` link, a YouTube embed link, a Vimeo link and a Vimeo player link (`https://player.vimeo.com/video/<id>`).
+  Expected: Each plays the right video. A link such as `https://example.com/?youtube.com/embed/abc` builds a YouTube player address (`https://www.youtube.com/embed/abc`) and never loads example.com. A link with nothing after the marker (`https://www.youtube.com/embed/`) or an ID containing `..` (`https://www.youtube.com/embed/..`) shows no player.
+
+- [ ] MEDIA-035 - Give an image a caption in the Media library, then use it in an Image widget, as a News/Project/Service featured image, in a Project or Service gallery, in a Gallery block with no caption, and in a Masonry Gallery block with no title.
+  Expected: The caption appears under each, and in the Masonry Gallery lightbox. A Gallery block's own caption (or Masonry block's title) wins over the media caption. On a Greek page the Greek caption is used, or the default one if Greek is empty.
 
 ---
 
@@ -1280,13 +1320,27 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] SITESET-010 - If custom code fields exist, enter harmless visible test code, save, preview, and export.
   Expected: The code appears only where intended by the theme.
 
-- [ ] SITESET-011 - Enter a Site URL with a query string (`https://example.com/?utm_source=x`) and save.
+- [ ] SITESET-010B - Change a setting, click Pages in the sidebar and choose "Discard changes". Then open a page in the editor, change a widget and save, and reopen Site settings.
+  Expected: The discarded value is not there; the editor's save did not write it.
+
+- [ ] SITESET-010C - Open Site settings in two tabs. Change the same setting in both, save the first, then save the second.
+  Expected: The second shows a warning that settings were changed elsewhere; its change is kept on screen, unsaved, until you save again.
+
+- [ ] SITESET-010D - On a project with a theme update, open Site settings in one tab. In another tab apply the update from Project details, then change a setting in the first tab and save.
+  Expected: The save succeeds, and the project stays on the new theme version without the update being offered again. A setting the new version removed is skipped with a warning.
+
+- [ ] SITESET-010E - Under Advanced, tick "Use Privacy-Friendly Font CDN", save, then preview and export and view a page's source.
+  Expected: Font links point at `fonts.bunny.net`, not `fonts.googleapis.com`. Unticking it brings Google Fonts back.
+
+SITESET-011 to SITESET-016 use the Site Address field in Project details > Site.
+
+- [ ] SITESET-011 - Enter a Site Address with a query string (`https://example.com/?utm_source=x`) and save.
   Expected: Rejected, and the message says to remove the `?` part rather than just "invalid URL".
 
-- [ ] SITESET-012 - Enter a Site URL with a `#` fragment (`https://example.com/#top`) and save.
+- [ ] SITESET-012 - Enter a Site Address with a `#` fragment (`https://example.com/#top`) and save.
   Expected: Rejected the same way.
 
-- [ ] SITESET-013 - Enter a Site URL pointing at a subfolder (`https://example.com/blog/`) and save.
+- [ ] SITESET-013 - Enter a Site Address pointing at a subfolder (`https://example.com/blog/`) and save.
   Expected: Accepted. A site published inside a folder is a normal setup.
 
 - [ ] SITESET-014 - Enter the same subfolder address without the trailing slash (`https://example.com/blog`) and save.
@@ -1295,7 +1349,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] SITESET-015 - Enter clearly wrong values: `mysite.com`, `https://localhost`, `ftp://example.com`.
   Expected: Each is rejected.
 
-- [ ] SITESET-016 - Clear the Site URL entirely and save.
+- [ ] SITESET-016 - Clear the Site Address entirely and save.
   Expected: Accepted. The field is optional.
 
 ---
@@ -1305,8 +1359,8 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] APPSET-001 - Open General settings from Manage.
   Expected: General, Media, Export, and Developer tabs appear.
 
-- [ ] APPSET-002 - Change language if options exist.
-  Expected: The selected language is saved or clearly unavailable.
+- [ ] APPSET-002 - Change the Language setting on the General tab (the language of the Widgetizer interface itself, not your site's languages), if more than one option exists.
+  Expected: The selected interface language is saved and the app's own menus and labels switch to it, or the setting is clearly unavailable. Site languages (Multilingual section) are unaffected.
 
 - [ ] APPSET-003 - Change date format and save.
   Expected: Dates in multiple lists use the selected format.
@@ -1488,38 +1542,38 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] EXPZIP-013 - Check for `.DS_Store` or obvious computer metadata files.
   Expected: System metadata files are not included.
 
-- [ ] EXPZIP-014 - With a plain Site URL (`https://example.com`), export and open `sitemap.xml`.
+- [ ] EXPZIP-014 - With a plain Site Address (`https://example.com`), export and open `sitemap.xml`.
   Expected: The homepage appears as `https://example.com/` and other pages as full addresses under it.
 
 - [ ] EXPZIP-015 - Same export: open `robots.txt`.
   Expected: The `Sitemap:` line points at `https://example.com/sitemap.xml`.
 
 - [ ] EXPZIP-016 - Same export: open a page's HTML and find its canonical link.
-  Expected: It is the page's full address under the Site URL.
+  Expected: It is the page's full address under the Site Address.
 
-- [ ] EXPZIP-017 - Set the Site URL to a subfolder (`https://example.com/blog/`), export, and check `sitemap.xml`.
+- [ ] EXPZIP-017 - Set the Site Address to a subfolder (`https://example.com/blog/`), export, and check `sitemap.xml`.
   Expected: Every address keeps `/blog/`, including the homepage. Nothing points at the bare domain.
 
-- [ ] EXPZIP-018 - Repeat EXPZIP-017 with the trailing slash removed from the Site URL.
+- [ ] EXPZIP-018 - Repeat EXPZIP-017 with the trailing slash removed from the Site Address.
   Expected: The exported addresses are identical to EXPZIP-017.
 
-- [ ] EXPZIP-019 - With a subfolder Site URL, mark a page as noindex, export, and open `robots.txt`.
+- [ ] EXPZIP-019 - With a subfolder Site Address, mark a page as noindex, export, and open `robots.txt`.
   Expected: The Disallow line includes the folder (`/blog/secret.html`), not a bare `/secret.html`.
 
-- [ ] EXPZIP-020 - With a subfolder Site URL, set a page's social sharing image, export, and check that page's HTML.
+- [ ] EXPZIP-020 - With a subfolder Site Address, set a page's social sharing image, export, and check that page's HTML.
   Expected: The social image address includes the folder and is a complete web address.
 
 - [ ] EXPZIP-021 - Repeat EXPZIP-017 to EXPZIP-020 with Clean URLs turned on.
   Expected: Same addresses without the `.html` endings.
 
-- [ ] EXPZIP-022 - Export a project with the Site URL left empty.
+- [ ] EXPZIP-022 - Export a project with the Site Address left empty.
   Expected: The export succeeds. `sitemap.xml` and `robots.txt` are simply not produced, and pages carry no canonical or social image address.
 
 - [ ] EXPZIP-023 - Set a page's own canonical address by hand, then export.
-  Expected: That page keeps exactly what you typed, regardless of the Site URL.
+  Expected: That page keeps exactly what you typed, regardless of the Site Address.
 
 - [ ] EXPZIP-024 - Export with markdown output enabled and open a page's HTML.
-  Expected: The markdown alternate link is a full address under the Site URL, folder included.
+  Expected: The markdown alternate link is a full address under the Site Address, folder included.
 
 ### Structured Data and Business Details on the Site
 
@@ -1641,7 +1695,7 @@ Use the structured-data project from the test pack, with a local-business catego
 
 ## 17. Stable Links and Reference Integrity
 
-These tests cover stable internal references for structured `link` settings. Richtext links are raw HTML anchors today and are marked where stable-link behavior is not implemented yet.
+These tests cover stable internal references, in structured `link` settings and in richtext. A richtext link picked as a page or collection item remembers its target, so it follows renames and is cleaned up on delete like a `link` setting (LINK-022 to LINK-031).
 
 - [ ] LINK-001 - Link a menu item to a page, rename the page, then preview the menu.
   Expected: The menu link follows the page's new slug.
@@ -1722,7 +1776,7 @@ These tests cover stable internal references for structured `link` settings. Ric
   Expected: Each switch keeps exactly one stable ref (page→page-uuid only, item→item-uuid only) or none (external/file); no stale uuid from the previous target lingers, so render always resolves to the current target.
 
 - [ ] LINK-027 - Open a theme-settings richtext field (page-editor theme panel and admin Theme Settings) and try to add a link.
-  Expected: Only the URL box is offered (no page/item picker); a stable internal ref cannot be authored there (theme settings are out of scope).
+  Expected: In the page-editor theme panel the page/item picker is offered, and a picked link follows a later rename like LINK-022. On the admin Theme Settings page only the URL box is offered (no page/item picker).
 
 - [ ] LINK-028 - Add a richtext link to a page, rename the page's slug, then REOPEN the editor (not just preview).
   Expected: The editor displays the link with the current slug, not the authoring-time slug; saved output is unchanged until you actually edit.
@@ -1787,9 +1841,161 @@ These tests cover stable internal references for structured `link` settings. Ric
 - [ ] LINK-048 - Rename a page that appears in another page's trail, then preview that page.
   Expected: The crumb shows the new name and still links correctly.
 
+- [ ] LINK-049 - With breadcrumbs on, turn on the Header's "Transparent on hero" and preview a child page that starts with a hero, at desktop and phone width.
+  Expected: The hero runs up behind the header; the trail sits over the hero below the header, in light text lined up with the hero text, and never overlaps the hero's text, even when it wraps. With the header not transparent, the trail sits above the content.
+
+- [ ] LINK-050 - With breadcrumbs off (the default), preview a child page and an item page.
+  Expected: No trail anywhere.
+
 ---
 
-## 18. Electron Desktop App
+## 18. Multilingual
+
+Use the Greek Arch project from the Test Pack unless a task says otherwise. Language names appear in their own language (e.g. "Ελληνικά (el)").
+
+### Adding and Removing Languages
+
+- [ ] LANG-001 - Open New project and go to the Site tab.
+  Expected: Default Language is shown and can be changed. There is no Other Languages list or Add a Language control yet.
+
+- [ ] LANG-002 - Open Project details > Site for a single-language project.
+  Expected: Default Language is changeable. Other Languages says "None yet. The site is published in … only." The note "Adding and removing a language takes effect straight away, not when you save." is shown.
+
+- [ ] LANG-003 - Change Default Language but do not save, then try to add a language.
+  Expected: Add a Language, Add and Remove are disabled, with "Save the default language before adding or removing one, so the site and this form agree."
+
+- [ ] LANG-004 - Open the Add a Language list.
+  Expected: The default language and languages already added are not listed. No right-to-left language (Arabic, Hebrew, Persian, Urdu) is offered.
+
+- [ ] LANG-005 - Add Greek, then click Cancel on the form.
+  Expected: A "Ελληνικά added." toast appears and Greek stays in Other Languages after Cancel and on reopening.
+
+- [ ] LANG-006 - With Greek added, look at Default Language.
+  Expected: It is disabled while any other language exists.
+
+- [ ] LANG-007 - After adding Greek, open Pages, Menus and the Header/Footer in the Greek tab or editor.
+  Expected: Greek has its own header, footer and menus copied from the default language; it has no pages.
+
+- [ ] LANG-008 - Click Remove next to Greek.
+  Expected: A "Remove Ελληνικά?" dialog lists the page, collection item and menu counts plus "its header and footer", says uploaded images are kept, and says it cannot be undone. Cancel changes nothing.
+
+- [ ] LANG-009 - Confirm with "Remove Language", then check Pages, Menus, collections and Media.
+  Expected: A removed toast appears. Greek tabs and chips are gone, Greek content is gone, uploads remain in the Media Library.
+
+- [ ] LANG-010 - Add Greek again.
+  Expected: Only fresh header, footer and menus appear; the removed pages, items and translated media text do not come back.
+
+- [ ] LANG-011 - Before removing a language, link a default-language page or menu item to a Greek page, then remove Greek and preview.
+  Expected: The link is cleared or harmless. If some links could not be updated, a warning says "… was removed, but some links couldn't be updated. Check pages and menus that linked to it."
+
+### Lists
+
+- [ ] LANG-012 - Open Pages on a single-language project.
+  Expected: No language tabs and no Languages column.
+
+- [ ] LANG-013 - Open Pages on the Greek project and switch tabs.
+  Expected: Each tab lists only that language's pages; the page count follows the tab. Browser Back returns to the same tab; opening Pages from the sidebar starts on the default language's tab.
+
+- [ ] LANG-014 - Look at the Languages column chips.
+  Expected: Each row shows a chip for every other language. A filled chip ("Open the … version") opens the existing translation; a dashed chip ("Create the … version") creates one.
+
+- [ ] LANG-015 - Click a dashed chip.
+  Expected: A "… version created." toast, the new page opens in the editor with the source content copied, and the chip is filled afterwards. Editing the source later does not change the copy.
+
+- [ ] LANG-016 - On the Greek tab click "New page" and save.
+  Expected: The page is created in Greek and appears only in the Greek tab.
+
+- [ ] LANG-017 - Duplicate a translated page.
+  Expected: The copy appears in the same language, with dashed chips: it is not linked to the original's translations.
+
+- [ ] LANG-018 - Repeat LANG-013 to LANG-017 on a collection's items list ("New …" button).
+  Expected: Same behavior, except for the sidebar: switching from one collection to another in the sidebar keeps the language tab you had chosen. Opening a collection fresh (coming from another screen, with no language in the address) starts on the default language's tab. Reordering on one tab does not reorder the other language.
+
+- [ ] LANG-019 - Open Menus on the Greek project.
+  Expected: Language tabs filter the menus; "New menu" creates in the selected tab's language. Menus have no Languages chips.
+
+### Editing
+
+- [ ] LANG-020 - In the page editor, open the language menu in the top bar.
+  Expected: The current language is highlighted; other languages either open the existing version or show a + to create it.
+
+- [ ] LANG-021 - Open the Greek version of a page and edit its header and footer.
+  Expected: The Greek header and footer change; the default-language header and footer do not.
+
+- [ ] LANG-022 - Edit and save a Greek page, then open the default-language version.
+  Expected: The default-language page is unchanged, and vice versa.
+
+- [ ] LANG-023 - Use the page switcher in the editor top bar on a Greek page.
+  Expected: Only Greek pages are listed.
+
+- [ ] LANG-024 - Open a collection item and use its language menu.
+  Expected: Same open/create behavior as LANG-020.
+
+- [ ] LANG-025 - Open a Greek page in the editor, remove Greek in another tab, then make an edit and save.
+  Expected: A yellow banner says Greek was removed and the page can no longer be saved; clicking Save shows "Saving is turned off for this page because its language was removed…". The edits stay on screen until "Discard changes and return to Pages" or reload.
+
+### Media Text
+
+- [ ] LANG-026 - Open an image in the Media Library on the Greek project.
+  Expected: A Language selector appears. Single-language projects show none.
+
+- [ ] LANG-027 - Choose Greek.
+  Expected: Alt Text is optional; each field shows the default text as a placeholder and "Leave empty to use the … text."
+
+- [ ] LANG-028 - Fill Greek alt text and save, then preview a Greek and a default page using the image.
+  Expected: Greek pages use the Greek alt; default pages keep the default alt.
+
+- [ ] LANG-029 - Clear a Greek field and save, or save Greek with all fields empty.
+  Expected: The field goes back to using the default text. A deliberately blank Greek value cannot be set from the drawer.
+
+### Preview and Site
+
+- [ ] LANG-030 - Preview a translated page with Header > "Show language switcher" on.
+  Expected: The switcher lists each language in its own name and marks the current one.
+
+- [ ] LANG-031 - Click Greek on a page that has a Greek version, then on one that does not.
+  Expected: The first opens the Greek version; the second opens the Greek homepage.
+
+- [ ] LANG-032 - Preview a single-language project, and a project whose second language has no homepage.
+  Expected: No switcher on the first; the language without a homepage is not listed on the second.
+
+- [ ] LANG-033 - Turn "Show language switcher" off and preview.
+  Expected: The switcher is gone.
+
+- [ ] LANG-034 - Preview Greek pages: theme labels, dates, a News listing and item, and a Core Form.
+  Expected: Theme words, dates and form labels/messages appear in Greek.
+
+- [ ] LANG-035 - On a Greek page or item, click the header logo.
+  Expected: It goes to the Greek homepage, not the default one.
+
+### Export
+
+- [ ] LANG-036 - Export the project whose Greek has no homepage.
+  Expected: The export succeeds with "Some languages were not exported", naming Greek and saying to create an `index` page.
+
+- [ ] LANG-037 - Export the full Greek project and unzip it.
+  Expected: Greek pages and items sit under an `el/` folder; the default language stays at the root.
+
+- [ ] LANG-038 - With a Site Address set, open a translated page's source and `sitemap.xml`.
+  Expected: The page lists `hreflang` alternates for itself and each translation, plus `x-default`; the sitemap has matching alternates.
+
+- [ ] LANG-039 - Clear the Site Address and export again.
+  Expected: No `hreflang` alternates in pages.
+
+- [ ] LANG-040 - Set a translated page to noindex and export.
+  Expected: That page lists no alternates, and its siblings do not list it.
+
+### Lifecycle
+
+- [ ] LANG-041 - Download a backup of the Greek project and import it.
+  Expected: Languages, translated pages/items/menus, chips (translation links) and Greek media text all come back.
+
+- [ ] LANG-042 - Duplicate the Greek project.
+  Expected: Same as LANG-041, and the copy's chips link to its own pages, not the original project's.
+
+---
+
+## 19. Electron Desktop App
 
 Run the web-app sections above in the desktop app too. This section covers only desktop-specific differences.
 
@@ -1812,7 +2018,7 @@ Run the web-app sections above in the desktop app too. This section covers only 
   Expected: It opens in the default browser.
 
 - [ ] ELEC-007 - Click an external link inside Site preview.
-  Expected: It opens in the default browser, not inside the app preview window.
+  Expected: Nothing opens: links to other sites are disabled in Site preview, so the preview window stays on the same page and no browser opens.
 
 - [ ] ELEC-008 - Open Site preview from sidebar or editor.
   Expected: Preview opens in a separate native preview window.
@@ -1848,7 +2054,10 @@ Run the web-app sections above in the desktop app too. This section covers only 
   Expected: The file opens in the operating system's default browser/media handler, not inside the Electron app window or image lightbox.
 
 - [ ] ELEC-019 - Open a file link from Site preview.
-  Expected: PDF/MP3/file links from preview open in the operating system's default browser/media handler, not inside the Electron app preview window.
+  Expected: Nothing opens: PDF/MP3/file links are disabled in Site preview like other non-page links, so the preview window stays on the same page and no browser or media handler opens.
+
+- [ ] ELEC-020 - Watch the startup screen, then open Help > About Widgetizer Desktop.
+  Expected: The startup screen says "Starting Widgetizer Desktop..." and the About box is titled "About Widgetizer Desktop" with the version. The installed app, its data folder and auto-update still go by "Widgetizer", so existing projects are all there.
 
 ---
 

@@ -57,9 +57,11 @@ packages/core/src/widgets/
 ├── core-form/
 │   ├── schema.json
 │   ├── widget.liquid
-│   └── preview.png
+│   ├── preview.png
+│   └── insights.md
 └── locales/
-    └── en.json
+    ├── en.json
+    └── el.json
 ```
 
 Each widget has its own folder containing:
@@ -67,6 +69,7 @@ Each widget has its own folder containing:
 - **`schema.json`**: The widget's configuration and setting definitions.
 - **`widget.liquid`**: The markup and logic (Liquid) for the widget.
 - **`preview.png`** (optional): A thumbnail for the widget picker. When present, the loader sets `hasPreview: true` on the returned schema (see §5).
+- **`insights.md`** (optional, `core-form` only): authoring guidance for people and agents; nothing loads it.
 
 The sibling `locales/` directory is **not** a widget — the loader skips any entry that does not start with `core-` or lacks a `schema.json`.
 

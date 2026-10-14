@@ -6,7 +6,7 @@ This doc covers the **Electron-runtime-specific** material: dev mode, the dynami
 
 ## Display name and installation identity
 
-The visible OSS app name is **Widgetizer Desktop**, supplied to the editor by `packages/editor-ui/src/lib/appName.js`. This is a display-name change only. Keep Electron's internal `productName` as **Widgetizer**, and preserve `appId`, installer `artifactName` and the macOS app-menu name.
+The visible OSS app name is **Widgetizer Desktop**, supplied to the editor by `packages/editor-ui/src/lib/appName.js` (`APP_NAME`, from the `__APP_NAME__` constant `vite.config.js` defines; a shell that does not define it gets "Widgetizer"). The main process writes it directly in its window titles, dialogs and loading/error pages, and the Linux launcher entry sets it in `builder.config.mjs`. This is a display-name change only. Keep Electron's internal `productName` as **Widgetizer**, and preserve `appId`, installer `artifactName` and the macOS app-menu name.
 
 Electron derives its user-data location, macOS bundle and Windows installation folder from the internal identity. Renaming it can make existing projects appear missing or leave a second installation after an update. Any future internal rename requires an explicit migration for existing installs and data.
 
@@ -36,7 +36,7 @@ The `electron:build:*` npm scripts call `node scripts/build-electron.mjs --platf
 
 1. Preflights `.env.production` (prompts to create it if missing — see below).
 2. Runs the Vite frontend build (`npm run build`).
-3. Runs platform prep: mac swaps in per-arch Sharp binaries via `electron/prepare-mac-sharp.cjs`; Windows builds install win32 x64 optional native deps (`npm install --no-save --platform=win32 --arch=x64 --include=optional`) so modules like `sharp` are present. Linux installs both x64 and ARM64 Sharp binaries together, using versions declared by the installed Sharp package.
+3. Runs platform prep: mac swaps in per-arch Sharp binaries via `electron/prepare-mac-sharp.cjs`; Windows builds install win32 x64 optional native deps (`npm install --no-save --platform=win32 --arch=x64 --include=optional`) so modules like `sharp` are present. Linux runs `electron/prepare-linux-sharp.cjs`, which installs both x64 and ARM64 Sharp binaries together, using versions declared by the installed Sharp package. Linux builds must run on Linux.
 4. Runs `npx @electron/rebuild --force` for Electron's native-module ABI, with the selected `--arch` on Linux. Linux also checks SQLite, Sharp and libvips ELF headers against that architecture before packaging.
 5. Runs `electron-builder --config electron/builder.config.mjs --<platform>`, passing the unsigned flag/env where requested. For Windows unsigned it sets `WIN_UNSIGNED=1`, which `builder.config.mjs` reads to drop the `signtoolOptions` block.
 
@@ -368,6 +368,7 @@ iconutil -c icns icon.iconset -o icon.icns
 | Apple Silicon (M1/M2/M3/M4) | `Widgetizer-x.x.x-arm64.dmg`  |
 | Intel Mac                   | `Widgetizer-x.x.x.dmg`        |
 | Windows                     | `Widgetizer-Setup-x.x.x.exe`  |
+| Linux (x64 / ARM64)         | `Widgetizer-x.x.x-amd64.deb` / `Widgetizer-x.x.x-arm64.deb` |
 
 ### First-run instructions for recipients (macOS)
 

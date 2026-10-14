@@ -13,9 +13,9 @@ Uploaded binaries are stored through the **`AssetStorageAdapter`** (local FS in 
 - **Images**: `data/projects/{folderName}/uploads/images/`
 - **Files** (PDFs, audio, video): `data/projects/{folderName}/uploads/files/`
 
-The controller chooses the subdir inline from `getMediaCategory(file.mimetype)` (`packages/builder-server/src/utils/mimeTypes.js`): `"image"` MIME types go to `images/`, everything else (PDF, audio) to `files/`. The adapter key is `${subdir}/${filename}` (originals) or `images/${variantFilename}` (generated sizes) — the historical disk layout minus the `/uploads/` URL prefix. There is no `getMediaDir` path-builder; the backend never constructs absolute paths from user input — all binary I/O routes through the adapter over `req.scope`. See [Packages & Adapter Architecture](core-packages.md).
+The controller chooses the subdir inline from `getMediaCategory(file.mimetype)` (`packages/builder-server/src/utils/mimeTypes.js`): `"image"` MIME types go to `images/`, everything else (PDF, audio, video) to `files/`. The adapter key is `${subdir}/${filename}` (originals) or `images/${variantFilename}` (generated sizes) — the historical disk layout minus the `/uploads/` URL prefix. There is no `getMediaDir` path-builder; the backend never constructs absolute paths from user input — all binary I/O routes through the adapter over `req.scope`. See [Packages & Adapter Architecture](core-packages.md).
 
-- **File naming** (`utils/uploadFileName.js`, `normalizeUploadName`): every non-letter, non-digit becomes a single hyphen, so words survive instead of being glued together (`filename_like_that.jpg` → `filename-like-that.jpg`, `logo (final)_v2.svg` → `logo-final-v2.svg`). The name and the extension are lower-cased, accents and other scripts are transliterated by `slugify` (`Café déjà vu.png` → `cafe-deja-vu.png`, `Привет.png` → `privet.png`), and a name left empty by a script `slugify` cannot transliterate (CJK) falls back to `image` / `file` by subdir. Names are cut at 60 characters on a hyphen boundary. The resulting `[a-z0-9-]` + lower-case extension charset is a contract: `sanitizationService`'s image-path allowlist blanks anything outside it, so a non-ASCII stored name would render as a placeholder and never reach an export. Collisions are deduped **case-insensitively** against the adapter's existing keys (plus names assigned earlier in the same request) by appending a counter (`my-awesome-picture-1.jpg`) — older uploads kept their own case (`photo.JPG`), and on Windows and macOS that IS `photo.jpg`, so a case-sensitive check would hand out a name that overwrites the existing file. The uploaded name itself is stored as `originalName`, decoded from multer's latin1 bytes.
+- **File naming** (`utils/uploadFileName.js`, `normalizeUploadName`): every non-letter, non-digit becomes a single hyphen, so words survive instead of being glued together (`filename_like_that.jpg` → `filename-like-that.jpg`, `logo (final)_v2.svg` → `logo-final-v2.svg`). The name and the extension are lower-cased, accents and other scripts are transliterated by `slugify` (`Café déjà vu.png` → `cafe-deja-vu.png`, `Привет.png` → `privet.png`), and a name left empty by a script `slugify` cannot transliterate (CJK) falls back to `image` / `file` by subdir. The base name (without the extension, which is kept on top) is limited to 60 characters, backing up to the last hyphen when it falls past 60% of the limit; otherwise a long word is cut mid-word. The resulting `[a-z0-9-]` + lower-case extension charset is a contract: `sanitizationService`'s image-path allowlist blanks anything outside it, so a non-ASCII stored name would render as a placeholder and never reach an export. Collisions are deduped **case-insensitively** against the adapter's existing keys (plus names assigned earlier in the same request) by appending a counter (`my-awesome-picture-1.jpg`) — older uploads kept their own case (`photo.JPG`), and on Windows and macOS that IS `photo.jpg`, so a case-sensitive check would hand out a name that overwrites the existing file. The uploaded name itself is stored as `originalName`, decoded from multer's latin1 bytes.
 - **Automatic resizing**: For each uploaded raster image (not SVG), the system generates multiple sizes whose widths/quality come from App Settings or a theme override (§ Image Sizes). Variants are stored alongside the original with `-{size}` suffixes (`photo-thumb.jpg`).
 - **Smart size generation**: Only sizes meaningfully smaller than the original are generated (`sizeConfig.width >= metadata.width` is skipped). If an 800px image has `large` configured at 1920px, no `large` variant is produced.
 - **Original compression**: When the original is no larger than the largest enabled size (so the original is the effective top delivery asset), it is recompressed in place at the configured quality — dimensions preserved, only file size reduced. GIFs are excluded to preserve animation frames. When the original exceeds the largest enabled size, it is stored untouched (the `large` variant becomes the public delivery ceiling).
@@ -25,6 +25,10 @@ The controller chooses the subdir inline from `getMediaCategory(file.mimetype)` 
 The ASCII filename restriction is also a security boundary: the image-path allowlist protects image output that writes `src` without escaping. Supporting non-ASCII stored names requires reviewing and escaping every affected output, not merely relaxing the upload normalizer. Successful upload or thumbnail generation alone does not establish safe widget rendering or export.
 
 Renaming a stored file after upload is not supported; any future rename must update every reference and generated variant. Automatically stripping camera or tool prefixes from uploaded names remains an undecided enhancement.
+
+### Developer tool: converting a project's images to WebP
+
+`scripts/optimize-project-media.mjs` is a maintenance script run from the repo, not a product feature; there is no in-app optimization UI (see [Image Optimization](future-image-optimization.md) for that plan). `node scripts/optimize-project-media.mjs --project <folder>` is a dry run that estimates savings; `--apply` converts the project's PNG and JPEG uploads to WebP and rewrites every reference (page, collection and global JSON, `theme.json`, and the `media_files` / `media_sizes` rows). SVG, GIF and existing WebP are left alone, favicons only with `--include-favicons`, and `--quality` / `--sample` tune the encode and the estimate. Replaced originals are parked in `uploads/images/.pre-webp/` unless `--delete-originals` is passed. Stop the backend before `--apply`: it holds the SQLite handle and caches media rows.
 
 ### Decompression-Bomb Guards
 
@@ -70,6 +74,7 @@ Media metadata lives in SQLite (`data/widgetizer.db`); binaries live behind the 
 - `media_files` — core records (id, project_id, filename, original_name, type, size, uploaded, path, alt, title, caption, width, height).
 - `media_sizes` — generated image variants (size_name, path, width, height), keyed by `media_file_id`.
 - `media_usage` — usage relationships: one `used_in` source string per (file, source), keyed by `media_file_id`.
+- `media_file_translations` — per-language alt/title/caption overrides, one row per (`media_file_id`, `language`). A NULL field inherits the default language; `""` is a deliberate blank.
 
 API responses assemble a `files` array from these rows:
 
@@ -113,6 +118,8 @@ API responses assemble a `files` array from these rows:
 ```
 
 Non-image records (PDFs, audio, video) carry `width: null`, `height: null`, and `sizes: {}` — no resizing, no dimension extraction.
+
+Every record also carries `translations: { <lang>: { alt, title, caption } }` from `media_file_translations`; `metadata` is the default language. Rendering resolves one language with `resolveMediaMetadata(file, language)` (`packages/core/src/utils/mediaMetadata.js`), where a `null` field falls back to `metadata`.
 
 ### Media Type Configuration
 
@@ -215,7 +222,7 @@ Browser-native loads (`<img src>`, downloads) and the metadata editor cannot car
 
 | Method | Endpoint | Controller | Description |
 | --- | --- | --- | --- |
-| `PUT` | `/projects/:projectId/media/:fileId/metadata` | `updateMediaMetadata` | Update alt/title/caption (HTML stripped). |
+| `PUT` | `/projects/:projectId/media/:fileId/metadata` | `updateMediaMetadata` | Update alt/title/caption (HTML stripped). The default language updates the `media_files` row; `?language=` for another language writes its `media_file_translations` override (an omitted field inherits). |
 | `GET` | `/projects/:projectId/media/:fileId` | `serveProjectMedia` | Serve a file by metadata ID. |
 | `GET` | `/projects/:projectId/uploads/images/:filename` | `serveProjectMedia` | Serve an image by filename. |
 | `GET` | `/projects/:projectId/uploads/files/:filename` | `serveProjectMedia` | Serve a file asset / audio by filename. |
@@ -233,20 +240,25 @@ Browser-native loads (`<img src>`, downloads) and the metadata editor cannot car
    - Mint a UUID media id; build the `fileInfo` record (`path: /uploads/{subdir}/{filename}`).
    - **Raster images** (`image/*` except SVG): read dimensions via `sharp` (decompression-bomb guards apply), generate each enabled size smaller than the original (preserving format at the size's quality), upload each variant through the adapter, then recompress the original when it is no larger than the largest enabled size (GIFs excluded).
    - **SVG**: re-sanitize server-side with `DOMPurify` (`USE_PROFILES: { svg: true }`) before storing — defense-in-depth atop the client-side sanitize.
-   - **Non-image** (PDF, audio): skip all image processing; store as-is with `width/height: null`, `sizes: {}`.
+   - **Non-image** (PDF, audio, video): skip all image processing; store as-is with `width/height: null`, `sizes: {}`.
    - Upload the (possibly recompressed/sanitized) original bytes through `assetStorage.upload(scope, key, buffer)`.
 4. Insert each processed record via `mediaRepo.addMediaFile`. Respond `201` (or `400` when all files were rejected) with `processedFiles` / `rejectedFiles`.
 
 ### Metadata Update (`updateMediaMetadata`)
 
-Strips HTML from `alt`/`title`/`caption` (`stripHtmlToText`, also applied as an express-validator sanitizer on the route). **Caption is image-only**: a caption sent for a non-image (e.g. a PDF via the direct API) is stored as `""`, not text (`file.type` must start with `image/`). Persists to the `alt`/`title`/`caption` columns.
+Strips HTML from `alt`/`title`/`caption` (`stripHtmlToText`, also applied as an express-validator sanitizer on the route). **Caption is image-only**: a caption sent for a non-image (e.g. a PDF via the direct API) is stored as `""`, not text (`file.type` must start with `image/`). For the default language it persists to the `alt`/`title`/`caption` columns, and `alt` is required. For another language (`?language=`) it writes that language's `media_file_translations` row instead: an omitted field is stored as `NULL` (inherit) and `""` is a deliberate blank.
 
 ### Deletion (`deleteProjectMedia` / `bulkDeleteProjectMedia`)
 
+Stored usage rows are best-effort (a failed sync after a save is only logged), so deletion does not trust them alone. Everything below runs inside the project's content-write section (`withContentWriteLock` in `services/contentCoordination.js`), which page, global, menu, collection, theme-settings and site-identity writes also take, so no save can add a reference between the check and the delete.
+
 1. Load the target record(s) from SQLite.
-2. **Usage check** — if `usedIn` is non-empty, single delete returns `400`; bulk delete skips the in-use file and reports it under `filesInUse` (still `200`).
-3. `deleteMediaAssets` removes the original key plus every generated size key through the adapter.
-4. Delete the `media_files` row(s); SQLite cascades to `media_sizes` and `media_usage`.
+2. **Verify** — `verifyFileUnused` re-runs the Refresh Usage traversal (`refreshAllMediaUsageFromDir`) and unions the fresh result with the rows as recorded: a file is deletable only when both say unused. A scan that could not run, or skipped content it could not read, refuses the whole request with `409` / `MEDIA_USAGE_UNVERIFIED` (with `skipped`); nothing is deleted.
+3. **Usage check** — if the file is used, single delete returns `400`; bulk delete skips the in-use file and reports it under `filesInUse` (still `200`).
+4. `deleteMediaAssets` removes the original key plus every generated size key through the adapter, and records every path the file could be referenced by (`recordDeletedMediaPaths`).
+5. Delete the `media_files` row(s); SQLite cascades to `media_sizes` and `media_usage`.
+
+A save queued behind the delete that would newly introduce one of those recorded paths is refused with `409` / `MEDIA_REFERENCE_MISSING` (`assertIntroducedMediaExists`), unless the file has been re-uploaded under the same name; content that already carried the path keeps saving. The records last for the life of the process. A save whose usage sync fails still succeeds and returns a `MEDIA_USAGE_STALE` warning, which the editor shows as a warning, not a failed save.
 
 ## 4. Frontend Implementation
 
@@ -254,7 +266,7 @@ The Media page (`packages/editor-ui/src/pages/Media.jsx`) orchestrates specializ
 
 ### Hooks (`packages/editor-ui/src/hooks/`)
 
-- `useMediaState` — files list, loading/view-mode (persisted to localStorage), search + type filter (`all`/`image`/`file`), manual usage refresh; loads media on mount.
+- `useMediaState` — files list, loading/view-mode (persisted to localStorage), search + type filter (`all`/`image`/`audio`/`video`/`file`), manual usage refresh; loads media on mount.
 - `useMediaUpload` — XHR progress tracking, batched (chunks of 5) multi-file uploads, client-side SVG sanitization via `DOMPurify` (server re-sanitizes — see § Upload Flow), per-file error reporting and toasts.
 - `useMediaSelection` — multi-select, select-all/none with filtering, usage-aware single/bulk deletion, confirmation-modal state.
 - `useMediaMetadata` — metadata drawer state, saving alt/title/caption via the API.
@@ -266,7 +278,7 @@ See [Custom Hooks](core-hooks.md) for hook-by-hook detail.
 - `MediaToolbar` — view toggle, search, type-filter dropdown, bulk actions, usage refresh.
 - `MediaGrid` / `MediaGridItem` — thumbnail cards with usage badges; non-images show a `FileText` icon + extension badge.
 - `MediaList` / `MediaListItem` — table view with select-all and per-row detail.
-- `MediaDrawer` — slide-out metadata editor (alt, title, caption).
+- `MediaDrawer` — slide-out metadata editor (alt, title, caption). On a multilingual project a language dropdown switches which language's fields are edited; it reopens on the default language for a different file.
 - `MediaSelectorDrawer` — media browser used inside setting inputs to pick existing files. Supports an "Upload" button (OS file dialog), search, and a `filterType` (`image` / `audio` / `video` / `file` / `all`) that adjusts upload accept types; images show thumbnails, files show an icon + extension badge. With `showTypeFilter`, it also renders a type dropdown next to search (All / Images / Audio / Videos / Files) so the user can switch type in-drawer — used by the richtext "Link to file" picker, which opens on `all`.
 
 The thumbnail/preview path falls back to the original image when a `thumb` variant is unavailable. Copy-URL is available on media items (copies the relative storage path) so a file URL can be pasted into generic link fields.

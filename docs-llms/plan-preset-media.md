@@ -5,6 +5,8 @@ Move Arch's preset starter images out of `presets/<id>/media/` into a theme-root
 runtime copies**, and resolved from the theme's distribution copy (the app seed)
 at project-creation time. Delete this file when shipped.
 
+> **Status: shipped in 0.9.9** — every touchpoint below is done (`resolvePresetPaths` and `copyThemeToProject` in `themeController.js`, `scripts/theme-update-delta.js`, `scripts/pack-preset-media.js`, `presetMediaSeeding.test.js`). Since 0.9.10 the default `arch` preset also ships images under `themes/arch/preset-media/arch/`, so the "default `arch` preset has none" remarks below are historical. The durable rules live in [theme-preset-file-format.md](theme-preset-file-format.md); this file can be deleted.
+
 ## Why
 
 The 0.9.8→0.9.9 Arch delta is 197 MB; 180 MB of that is preset starter media

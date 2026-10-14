@@ -10,7 +10,7 @@ The list helps us notice when a new operation has been added without being descr
 
 ## Technical details
 
-Inventory of literal routes declared on 2026-09-18, rechecked against changes through `ff2d4456` on 2026-09-19 (no added route declarations). Paths below use the local web app's `/api` mount; other shells can mount these routers elsewhere. Routes and middleware, not this table, remain authoritative for validation and authorization. Project content handlers generally resolve a requested language from query/body; a language argument is not a different endpoint.
+Inventory of literal routes declared on 2026-09-18, rechecked against the route declarations at `3ea6bacc` on 2026-10-14. Paths below use the local web app's `/api` mount; other shells can mount these routers elsewhere. Routes and middleware, not this table, remain authoritative for validation and authorization. Project content handlers generally resolve a requested language from query/body; a language argument is not a different endpoint.
 
 This index cross-checks the operation directory against the backend surface. It is not a test-coverage report. Read the linked walkthrough for ownership and side effects. Editor-only widget/block changes, undo/redo, clipboard, guards and autosave are covered in [Editing](editing.md).
 
@@ -206,6 +206,6 @@ This index cross-checks the operation directory against the backend surface. It 
 | --- | --- | --- |
 | GET | `/render/:token` | Serve an unexpired rendered HTML snapshot |
 
-86 literal built-in routes are listed, including token rendering. [setupBuilderServer](../../../packages/builder-server/src/setupBuilderServer.js) mounts these routers and can also mount plugin-contributed project routes. Dynamic plugin contributions and static middleware mounts are outside this literal-route count. Core assets, theme assets and media serving are supporting reads, not additional editable content entities.
+87 literal built-in routes are listed, including token rendering. [setupBuilderServer](../../../packages/builder-server/src/setupBuilderServer.js) mounts these routers and can also mount plugin-contributed project routes. Dynamic plugin contributions, static middleware mounts and the `GET /health` liveness check that [createApp](../../../packages/builder-server/src/createApp.js) adds for the web shell are outside this literal-route count. Core assets, theme assets and media serving are supporting reads, not additional editable content entities.
 
 To refresh: inspect the route declarations and router mounts, add/remove inventory rows, and update the corresponding operation and coverage entries. Recount literal declarations; do not treat a new route as covered just because it fits an existing family.
