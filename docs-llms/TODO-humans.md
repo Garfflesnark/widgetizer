@@ -33,6 +33,14 @@ After applying a theme update, settings the update added showed internal codes i
 
 **Next:** Apply a theme update that adds settings and check Site settings and the editor show their names without reloading. [GitHub #155](https://github.com/tsiger/widgetizer/issues/155)
 
+### THEME-STRINGS · Translate the remaining built-in breadcrumb and business-details text
+
+**Review · Low · Shared · anastis**
+
+Translated pages showed some English: "Page 2" and the hidden "Breadcrumb" label in breadcrumbs, and "Mon"–"Sun" and "Closed" in opening hours. This is now fixed and needs a check in the app.
+
+**Next:** On a Greek page, check page 2 of a listing ends with "Σελίδα 2" and opening hours read "Δευ–Παρ" and "Κλειστά". [GitHub #156](https://github.com/tsiger/widgetizer/issues/156)
+
 ## Decisions to make
 
 ### T54 · Choose an accessibility standard
@@ -221,14 +229,6 @@ None of these told the user that something had failed to load.
 Export refuses some address clashes only for the main language. In a translated language, a collection can silently overwrite pages: after a theme update adds a collection named like a language code, or with a split homepage and a collection item called "2".
 
 **Next:** Detect these clashes in every language and refuse the export with a clear message.
-
-### THEME-STRINGS · Translate the remaining built-in breadcrumb and business-details text
-
-**Open · Low · Shared**
-
-Translated pages still show some English: "Page 2" and the hidden "Breadcrumb" label in breadcrumbs, and "Mon"–"Sun" and "Closed" in opening hours.
-
-**Next:** Take these words from the theme's language files.
 
 ### RENDER-LANG · Make site-wide links and single-widget re-renders follow the page language
 

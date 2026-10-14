@@ -40,6 +40,16 @@ After applying a theme update, a setting the update added (e.g. `show_breadcrumb
 
 **Start:** [useThemeLocale.js](../packages/editor-ui/src/hooks/useThemeLocale.js), [projectManager.js](../packages/editor-ui/src/queries/projectManager.js), [useThemeLocaleInvalidate.test.jsx](../packages/editor-ui/src/hooks/__tests__/useThemeLocaleInvalidate.test.jsx). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`; fixed 2026-10-14. [GitHub #155](https://github.com/tsiger/widgetizer/issues/155)
 
+### THEME-STRINGS · Translate the remaining built-in breadcrumb and business-details text
+
+**Review · Low · Shared · anastis**
+
+Translated pages showed English: the core breadcrumbs snippet defaulted `aria_label` to "Breadcrumb" and `page_label` to "Page", `breadcrumbNode.js` named numbered crumbs `Page N`, and Arch's `business-details.liquid` sliced English day ids ("Mon"–"Sun") and printed a literal "Closed". Fixed on `0.9.10` in `ce862cce`: core `site.breadcrumbs.{label,page}` (en/el) as the snippet defaults, the seo tag passes the page word into the BreadcrumbList, Arch `site.business_details.{closed,days.*}` (en/el) with each name escaped once, the same Arch files in `updates/0.9.10/`, the engine falls back to the core English dictionary when no `loadSiteStrings` is supplied, and the locale checker counts core snippets as users of core keys.
+
+**Done when:** Confirmed in the app: a Greek page-2 trail ends "Σελίδα 2", Greek opening hours read "Δευ–Παρ" / "Κλειστά", English is unchanged.
+
+**Start:** [breadcrumbs.liquid](../packages/core/src/snippets/breadcrumbs.liquid), [business-details.liquid](../themes/arch/snippets/business-details.liquid), [SeoTag.js](../packages/core/src/tags/SeoTag.js). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`; fixed 2026-10-14. [GitHub #156](https://github.com/tsiger/widgetizer/issues/156)
+
 ## Decisions to make
 
 ### T54 · Choose an accessibility standard
@@ -275,16 +285,6 @@ Treat a reply of the wrong shape as a load failure, and show it: the existing lo
 **Done when:** Export (and ideally theme update) refuses both clashes in every language with a clear message, with tests.
 
 **Start:** [exportController.js](../packages/builder-server/src/controllers/exportController.js), [collectionService.js](../packages/builder-server/src/services/collectionService.js), [contentAddress.js](../packages/core/src/utils/contentAddress.js). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
-
-### THEME-STRINGS · Translate the remaining built-in breadcrumb and business-details text
-
-**Open · Low · Shared**
-
-`core/src/snippets/breadcrumbs.liquid` defaults `aria_label` to "Breadcrumb" and `page_label` to "Page"; Arch's `layout.liquid` passes neither and Arch locales have no breadcrumb keys (Greek page 2 shows "Page 2"). `themes/arch/snippets/business-details.liquid` shows weekdays sliced from English day ids ("Mon"–"Sun") and a literal "Closed". Breadcrumb JSON-LD also names numbered crumbs `Page N` (`breadcrumbNode.js`).
-
-**Done when:** These strings come from theme locales or site strings in each language.
-
-**Start:** [breadcrumbs.liquid](../packages/core/src/snippets/breadcrumbs.liquid), [business-details.liquid](../themes/arch/snippets/business-details.liquid). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
 
 ### RENDER-LANG · Make site-wide links and single-widget re-renders follow the page language
 
