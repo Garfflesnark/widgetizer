@@ -25,13 +25,13 @@ Automatic structured information for search engines has been implemented.
 
 **Next:** Check the shipped feature against the [documented rules](core-export.md#structured-data-json-ld) and [business details](core-projects.md#6-site-identity-and-business-details) before closing the issue. [GitHub #122](https://github.com/tsiger/widgetizer/issues/122)
 
-### GH135 · Review the Widgetizer Desktop name
+### THEME-LOCALE-STALE · Theme labels stay untranslated after a theme update
 
-**Review · Unrated · OSS · tsiger**
+**Review · Low · Shared · anastis**
 
-The visible app rename has already been implemented.
+After applying a theme update, settings the update added showed internal codes instead of their names until the page was reloaded. This is now fixed: the labels refresh as soon as the update is applied.
 
-**Next:** Check the user-facing names and preserve the [existing installation identity](core-electron.md#display-name-and-installation-identity) before closing the task. [GitHub #135](https://github.com/tsiger/widgetizer/issues/135)
+**Next:** Apply a theme update that adds settings and check Site settings and the editor show their names without reloading. [GitHub #155](https://github.com/tsiger/widgetizer/issues/155)
 
 ## Decisions to make
 
@@ -333,14 +333,6 @@ If Site settings fails to load (for example the server was down), it shows "No t
 If an image picked for a site setting is deleted from the media library before you save, the save fails with "Please try again", which won't help.
 
 **Next:** Say that the image is gone and to choose another one.
-
-### THEME-LOCALE-STALE · Theme labels stay untranslated after a theme update
-
-**Open · Low · Shared**
-
-After applying a theme update, settings the update added show internal codes instead of their names until the page is reloaded.
-
-**Next:** Refresh the theme's labels when an update is applied.
 
 ### T66 · Explain form errors beside the right field
 

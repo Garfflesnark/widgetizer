@@ -377,6 +377,16 @@ Multilingual sites were built and both real-project walkthroughs had passed; the
 
 **Body at:** `7609a703:docs-llms/TODO-agents.md`.
 
+### GH135 · Review the Widgetizer Desktop name
+
+**Done · Unrated · OSS · 2026-10-14**
+
+The app's visible name changed to Widgetizer Desktop, while product IDs, installer and data paths and the update identity deliberately stayed the same so existing installs keep working.
+
+**Resolution:** Reviewed and confirmed by the owner. Implemented in `8fae65c5`. [GitHub #135](https://github.com/tsiger/widgetizer/issues/135)
+
+**Body at:** `c9b48662:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

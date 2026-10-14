@@ -30,15 +30,15 @@ Structured-data commits e3ae2f424/e48731228 and docs d065e7ae9 exist. Review the
 
 **Start:** [Structured data](core-export.md#structured-data-json-ld), [site identity](core-projects.md#6-site-identity-and-business-details) and [collection mappings](core-collections.md#5c-structured-data-structureddata-block). **Source:** GitHub #122. [GitHub #122](https://github.com/tsiger/widgetizer/issues/122)
 
-### GH135 · Review the Widgetizer Desktop name
+### THEME-LOCALE-STALE · Theme labels stay untranslated after a theme update
 
-**Review · Unrated · OSS · tsiger**
+**Review · Low · Shared · anastis**
 
-Implemented in 8fae65c5. Product IDs, installer/data paths and update identity deliberately stay unchanged; review display names only.
+After applying a theme update, a setting the update added (e.g. `show_breadcrumbs`) showed its raw key (`global.general.settings.show_breadcrumbs.label`) in Site settings and the editor until the page reloaded: `useThemeLocale` kept a module-level cache per project and language for 5 minutes with no invalidation. Fixed on `0.9.10`: `invalidateThemeLocale(projectId)` marks every language of that project stale and refetches where mounted (old labels stay until the new arrive), with a per-project generation so a refresh never cancels another project's load; `projectManager.applyThemeUpdate` calls it on success; a non-OK locale reply no longer replaces cached labels. An embedding app that applies updates through its own request must call `invalidateThemeLocale` itself.
 
-**Done when:** Agreed UI names are correct with existing installs unaffected.
+**Done when:** Applying a theme update shows the new settings' labels in Site settings and the editor without a reload, confirmed in the app.
 
-**Start:** [Display name and installation identity](core-electron.md#display-name-and-installation-identity). **Source:** GitHub #135. [GitHub #135](https://github.com/tsiger/widgetizer/issues/135)
+**Start:** [useThemeLocale.js](../packages/editor-ui/src/hooks/useThemeLocale.js), [projectManager.js](../packages/editor-ui/src/queries/projectManager.js), [useThemeLocaleInvalidate.test.jsx](../packages/editor-ui/src/hooks/__tests__/useThemeLocaleInvalidate.test.jsx). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`; fixed 2026-10-14. [GitHub #155](https://github.com/tsiger/widgetizer/issues/155)
 
 ## Decisions to make
 
@@ -428,16 +428,6 @@ Choosing a library image in a theme setting and saving after that image was dele
 **Done when:** Site settings says the chosen image is no longer in the media library and what to do, with a test.
 
 **Start:** [Settings.jsx](../packages/editor-ui/src/pages/Settings.jsx), [en.json](../packages/core/src/locales/en.json). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
-
-### THEME-LOCALE-STALE · Theme labels stay untranslated after a theme update
-
-**Open · Low · Shared**
-
-After applying a theme update, a setting the update added (e.g. `show_breadcrumbs`) shows its raw key (`global.general.settings.show_breadcrumbs.label`) in Site settings and the editor until the page reloads. `useThemeLocale` keeps a module-level cache per project and language for 5 minutes (`useThemeLocale.js` ~6-8) with no invalidation, so the pre-update locale stays in use.
-
-**Done when:** Applying a theme update refreshes the theme locale for that project, so new settings show their labels without a reload, with a test.
-
-**Start:** [useThemeLocale.js](../packages/editor-ui/src/hooks/useThemeLocale.js), [ProjectsEdit.jsx](../app/src/pages/ProjectsEdit.jsx). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
 
 ### T66 · Explain form errors beside the right field
 
