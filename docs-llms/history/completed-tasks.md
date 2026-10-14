@@ -287,16 +287,6 @@ The issue (title only: "Export assets with number+app version+date") asked for e
 
 **Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
 
-### GH126 · Review the Windows leave-page prompt fix
-
-**Done · Unrated · OSS · 2026-10-12**
-
-The unsaved-changes prompt used `window.confirm()`. On Windows, Electron leaves the window unable to take keyboard focus after a native dialog closes (upstream electron#31917, #40212, #41603), so inputs looked normal but could not be typed into until the user switched windows.
-
-**Resolution:** both navigation guards (`useNavigationGuard`, `useFormNavigationGuard`) use the in-app confirm (`useConfirm`), hardened with Escape, focus trap and focus return. No native `confirm`/`alert`/`prompt` remains in editor-ui or the app shell. Verified 2026-10-12 by the owner in the Windows desktop app: Stay and Leave from the page editor and form screens, typing afterwards, Escape, Tab containment and Alt+← all behave. The Electron shell's own native Help → About dialog (`electron/main.js`) was also checked: typing works after closing it. Deeper router-level tests remain T71. Fix `5defb8fe`, hardening `48eef6f4`.
-
-**Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
-
 ### GH127 · Review the code-field spacing fix
 
 **Done · Unrated · OSS · 2026-10-12**
@@ -304,16 +294,6 @@ The unsaved-changes prompt used `window.confirm()`. On Windows, Electron leaves 
 The issue (title only: "Code setting type: Visual bottom gap issue") was the resizable code editor in Site settings: with more lines than fit, the line-number gutter grew past the editor's fixed height and stretched the container, leaving an empty area below the code.
 
 **Resolution:** `CodeInput`'s container owns the height and the drag-to-resize, both columns fill it, and the gutter's scroll sync listens on `.code-editor`, the element that actually scrolls. Checked 2026-10-12 by the owner in Site settings: no gap with a long Custom CSS value, line numbers stay aligned while scrolling and after resizing. Fix `3220e4e2`.
-
-**Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
-
-### GH134 · Review Undo after autosave
-
-**Done · Unrated · OSS · 2026-10-12**
-
-The issue ("Autosave and Undo - Add setting or just simply ignore it and keep undo working") asked for either an autosave setting or an undo history that autosave does not wipe; every save used to clear it.
-
-**Resolution:** undo history survives saves (undoing past a save makes the page dirty again and the next save stores the reverted value), quick edits to one setting within 500 ms are one step, the limit is 150, and server theme corrections are applied through the history. No autosave toggle was added. Closed by the owner 2026-10-12; the "Split into pages" multi-step undo found during review is PAGINATE-UNDO. Fix `e4379a50`.
 
 **Body at:** `ac7c4820:docs-llms/TODO-agents.md`.
 
@@ -367,16 +347,6 @@ The project form showed the storage folder name, a technical detail most users d
 
 **Body at:** `06b7a29a:docs-llms/TODO-agents.md`.
 
-### GH115 · Finish multilingual documentation and close the feature
-
-**Done · Unrated · Docs · 2026-10-14**
-
-Multilingual sites were built and both real-project walkthroughs had passed; the remaining work was bringing the documentation in line with the code.
-
-**Resolution:** The docs-llms pass reconciled the multilingual rules, theme language switcher, architecture and package maps and the domain model with the code, and the user test checklist gained a Multilingual section (LANG-001 to LANG-042). Small leftovers found on the way (untranslated built-in text, a collection prefix that could match a language code) were reviewed and not logged by the owner's decision. Closed by the owner 2026-10-14. Docs `202e9dfa`. [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
-
-**Body at:** `7609a703:docs-llms/TODO-agents.md`.
-
 ### GH135 · Review the Widgetizer Desktop name
 
 **Done · Unrated · OSS · 2026-10-14**
@@ -386,6 +356,22 @@ The app's visible name changed to Widgetizer Desktop, while product IDs, install
 **Resolution:** Reviewed and confirmed by the owner. Implemented in `8fae65c5`. [GitHub #135](https://github.com/tsiger/widgetizer/issues/135)
 
 **Body at:** `c9b48662:docs-llms/TODO-agents.md`.
+
+### GH120 · Decide anonymous usage and bug reporting
+
+**Closed on GitHub · Unrated · OSS · 2026-10-14**
+
+The idea was to collect app usage and failures without identifying users. The issue was closed on GitHub without a feature being built; any later work starts from a new issue with its privacy rules agreed first.
+
+**Body at:** `10b894d3:docs-llms/TODO-agents.md`.
+
+### GH130 · Decide the layout for downloadable files
+
+**Closed on GitHub · Unrated · OSS · 2026-10-13**
+
+A files widget with columns and icons was proposed. The issue was closed on GitHub as completed.
+
+**Body at:** `10b894d3:docs-llms/TODO-agents.md`.
 
 ## Reconciliation decisions
 
