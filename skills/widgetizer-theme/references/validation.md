@@ -27,7 +27,7 @@ What it checks:
 
 - **Package:** required files and folders, JSON object shapes, manifest fields and numeric version, PNG header/dimensions (1280 x 720 for the theme, 1024 x 1024 for presets), warnings for build tooling inside the theme. Image content and screenshot accuracy require visual inspection.
 - **Settings everywhere** (theme, widgets, blocks, collections): only real setting types and properties, unique ids, labels, option lists, and defaults whose shape matches the type, including font stacks and weights from the font catalog and icon names from `icons.json`.
-- **Reserved names:** settings the app reads from one specific group (`favicon`, `date_format`, custom code, font pickers) are in that group.
+- **Reserved names:** settings the app reads by id (`favicon`, `date_format`, custom code, `use_bunny_fonts`) may sit in any group, but each id must appear only once across `settings.global`.
 - **Liquid:** LiquidJS parses the templates, including nested blocks and `{% liquid %}`, and rejects unknown tags/filters. Additional checks cover custom argument names, required arguments, literal snippets/assets, and foreign objects that were not assigned locally. Author-defined local variables are valid.
 - **Settings used in templates:** direct `widget.settings.x` and `theme.group.x` references, including literal bracket keys, are compared with the theme's own definitions. Direct plain-text output through `raw` is flagged; rich text without `raw` receives a warning.
 - **Editor contract:** `data-widget-id`, block order and `data-block-id`.

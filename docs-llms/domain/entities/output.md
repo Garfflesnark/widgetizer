@@ -53,7 +53,7 @@ You change a testimonial and see it in the editor. Save, then open the separate 
 | Project backup ZIP | Manifest plus editable project files and serialized media metadata; used by import |
 | Forms manifest / SEO artifacts | Derived metadata describing rendered output, not separately editable collections |
 | Structured data (JSON-LD) | One graph per rendered page from `{% seo %}`: site identity, collection article nodes, breadcrumbs; export reports readiness/warnings ([output](../operations/output.md#structured-data-json-ld)) |
-| Site icons | Export generates `favicon-32.png`, `favicon.ico`, touch/192/512 PNGs (plus `favicon.svg` for an SVG source) and `site.webmanifest` from theme setting `general.favicon`; none without one ([siteIconHelpers](../../../packages/builder-server/src/utils/siteIconHelpers.js)) |
+| Site icons | Export generates `favicon-32.png`, `favicon.ico`, touch/192/512 PNGs (plus `favicon.svg` for an SVG source) and `site.webmanifest` from the theme's `favicon` setting (any group); none without one ([siteIconHelpers](../../../packages/builder-server/src/utils/siteIconHelpers.js)) |
 
 Previewing does not save the source. A token is an HTML snapshot, not a live database pointer that always reflects later edits. Rebuilding an export does not replace the editable source project. Downloading a static-site ZIP and exporting an editable-project backup serve different purposes.
 

@@ -162,7 +162,10 @@ Themes can define custom image sizes that override the app-level settings. This 
 
 ### Global Settings Schema
 
-The `settings.global` object defines customizable options organized into logical groups. **You can create any groups you want** — each key in the `global` object becomes a group in the theme settings UI. Common groups include `colors`, `typography`, `layout`, and `privacy`, but you can add custom groups like `social`, `advanced`, or anything relevant to your theme:
+The `settings.global` object defines customizable options organized into logical groups. **You can create any groups you want** — each key in the `global` object becomes a group in the theme settings UI. Common groups include `colors`, `typography`, `layout`, and `privacy`, but you can add custom groups like `social`, `advanced`, or anything relevant to your theme.
+
+A few setting ids mean something to the app, which finds them by id in any group: `favicon` (site icons), `date_format` (the `format_date` default), `custom_css`, `custom_head_scripts`, `custom_footer_scripts`, `use_bunny_fonts`, and every `font_picker` (loaded by `{% fonts %}`, with `body_font` getting a matching bold). The editor's live preview also reads `corner_style`, `spacing_density` and `button_shape`. Give each setting id one group: when an id is repeated, the app reads the copy in that setting's usual group (`general`, `advanced` or `style`) or none, and `validate:theme` warns.
+
 
 ```json
 {
@@ -2093,8 +2096,8 @@ Automatic font loading and optimization:
 - Support for Google Fonts and Bunny Fonts (GDPR-compliant alternative)
 - Privacy-friendly font delivery can be enabled via theme settings (a `use_bunny_fonts` checkbox; `{% fonts %}` finds it by id in whichever settings group the theme puts it — Arch keeps it under `advanced`)
 - Automatically generates optimized font URLs with only the weights being used
-- Only `font_picker` settings in the global `typography` group are loaded, and only when their `stack` matches an entry in the shared catalogue (`packages/core/src/config/fonts.json`) exactly
-- **Smart Bold Loading**: When body font weight is 400 (normal), automatically loads an appropriate bold weight (700/600/500) to prevent browser faux-bold rendering for `<strong>`, `<b>`, and bold UI elements. This also generates a CSS variable `--typography-body_font_bold-weight` that you can use in your CSS.
+- `font_picker` settings in any global group are loaded, but only when their `stack` matches an entry in the shared catalogue (`packages/core/src/config/fonts.json`) exactly
+- **Smart Bold Loading**: When body font weight is 400 (normal), automatically loads an appropriate bold weight (700/600/500) to prevent browser faux-bold rendering for `<strong>`, `<b>`, and bold UI elements. `{% theme_settings %}` names that weight in a `--<group>-body_font_bold-weight` CSS variable you can use in your CSS.
 
 **Example:**
 
@@ -2102,7 +2105,7 @@ Automatic font loading and optimization:
 <!-- In layout.liquid -->
 {% fonts %}
 
-<!-- In your CSS -->
+<!-- In your CSS (body_font in the typography group) -->
 strong, b {
   font-weight: var(--typography-body_font_bold-weight, 700);
 }
@@ -2110,7 +2113,7 @@ strong, b {
 
 ### Advanced Settings
 
-For advanced users who need to inject custom CSS or JavaScript, the theme system provides three special settings in the `advanced` group:
+For advanced users who need to inject custom CSS or JavaScript, the theme system provides three special settings, conventionally in the `advanced` group (the app finds them by id in any group):
 
 - **Custom CSS** (`custom_css`): Add custom CSS that will be wrapped in a `<style>` tag
 - **Custom Head Scripts** (`custom_head_scripts`): Add raw HTML/JavaScript for the `<head>` section (e.g., Google Analytics)

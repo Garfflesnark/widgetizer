@@ -109,7 +109,7 @@ This table is the complete list. There is no `toggle`, `boolean`, `url`, `html`,
 | `color` | Color string, or empty | `allow_alpha: true` enables alpha; account for rgba values rather than assuming every color is six-digit hex. |
 | `richtext` | HTML string | `allow_source`, `allow_headings`, `allow_images`, `min_height`, `placeholder`. Emit sanitized HTML through `raw`; use text emptiness helpers only when appropriate for the content. |
 | `code` | Raw string | `language`, `rows`; intentionally unsanitized. Only emit through a deliberate code/embed sink. |
-| `font_picker` | `{ "stack": "...", "weight": 400 }` | Choose actual catalog stacks/available weights. Global font loading has the `typography` group contract. |
+| `font_picker` | `{ "stack": "...", "weight": 400 }` | Choose actual catalog stacks/available weights. `{% fonts %}` loads global pickers from any group. |
 | `icon` | Icon-name string | Theme icon catalog; optional `options`/`allow_patterns` narrow selection. An icon name is not SVG markup. Supply the icon data and a renderer/snippet. |
 | `image` | `/uploads/images/<filename>` string, or empty | `size` controls input width (`narrow`/`full`); `compact` is the older fallback; `layout: 'row'`/`'stacked'` controls editor presentation. Use the image tag, not a fabricated image object. |
 | `gallery` | Ordered array of image-path strings, empty `[]` | Loop entries with the image tag. Metadata is on media records. A supported alternative to one image block per picture. |

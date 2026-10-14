@@ -412,6 +412,14 @@ describe("FontsTag", () => {
     assert.doesNotMatch(result, /googleapis/);
   });
 
+  it("loads fonts picked in any settings group", async () => {
+    const themeSettingsRaw = {
+      settings: { global: { brand: [{ id: "heading_font", type: "font_picker", value: { stack: '"Playfair Display", serif', weight: 700 } }] } },
+    };
+    const result = await render("{% fonts %}", {}, { themeSettingsRaw });
+    assert.match(result, /family=Playfair%20Display:wght@700/);
+  });
+
   it("includes display=swap for font loading", async () => {
     const result = await render("{% fonts %}", {}, { themeSettingsRaw: fixtures.themeWithGoogleFonts });
     assert.match(result, /display=swap/);
@@ -486,6 +494,12 @@ describe("CustomCssTag", () => {
     assert.match(result, /<style/);
     assert.match(result, /body \{ background: red; \}/);
     assert.match(result, /<\/style>/);
+  });
+
+  it("reads custom CSS a theme files outside the advanced group", async () => {
+    const themeSettingsRaw = { settings: { global: { code: [{ id: "custom_css", value: "p { color: blue; }" }] } } };
+    const result = await render("{% custom_css %}", {}, { themeSettingsRaw });
+    assert.match(result, /p \{ color: blue; \}/);
   });
 
   it("returns empty when no custom CSS defined", async () => {

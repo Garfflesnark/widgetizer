@@ -680,6 +680,62 @@ describe("mergeThemeSettings", () => {
     assert.equal(accent.value, "#green", "New setting should use default");
   });
 
+  it("keeps the owner's value for a setting the update moved to another group", () => {
+    const userTheme = {
+      version: "1.0.0",
+      settings: { global: { advanced: [{ id: "custom_css", type: "code", value: "a{}" }] } },
+    };
+    const newTheme = {
+      version: "1.1.0",
+      settings: { global: { advanced: [], code: [{ id: "custom_css", type: "code", default: "" }] } },
+    };
+
+    const merged = mergeThemeSettings(userTheme, newTheme);
+    assert.equal(merged.settings.global.code[0].value, "a{}");
+  });
+
+  it("keeps a moved setting's saved value over a value the new schema ships, however falsy", () => {
+    for (const saved of ["", false, 0, null, "OWNER"]) {
+      const userTheme = { settings: { global: { advanced: [{ id: "x", type: "text", value: saved }] } } };
+      const newTheme = { settings: { global: { advanced: [], general: [{ id: "x", type: "text", value: "AUTHOR" }] } } };
+      assert.equal(mergeThemeSettings(userTheme, newTheme).settings.global.general[0].value, saved);
+    }
+  });
+
+  it("is not fooled by a header that shares the moved setting's id", () => {
+    const userTheme = {
+      settings: {
+        global: {
+          advanced: [{ id: "custom_css", type: "code", value: "OWNER" }],
+          code: [{ id: "custom_css", type: "header", content: "Code" }],
+        },
+      },
+    };
+    const newTheme = { settings: { global: { code: [{ id: "custom_css", type: "code", default: "" }] } } };
+    assert.equal(mergeThemeSettings(userTheme, newTheme).settings.global.code[0].value, "OWNER");
+  });
+
+  it("does not guess when the moved id was repeated in the old file", () => {
+    const userTheme = {
+      settings: { global: { a: [{ id: "x", type: "text", value: "A" }], b: [{ id: "x", type: "text", value: "B" }] } },
+    };
+    const newTheme = { settings: { global: { c: [{ id: "x", type: "text", default: "D" }] } } };
+    assert.equal(mergeThemeSettings(userTheme, newTheme).settings.global.c[0].value, undefined);
+  });
+
+  it("leaves both inputs untouched, so one new schema can serve several projects", () => {
+    const newTheme = { settings: { global: { advanced: [], code: [{ id: "custom_css", type: "code", default: "" }] } } };
+    const schemaBefore = JSON.stringify(newTheme);
+    const owner = (css) => ({ settings: { global: { advanced: [{ id: "custom_css", type: "code", value: css }], code: [] } } });
+    const ownerA = owner("A");
+    const ownerABefore = JSON.stringify(ownerA);
+
+    assert.equal(mergeThemeSettings(ownerA, newTheme).settings.global.code[0].value, "A");
+    assert.equal(mergeThemeSettings(owner("B"), newTheme).settings.global.code[0].value, "B");
+    assert.equal(JSON.stringify(newTheme), schemaBefore);
+    assert.equal(JSON.stringify(ownerA), ownerABefore);
+  });
+
   it("does not resurrect a default the new schema removed", () => {
     // The merged item starts as a copy of the NEW schema item, so a `default`
     // the theme author removed must stay removed even when the user's stored

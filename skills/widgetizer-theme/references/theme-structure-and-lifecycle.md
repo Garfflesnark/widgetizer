@@ -82,13 +82,13 @@ Keep setting IDs unique within their scope. **Convention:** make global IDs uniq
 - A numeric `range` with `unit` receives that unit in the generated CSS value.
 - A `font_picker` emits `--<group>-<id>-family` and `--<group>-<id>-weight` without `outputAsCssVar`. Use its `{ "stack": "...", "weight": 400 }` value shape. The stack must be copied exactly from the font catalog (`"fonts"` in `references/contract.json`, which also lists each font's available weights); a font that is not in the catalog cannot be picked or loaded.
 - A font picker with the id `body_font` also emits `--<group>-body_font_bold-weight`, the weight to use for bold body text.
-- `{% fonts %}` reads font pickers specifically from `settings.global.typography`. Its Bunny Fonts switch is a `checkbox` with the exact id `use_bunny_fonts`, found by that id in whichever group holds it.
-- Custom code tags look specifically in `settings.global.advanced` for `custom_css`, `custom_head_scripts`, and `custom_footer_scripts`.
-- Site icons come specifically from an `image` setting with the id `favicon` in `settings.global.general`. The app turns it into the `site_icons` object the layout prints (see the starter's `snippets/site-icons.liquid`).
-- The `format_date` filter's default format comes specifically from `settings.global.general` / `date_format`.
+- `{% fonts %}` loads font pickers from any group in `settings.global`. Its Bunny Fonts switch is a `checkbox` with the exact id `use_bunny_fonts` (conventionally in `advanced`).
+- Custom code tags read `custom_css`, `custom_head_scripts` and `custom_footer_scripts` by id from any group (conventionally `advanced`).
+- Site icons come from an `image` setting with the id `favicon` in `settings.global` (conventionally the `general` group; any group works). The app turns it into the `site_icons` object the layout prints (see the starter's `snippets/site-icons.liquid`).
+- The `format_date` filter's default format comes from the global `date_format` setting (conventionally `general`).
 - Optional `settings.imageSizes` replaces the app image-size configuration rather than extending it. Use size-name keys with `width`, `enabled`, and optional `quality`; the media system still generates its library thumbnail. Check the media pipeline before depending on a custom derivative.
 
-These special group names and ids are feature contracts: put the setting anywhere else and the feature silently stops working. All other group names are yours to choose. The starter theme's `theme.json` shows every one of them in place.
+These special ids are feature contracts: the app finds them in any group, so group names are yours to choose. Give each id one group; when an id is repeated, the app reads only the copy in its conventional group (`general` for `favicon` and `date_format`, `advanced` for the custom code ids and `use_bunny_fonts`), or none. The starter theme's `theme.json` shows every one of them in place.
 
 ## Core and global widgets
 

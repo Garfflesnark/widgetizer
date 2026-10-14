@@ -153,14 +153,6 @@ export function validateTheme(dir) {
   ]);
   // The editor adds these two controls to a widget that declares a collection.
   const INJECTED_LISTING_SETTINGS = { listing_anchor: "checkbox", paginate: "checkbox" };
-  // Theme setting groups the app reads by name. Putting the setting elsewhere silently disables the feature.
-  const RESERVED_GROUP_FOR_SETTING = {
-    favicon: ["general", "site icons ({{ site_icons }})"],
-    date_format: ["general", "the format_date filter's default format"],
-    custom_css: ["advanced", "{% custom_css %}"],
-    custom_head_scripts: ["advanced", "{% custom_head_scripts %}"],
-    custom_footer_scripts: ["advanced", "{% custom_footer_scripts %}"],
-  };
 
   const VERSION_RE = /^\d+\.\d+\.\d+$/;
   const SLUG_RE = /^[a-z0-9-]+$/;
@@ -1059,22 +1051,6 @@ export function validateTheme(dir) {
       for (const [id, setting] of byId) {
         if (!theme.globalSettingsById.has(id)) theme.globalSettingsById.set(id, []);
         theme.globalSettingsById.get(id).push(setting);
-
-        const reserved = RESERVED_GROUP_FOR_SETTING[id];
-        if (reserved && reserved[0] !== group) {
-          warn(
-            file,
-            "reserved-group",
-            `"${id}" is in group "${group}", but the app reads it only from "${reserved[0]}" (${reserved[1]}).`,
-          );
-        }
-        if (setting.type === "font_picker" && group !== "typography") {
-          warn(
-            file,
-            "reserved-group",
-            `font picker "${id}" is in group "${group}"; {% fonts %} only loads fonts picked in the "typography" group.`,
-          );
-        }
       }
     }
     for (const [id, definitions] of theme.globalSettingsById) {
@@ -1082,7 +1058,7 @@ export function validateTheme(dir) {
         warn(
           file,
           "duplicate-setting-id",
-          `global setting id "${id}" appears in more than one group; preset overrides are a flat id map and would change all of them.`,
+          `global setting id "${id}" appears in more than one group; preset overrides are a flat id map and would change all of them, and where the app reads a setting by id (custom_css, favicon, …) it takes only the copy in that setting's usual group, or none.`,
         );
       }
     }
@@ -1702,7 +1678,7 @@ export function validateTheme(dir) {
         "Settings use outputAsCssVar or font pickers, but the layout has no {% theme_settings %} to print them.",
       );
     if (
-      [...(theme.groups.get("typography")?.values() ?? [])].some((setting) => setting.type === "font_picker") &&
+      [...theme.groups.values()].some((group) => [...group.values()].some((setting) => setting.type === "font_picker")) &&
       !hasTag("fonts")
     ) {
       warn(file, "layout", "The theme has font pickers, but the layout has no {% fonts %} to load the chosen fonts.");
@@ -1712,7 +1688,7 @@ export function validateTheme(dir) {
       ["custom_head_scripts", "custom_head_scripts"],
       ["custom_footer_scripts", "custom_footer_scripts"],
     ]) {
-      if (theme.groups.get("advanced")?.has(id) && !hasTag(tag))
+      if (theme.globalSettingsById.has(id) && !hasTag(tag))
         warn(file, "layout", `theme.json defines "${id}" but the layout has no {% ${tag} %}, so it does nothing.`);
     }
   }

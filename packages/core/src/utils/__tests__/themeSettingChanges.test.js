@@ -3,6 +3,8 @@ import {
   applyThemeSettingChanges,
   diffThemeSettings,
   findThemeSetting,
+  readThemeSetting,
+  themeSettingsOfType,
   themeSettingValuesEqual,
 } from "../themeSettingChanges.js";
 
@@ -119,5 +121,43 @@ describe("applyThemeSettingChanges", () => {
       { id: "x", code: "SETTING_AMBIGUOUS" },
       { id: "gone", code: "SETTING_REMOVED" },
     ]);
+  });
+});
+
+describe("readThemeSetting", () => {
+  it("reads a setting the theme files outside its usual group", () => {
+    const t = theme({ code: [{ id: "custom_css", type: "code", value: "a{}" }] });
+    expect(readThemeSetting(t, { group: "advanced", id: "custom_css" })).toBe("a{}");
+  });
+
+  it("prefers the usual group when the id also appears elsewhere", () => {
+    const t = theme({
+      other: [{ id: "favicon", type: "image", value: "/other.png" }],
+      general: [{ id: "favicon", type: "image", value: "/site.png" }],
+    });
+    expect(readThemeSetting(t, { group: "general", id: "favicon" })).toBe("/site.png");
+  });
+
+  it("reads nothing when the id is repeated outside the usual group", () => {
+    const t = theme({
+      a: [{ id: "favicon", type: "image", value: "/a.png" }],
+      b: [{ id: "favicon", type: "image", value: "/b.png" }],
+    });
+    expect(readThemeSetting(t, { group: "general", id: "favicon" })).toBeUndefined();
+  });
+
+  it("keeps a saved empty value over the default", () => {
+    const t = theme({ general: [{ id: "favicon", type: "image", value: "", default: "/default.png" }] });
+    expect(readThemeSetting(t, { group: "general", id: "favicon" })).toBe("");
+  });
+});
+
+describe("themeSettingsOfType", () => {
+  it("lists settings of a type across groups in declared order, skipping headers", () => {
+    const t = theme({
+      typography: [{ type: "header", id: "h" }, { id: "body_font", type: "font_picker" }],
+      brand: [{ id: "accent_font", type: "font_picker" }, { id: "x", type: "text" }],
+    });
+    expect(themeSettingsOfType(t, "font_picker").map((s) => s.id)).toEqual(["body_font", "accent_font"]);
   });
 });

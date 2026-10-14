@@ -16,6 +16,7 @@ import { refreshMediaUsageAfterStructuralChange } from "./mediaUsageService.js";
 import { withContentWriteLock } from "./contentCoordination.js";
 import { getUpdateStatus } from "../utils/updateStatus.js";
 import { processTemplatesRecursive } from "../utils/templateHelpers.js";
+import { findThemeSetting } from "@widgetizer/core/themeSettingChanges";
 
 /**
  * Updatable paths - these are copied from theme to project during updates.
@@ -85,9 +86,28 @@ export function mergeThemeSettings(userThemeJson, newThemeJson) {
   // Merge settings values
   if (userThemeJson.settings && newThemeJson.settings) {
     merged.settings = mergeSettingsObject(userThemeJson.settings, newThemeJson.settings);
+    carryMovedSettingValues(merged, userThemeJson);
   }
 
   return merged;
+}
+
+/**
+ * A setting the update moved to another group keeps the owner's value: the
+ * group-by-group merge cannot see it, so look it up the way the app reads it —
+ * the only setting with that id in the old file. The owner's value wins over
+ * one the new schema ships, as it does for a setting that stayed put.
+ */
+function carryMovedSettingValues(merged, userThemeJson) {
+  for (const [group, items] of Object.entries(merged.settings?.global || {})) {
+    if (!Array.isArray(items)) continue;
+    merged.settings.global[group] = items.map((item) => {
+      if (!item?.id || item.type === "header") return item;
+      const found = findThemeSetting(userThemeJson, { group, id: item.id });
+      if (!found?.item || found.group === group || found.item.value === undefined) return item;
+      return { ...item, value: JSON.parse(JSON.stringify(found.item.value)) };
+    });
+  }
 }
 
 /**

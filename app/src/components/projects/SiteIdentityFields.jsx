@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { SITE_IDENTITY_CATEGORIES, PROFILE_NETWORKS, identityReadiness } from "@widgetizer/core/siteIdentity";
+import { readThemeSetting } from "@widgetizer/core/themeSettingChanges";
 import { IconButton } from "@widgetizer/editor-ui/components/ui/Button.jsx";
 import ImageInput from "@widgetizer/editor-ui/components/settings/inputs/ImageInput.jsx";
 import { getThemeSettings } from "@widgetizer/editor-ui/queries/themeManager";
@@ -12,12 +13,7 @@ import { formToIdentity, identityErrorAt } from "./siteIdentityForm.js";
 const GENERAL_CATEGORIES = ["organization", "person", "local-business"];
 
 function faviconFrom(themeData) {
-  for (const items of Object.values(themeData?.settings?.global || {})) {
-    if (!Array.isArray(items)) continue;
-    const favicon = items.find((item) => item?.id === "favicon");
-    if (favicon) return favicon.value || favicon.default || "";
-  }
-  return "";
+  return readThemeSetting(themeData, { group: "general", id: "favicon" }) || "";
 }
 
 export default function SiteIdentityFields({

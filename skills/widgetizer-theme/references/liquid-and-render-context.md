@@ -59,10 +59,10 @@ Named arguments use `key: value` syntax, separated by commas. The table covers e
 | Tag | Arguments, defaults, and behavior |
 | --- | --- |
 | `{% theme_settings %}` | No arguments. Emits global CSS variables from raw theme settings, or nothing when none qualify. See the manifest contract. |
-| `{% fonts %}` | No arguments. Loads recognized font-picker selections from the `typography` group, with provider/preconnect handling. No eligible fonts means no output. It does not load arbitrary font families. |
+| `{% fonts %}` | No arguments. Loads recognized font-picker selections from any global group, with provider/preconnect handling. No eligible fonts means no output. It does not load arbitrary font families. |
 | `{% seo %}` | No arguments. Emits title/meta, canonical/social/structured data as supported by page/project data. Keep it in layout; a snippet invoking it needs `page` and `project` passed in. Canonical/absolute structured data depends on site configuration. |
-| `{% custom_css %}` | No arguments. Emits the advanced `custom_css` value/default inside a style tag. Empty/unconfigured means no output. |
-| `{% custom_head_scripts %}` | No arguments. Emits advanced `custom_head_scripts` as raw HTML, with no wrapper. |
+| `{% custom_css %}` | No arguments. Emits the `custom_css` value/default (any group) inside a style tag. Empty/unconfigured means no output. |
+| `{% custom_head_scripts %}` | No arguments. Emits `custom_head_scripts` (any group) as raw HTML, with no wrapper. |
 | `{% custom_footer_scripts %}` | Same for `custom_footer_scripts`; place before body closes. |
 | `{% asset src: 'base.css' %}` | Required `src`; optional `defer: false`, `async: false`, `crossorigin`, `integrity`, `media`, `id`, `alt`. CSS produces a link, JS a script, recognized image extensions an image, other types a URL. Missing src produces nothing. Origin depends on context; see assets reference. There is no `theme: true` override on this tag. |
 | `{% enqueue_style src: 'intro.css' %}` | Registers without inline output. `location: 'header'`, `priority: 50`, optional `media`, `id`, `theme: false`. Use `theme: true` for a shared theme asset from a widget. |
@@ -97,7 +97,7 @@ Registered media supplies localized alt/title and dimensions; an explicit nonemp
 | `safe_url` | Sanitizes an author-controlled URL; rejects dangerous schemes as empty. Use on plain URL text in quoted href/src attributes. It does not construct internal addresses or sanitize CSS/JavaScript. |
 | `rte_text` | Removes markup/normalizes whitespace for text-only emptiness checks; not a display renderer. |
 | `rte_blank` | Boolean empty-text test for rich text, including `<p></p>` and nonbreaking spaces. Text-only semantics: do not hide image-only rich text with it when images are allowed. |
-| `format_date` | Date-only `YYYY-MM-DD` to configured format; optional override, e.g. `value \| format_date: 'D MMM YYYY'`. Invalid/blank is empty. Uses page language; default format comes from `theme.general.date_format` or the core default. |
+| `format_date` | Date-only `YYYY-MM-DD` to configured format; optional override, e.g. `value \| format_date: 'D MMM YYYY'`. Invalid/blank is empty. Uses page language; default format comes from the global `date_format` setting (any group) or the core default. |
 | `collection` | `'projects' \| collection: limit: 6, sort: 'manual', offset: 0`. Returns prepared item records or an empty list when unavailable. Pagination can override limit/offset for the active listing. |
 | `page_url` | `'contact' \| page_url`; optional `lang: 'el'`. Handles render depth, language, home path, and Clean URLs. Empty slug returns empty. |
 | `item_url` | `entry.slug \| item_url: 'work'`; argument is the collection's **slugPrefix**, which may differ from its type. Optional `lang:`. Empty slug/prefix returns empty. |

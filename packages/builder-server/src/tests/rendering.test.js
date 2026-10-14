@@ -765,6 +765,19 @@ describe("renderPageLayout", () => {
     assert.ok(!html.includes('sizes="192x192"'));
   });
 
+  it("finds the site icon in whichever group the theme files it", async () => {
+    const html = await renderPageLayout(
+      PROJECT_ID,
+      { headerContent: "", mainContent: "<p>Content</p>", footerContent: "" },
+      { name: "Icon Page", slug: "icon-page" },
+      { settings: { global: { branding: RAW_THEME_SETTINGS.settings.global.general } } },
+      "preview",
+      null,
+    );
+
+    assert.ok(html.includes(`rel="icon" href="/api/media/projects/${PROJECT_ID}/uploads/images/site-icon.svg"`));
+  });
+
   it("injects header, main content, and footer", async () => {
     const html = await renderPageLayout(
       PROJECT_ID,
@@ -1007,5 +1020,20 @@ describe("renderPageLayout", () => {
       activeProjectId: PROJECT_ID,
     });
     await fs.remove(noLayoutDir);
+  });
+});
+
+describe("renderWidget — the theme's date format", () => {
+  before(async () => {
+    const widgetDir = path.join(getProjectDir(PROJECT_FOLDER), "widgets", "test-date");
+    await fs.ensureDir(widgetDir);
+    await fs.writeFile(path.join(widgetDir, "widget.liquid"), `<time>{{ '2026-01-05' | format_date }}</time>`);
+    await fs.writeFile(path.join(widgetDir, "schema.json"), JSON.stringify({ type: "test-date", settings: [] }));
+  });
+
+  it("reads date_format from whichever group the theme files it", async () => {
+    const theme = { settings: { global: { dates: [{ id: "date_format", type: "select", value: "YYYY-MM-DD" }] } } };
+    const html = await renderWidget(PROJECT_ID, "date-1", { type: "test-date", settings: {} }, theme, "preview", null, null);
+    assert.ok(html.includes("<time>2026-01-05</time>"), html);
   });
 });

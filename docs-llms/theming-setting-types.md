@@ -368,11 +368,11 @@ A specialized input with two dropdowns for selecting a font family and its corre
 }
 ```
 
-The family list is the shared catalogue in `packages/core/src/config/fonts.json` — system stacks plus about 210 Google Fonts (including Instrument Sans and STIX Two Text), each with its available weights. `{% fonts %}` loads a Google font only for a `font_picker` in the global `typography` group whose `stack` matches a catalogue entry's stack string exactly, so presets and defaults must copy the stack verbatim; a picker in another group, or an unknown stack, gets its CSS variables but no stylesheet.
+The family list is the shared catalogue in `packages/core/src/config/fonts.json` — system stacks plus about 210 Google Fonts (including Instrument Sans and STIX Two Text), each with its available weights. `{% fonts %}` loads a Google font for a `font_picker` in any global group whose `stack` matches a catalogue entry's stack string exactly, so presets and defaults must copy the stack verbatim; an unknown stack gets its CSS variables but no stylesheet. The editor's live preview loads the same fonts from the same CDN.
 
 **Privacy Option**: When users select Google Fonts, they can optionally enable the "Use Privacy-Friendly Font CDN" setting (checkbox type, `use_bunny_fonts`) to serve fonts via Bunny Fonts instead of Google Fonts CDN. This provides GDPR compliance without tracking or data sharing with Google, while maintaining the same font selection and appearance. `{% fonts %}` finds the checkbox by its id in whichever global settings group holds it, and honours its schema `default` until the project saves a value, so a theme can ship it switched on.
 
-**Smart Bold Loading**: For `body_font` font pickers, when the selected weight is 400 (normal), the system automatically loads an appropriate bold weight (700, or 600, or 500 if 700 is unavailable) to prevent browser faux-bold rendering. This ensures `<strong>`, `<b>`, and bold UI elements render with proper typography. For other selected weights (500, 600, 700, etc.), only the selected weight is loaded. The auto-loaded bold weight is available via the `--typography-body_font_bold-weight` CSS variable.
+**Smart Bold Loading**: For `body_font` font pickers, when the selected weight is 400 (normal), the system automatically loads an appropriate bold weight (700, or 600, or 500 if 700 is unavailable) to prevent browser faux-bold rendering. This ensures `<strong>`, `<b>`, and bold UI elements render with proper typography. For other selected weights (500, 600, 700, etc.), only the selected weight is loaded. `{% theme_settings %}` names the bold weight in a `--<group>-body_font_bold-weight` CSS variable (`--typography-body_font_bold-weight` when the picker is in `typography`).
 
 ### Icon
 

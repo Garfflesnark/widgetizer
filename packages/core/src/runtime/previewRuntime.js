@@ -75,22 +75,16 @@ function updateCssVariables(variables) {
   styleTag.textContent = `:root {\n  ${cssString}\n}`;
 }
 
-function loadFonts(fontsMetadata) {
-  if (!fontsMetadata || typeof fontsMetadata !== "object" || Object.keys(fontsMetadata).length === 0) {
-    return;
-  }
+const FONT_STYLESHEET_HOSTS = ["https://fonts.googleapis.com/", "https://fonts.bunny.net/"];
 
-  const base = "https://fonts.googleapis.com/css2";
-  const families = Object.entries(fontsMetadata)
-    .map(([name, weights]) => {
-      const sortedWeights = weights.sort((a, b) => a - b);
-      return `family=${encodeURIComponent(name)}:wght@${sortedWeights.join(";")}`;
-    })
-    .join("&");
+function loadFonts(payload) {
+  const url = payload?.url;
+  if (typeof url !== "string" || !FONT_STYLESHEET_HOSTS.some((host) => url.startsWith(host))) return;
 
-  const url = `${base}?${families}&display=swap`;
-
-  let link = document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis.com"]');
+  // Switching CDNs replaces the stylesheet the server rendered, whichever host it came from.
+  let link = document.querySelector(
+    FONT_STYLESHEET_HOSTS.map((host) => `link[rel="stylesheet"][href^="${host}"]`).join(", "),
+  );
   if (!link) {
     link = document.createElement("link");
     link.rel = "stylesheet";

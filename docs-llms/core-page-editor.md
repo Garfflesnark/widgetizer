@@ -75,7 +75,7 @@ The preview iframe communicates via `postMessage`. For non-structural changes, `
 |---------|------|-------------|
 | `MORPH_WIDGET` | Widget settings/blocks change | Fetches re-rendered widget HTML and replaces the DOM node |
 | `UPDATE_CSS_VARIABLES` | Theme colors/fonts/scales change | Updates `<style id="theme-settings-styles">` with new CSS variable values |
-| `LOAD_FONTS` | Font picker changes | Injects/updates Google Fonts `<link>` tag |
+| `LOAD_FONTS` | Font picker or CDN changes | Swaps the font stylesheet `<link>` to the URL the editor built (Google or Bunny, the same as the published page) |
 | `UPDATE_STYLE_CLASSES` | Theme style settings change (shapes, card style, spacing, etc.) | Swaps body classes (e.g., `corner-sharp` → `corner-rounded`) to activate different CSS rulesets |
 | `UPDATE_BODY_CLASS` | Header transparent setting changes | Toggles a CSS class on `<body>` (e.g., `transparent-header`) |
 | `UPDATE_WIDGET_SETTINGS` | Simple text/image changes | Optimistic instant feedback before morph completes |

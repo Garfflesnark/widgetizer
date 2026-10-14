@@ -70,6 +70,27 @@ export function findThemeSetting(theme, { group, id }) {
 }
 
 /**
+ * The value a site setting renders with — its saved value, else its default —
+ * found the way `findThemeSetting` finds it, so a theme may file a setting the
+ * app reads by id in any group. `group` is only the place looked first.
+ */
+export function readThemeSetting(theme, { group, id }) {
+  const found = findThemeSetting(theme, { group, id });
+  if (!found?.item) return undefined;
+  return found.item.value !== undefined ? found.item.value : found.item.default;
+}
+
+/** Every site setting of one type, in the order the theme declares them. */
+export function themeSettingsOfType(theme, type) {
+  const global = theme?.settings?.global;
+  if (!isPlainObject(global)) return [];
+  return Object.values(global)
+    .filter(Array.isArray)
+    .flat()
+    .filter((item) => isSetting(item) && item.type === type);
+}
+
+/**
  * The settings whose value differs between `base` and `draft`, as changes
  * `{ group, id, baseValue, value }`. An absent value stays `undefined`, which
  * JSON drops on the wire — the receiver reads a missing key the same way.

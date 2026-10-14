@@ -232,7 +232,7 @@ before(async () => {
       {
         settings: {
           global: {
-            general: [
+            branding: [
               { id: "favicon", value: "/uploads/images/site-icon.svg", default: "" },
             ],
             colors: [

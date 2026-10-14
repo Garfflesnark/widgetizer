@@ -308,6 +308,38 @@ describe("theme skill validator catches invented theme features", () => {
     assert.ok(hasError(findings, "unknown-theme-setting"), JSON.stringify(findings));
   });
 
+  it("settings the app reads by id, moved to groups of the author's choosing", async () => {
+    const moved = await findingsAfter("moved-reserved", (dir) =>
+      editJson(path.join(dir, "theme.json"), (manifest) => {
+        const { typography, advanced, ...rest } = manifest.settings.global;
+        manifest.settings.global = { ...rest, brand: typography, code: advanced };
+      }),
+    );
+    assert.deepEqual(moved.filter((f) => f.rule !== "group-name"), []);
+
+    const untagged = await findingsAfter("moved-reserved-untagged", async (dir) => {
+      await editJson(path.join(dir, "theme.json"), (manifest) => {
+        const { advanced, ...rest } = manifest.settings.global;
+        manifest.settings.global = { ...rest, code: advanced };
+      });
+      await edit(path.join(dir, "layout.liquid"), (source) => source.replace("{% custom_css %}", ""));
+    });
+    assert.ok(
+      untagged.some((f) => f.level === "warning" && f.rule === "layout" && f.message.includes("custom_css")),
+      JSON.stringify(untagged),
+    );
+  });
+
+  it("a setting id repeated across groups is a warning, not an error", async () => {
+    const findings = await findingsAfter("duplicate-id", (dir) =>
+      editJson(path.join(dir, "theme.json"), (manifest) => {
+        manifest.settings.global.extra = [manifest.settings.global.advanced[0]];
+      }),
+    );
+    assert.ok(findings.some((f) => f.level === "warning" && f.rule === "duplicate-setting-id"), JSON.stringify(findings));
+    assert.ok(!findings.some((f) => f.level === "error"), JSON.stringify(findings));
+  });
+
   it("a font that is not in the catalog", async () => {
     const findings = await findingsAfter("font", (dir) =>
       editJson(path.join(dir, "theme.json"), (manifest) => {

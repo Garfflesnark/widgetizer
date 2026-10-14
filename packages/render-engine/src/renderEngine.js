@@ -44,6 +44,7 @@ import { buildAssetUrl } from "@widgetizer/core/assetUrl";
 import { identityForTheme } from "@widgetizer/core/siteIdentity";
 import { resolveMenuSettings, schemaHasMenuSetting } from "./menuResolver.js";
 import { buildTranslations } from "@widgetizer/core/translations";
+import { readThemeSetting } from "@widgetizer/core/themeSettingChanges";
 
 /**
  * @typedef {object} RenderDeps
@@ -919,7 +920,7 @@ async function createBaseRenderContext(deps, rawThemeSettings, renderMode = "pre
     outputPathPrefix,
   });
 
-  const siteIconSrc = processedThemeSettings?.general?.favicon || "";
+  const siteIconSrc = readThemeSetting(rawThemeSettings, { group: "general", id: "favicon" }) || "";
 
   // Load media metadata and create a useful map
   let mediaFiles = {};
@@ -1055,8 +1056,9 @@ async function createBaseRenderContext(deps, rawThemeSettings, renderMode = "pre
   // Published date format (theme-owned, set via the `date_format` theme setting).
   // Consumed by the `format_date` filter; when a theme defines no such setting the
   // filter falls back to its own default, so we only set this when present.
-  if (globals.dateFormat === undefined && processedThemeSettings?.general?.date_format) {
-    globals.dateFormat = processedThemeSettings.general.date_format;
+  const themeDateFormat = readThemeSetting(rawThemeSettings, { group: "general", id: "date_format" });
+  if (globals.dateFormat === undefined && themeDateFormat) {
+    globals.dateFormat = themeDateFormat;
   }
 
   // Collection items loader for the `| collection` filter. The shell supplies a

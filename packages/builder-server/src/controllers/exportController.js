@@ -23,7 +23,6 @@ import { listPagesFromDir, readGlobalWidgetFromDir, readThemeDataFromDir } from 
 import * as projectRepo from "../db/repositories/projectRepository.js";
 import { formatHtml, validateHtml, generateIssuesReport } from "../utils/htmlProcessor.js";
 import { buildSitemap, buildRobotsTxt } from "../services/seoArtifacts.js";
-import { preprocessThemeSettings } from "../utils/themeHelpers.js";
 import { generateExportSiteIcons } from "../utils/siteIconHelpers.js";
 import { buildFormsManifest } from "../services/formsManifestService.js";
 import TurndownService from "turndown";
@@ -38,6 +37,7 @@ import { projectLanguages } from "../utils/contentLanguage.js";
 import { identityReadiness } from "@widgetizer/core/siteIdentity";
 import { emptyArticleFields } from "@widgetizer/core/structuredData";
 import { listingParentStatus } from "@widgetizer/core/breadcrumbs";
+import { readThemeSetting } from "@widgetizer/core/themeSettingChanges";
 
 function structuredDataIssueMessage(warning) {
   if (warning.code === "emptyArticleFields") {
@@ -304,7 +304,6 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
     // template) leaves no output directory, favicon, or manifest behind. Nothing
     // below touches disk until the "validation passed" marker. ---
     const rawThemeSettings = await readThemeDataFromDir(projectDir);
-    const processedThemeSettings = preprocessThemeSettings(rawThemeSettings);
 
     // Fetch list of page data using the helper function
     const defaultLanguage = projectData.defaultLanguage;
@@ -528,7 +527,7 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
       projectDir,
       projectName: projectData.name,
       siteTitle: projectData.siteTitle,
-      siteIconSrc: processedThemeSettings?.general?.favicon || "",
+      siteIconSrc: readThemeSetting(rawThemeSettings, { group: "general", id: "favicon" }) || "",
     });
 
     // --- Generate sitemap.xml and robots.txt (shared pure builders; collection
