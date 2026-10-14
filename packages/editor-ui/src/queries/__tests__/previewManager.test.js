@@ -67,7 +67,7 @@ describe("updatePreview — theme settings in any group", () => {
       privacy: [{ id: "use_bunny_fonts", type: "checkbox", default: true }],
     });
     expect(messages.LOAD_FONTS).toEqual({
-      url: "https://fonts.bunny.net/css?family=Playfair%20Display:wght@700&display=swap",
+      url: "https://fonts.bunny.net/css?family=Playfair%20Display:700&display=swap",
     });
   });
 

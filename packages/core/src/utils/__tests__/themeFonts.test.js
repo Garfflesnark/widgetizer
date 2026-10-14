@@ -66,7 +66,7 @@ describe("themeFontsStylesheetUrl", () => {
 
   it("builds a Bunny Fonts v1 URL", () => {
     expect(themeFontsStylesheetUrl({ fonts, useBunnyFonts: true })).toBe(
-      "https://fonts.bunny.net/css?family=Inter:wght@400;700|Playfair%20Display:wght@700&display=swap",
+      "https://fonts.bunny.net/css?family=Inter:400,700|Playfair%20Display:700&display=swap",
     );
   });
 

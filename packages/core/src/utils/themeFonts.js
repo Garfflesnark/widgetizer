@@ -42,9 +42,10 @@ export function themeFontsStylesheetUrl({ fonts, useBunnyFonts }) {
   const entries = Object.entries(fonts || {});
   if (entries.length === 0) return "";
 
-  // Bunny serves the v1 API (pipe-separated families), Google the v2 API.
+  // Bunny speaks the v1 API (`Name:400,700`, families joined by "|") and silently
+  // serves only 400 for Google's `wght@` syntax.
   if (useBunnyFonts) {
-    const families = entries.map(([name, weights]) => `${encodeURIComponent(name)}:wght@${weights.join(";")}`);
+    const families = entries.map(([name, weights]) => `${encodeURIComponent(name)}:${weights.join(",")}`);
     return `https://fonts.bunny.net/css?family=${families.join("|")}&display=swap`;
   }
   const families = entries.map(([name, weights]) => `family=${encodeURIComponent(name)}:wght@${weights.join(";")}`);

@@ -1330,7 +1330,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: The save succeeds, and the project stays on the new theme version without the update being offered again. A setting the new version removed is skipped with a warning.
 
 - [ ] SITESET-010E - Under Advanced, tick "Use Privacy-Friendly Font CDN", save, then preview and export and view a page's source.
-  Expected: Font links point at `fonts.bunny.net`, not `fonts.googleapis.com`. Unticking it brings Google Fonts back.
+  Expected: Font links point at `fonts.bunny.net`, not `fonts.googleapis.com`, in the editor preview too, and bold headings and bold body text look the same as with Google (a bold weight is not shown as regular). Unticking it brings Google Fonts back.
 
 SITESET-011 to SITESET-016 use the Site Address field in Project details > Site.
 
