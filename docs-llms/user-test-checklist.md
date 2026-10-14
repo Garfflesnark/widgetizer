@@ -391,7 +391,7 @@ The Folder Name field is currently hidden. Mark PROJ-012, PROJ-013, PROJ-015 and
 - [ ] SHELL-011 - Visit a made-up app URL.
   Expected: A useful 404 screen appears.
 
-- [ ] SHELL-012 - Click the 404 screen's back/dashboard action.
+- [ ] SHELL-012 - Click the 404 screen's "Back to Home" button.
   Expected: The app returns to a valid screen.
 
 - [ ] SHELL-013 - Click Documentation and Changelog links.

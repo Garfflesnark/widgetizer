@@ -509,23 +509,6 @@
     "saveError": "Failed to save settings",
     "unsavedChanges": "You have unsaved changes"
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "loading": "Loading dashboard data...",
-    "projectCount": "Number of projects",
-    "readyToCreate": "Ready to create your first project!",
-    "projects": "Projects",
-    "getStarted": "Get started",
-    "activeProject": "Active project",
-    "createFirstProject": "Create your first project",
-    "noActiveProject": "No active project",
-    "createProjectBtn": "Create Project →",
-    "letsGetAtIt": "Let's get at it! →",
-    "createProjectLink": "Create a project →",
-    "magic": "It's magic!",
-    "generateSite": "Generate a site",
-    "todoDescription": "Coming soon"
-  },
   "projects": {
     "title": "Projects",
     "description": "Open a project, create one, import one, or manage its details.",
@@ -1054,7 +1037,7 @@
     "media": {
       "maxFileSizeMB": {
         "label": "Max Upload Size (MB)",
-        "description": "Set the maximum size for individual uploads (images, audio, documents) across all projects."
+        "description": "Set the maximum size for individual uploads (images, audio, video, documents) across all projects."
       },
       "imageProcessing": {
         "quality": {

@@ -2,7 +2,7 @@
  * Validates shared core-widget locales and theme-owned locales separately.
  *
  * Ownership model:
- *   1. Core widget tTheme: keys live in src/core/widgets/locales/
+ *   1. Core widget tTheme: keys live in packages/core/src/widgets/locales/
  *   2. Theme widget + theme.json tTheme: keys live in each theme's locales/
  *   3. Theme locale APIs merge core + theme locales at runtime
  *

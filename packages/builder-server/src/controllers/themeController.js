@@ -757,7 +757,7 @@ export async function resolvePresetPaths(themeId, presetId) {
   //   3. preset-media/<id> in the runtime theme — a ZIP-installed theme using
   //      the theme-root layout (its installed copy IS its distribution copy).
   // The preset-name match is the opt-in. No media anywhere → seed nothing
-  // (valid: the default arch preset has no media and no image refs).
+  // (valid: the default "blank" preset has no media and no image refs).
   let mediaDir = null;
   const seedThemeDir = await resolveSeedThemeDir(themeId);
   const mediaCandidates = [

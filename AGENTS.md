@@ -153,7 +153,7 @@ Output goes to `dist-electron/`.
 
 ### Auto-Updates
 
-- electron-updater checks GitHub releases 10 seconds after app start
+- electron-updater checks GitHub releases 5 seconds after app start
 - Compares the running app version against `latest-mac.yml` / `latest.yml`
 - If a newer version exists, the in-app update banner appears
 - Update flow: detect → user clicks Update → download with progress → user clicks Restart Now → install

@@ -28,11 +28,10 @@
 /* Brand accent — remap Tailwind's default `pink` ramp to Widgetizer magenta
    (#E0006D). The editor colours its accent with pink-* utilities in ~200 places
    (buttons, focus rings, active states); overriding the ramp here recolours all
-   of them at once, in the one file every shell imports — so the OSS and hosted
-   editors share the brand magenta without touching a single component. Stops
-   mirror the hosted design system's --magenta-* ramp
-   (widgetizer-hosted/docs/design-system/colors_and_type.css); 900/950 extend it
-   darker for Tailwind parity. */
+   of them at once, in the one file every shell imports — so every editor shares
+   the brand magenta without touching a single component. Stops mirror the brand
+   design system's --magenta-* ramp; 900/950 extend it darker for Tailwind
+   parity. */
 @theme {
   --color-pink-50:  #FFF0F8;
   --color-pink-100: #FFD6EB;
@@ -40,9 +39,9 @@
   --color-pink-300: #F96CB5;
   --color-pink-400: #F63197;
   /* The editor uses pink-600 for primary buttons/active nav and pink-700 for
-     their hover; the hosted dashboard uses -500 for the same. Keep 500 and 600
-     both on the brand accent so BOTH apps' primaries render #E0006D, with the
-     hover one stop darker (#C0005A). */
+     their hover; a shell may use -500 for the same. Keep 500 and 600 both on
+     the brand accent so every primary renders #E0006D, with the hover one stop
+     darker (#C0005A). */
   --color-pink-500: #E0006D;
   --color-pink-600: #E0006D;
   --color-pink-700: #C0005A;
