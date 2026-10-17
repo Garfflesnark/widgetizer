@@ -10,15 +10,10 @@ Two lists: what is in the current GitHub milestone, and what we have found but n
 | Issue | What | GitHub status | Who |
 | --- | --- | --- | --- |
 | [#115](https://github.com/tsiger/widgetizer/issues/115) | Multilingual sites | To Be Reviewed | anastis, tsiger |
-| [#122](https://github.com/tsiger/widgetizer/issues/122) | Search-engine information (structured data) | To Be Reviewed | anastis |
 | [#126](https://github.com/tsiger/widgetizer/issues/126) | Leave-page prompt froze typing on Windows | To Be Reviewed | anastis |
-| [#133](https://github.com/tsiger/widgetizer/issues/133) | Form limits for embedding apps | To Be Reviewed | anastis |
-| [#134](https://github.com/tsiger/widgetizer/issues/134) | Undo keeps working after autosave | To Be Reviewed | tsiger |
-| [#155](https://github.com/tsiger/widgetizer/issues/155) | Theme labels refresh after a theme update | To Be Reviewed | anastis |
-| [#156](https://github.com/tsiger/widgetizer/issues/156) | No English left on translated pages | To Be Reviewed | anastis |
 | [#117](https://github.com/tsiger/widgetizer/issues/117) | Featured image as the fallback social image | Todo | tsiger |
 
-Closed in this milestone: 15 issues (the milestone's Closed tab).
+Closed in this milestone: 20 issues (the milestone's Closed tab).
 
 ## Findings, not scheduled
 
@@ -34,6 +29,7 @@ Closed in this milestone: 15 issues (the milestone's Closed tab).
 - **THEME-UPLOAD-CLEANUP** — a theme update upload that fails near the end can leave its new versions installed.
 - **THEME-UPDATE-RESUME** — after a crash mid theme update the site looks broken until the update is pressed again.
 - **MEDIA-USAGE-LABELS** — "Used in" shows codes like "El:header (Global)" for translated content.
+- **PREVIEW-WIDGET-INDEX** — after you edit the first widget, the editor preview shows its heading as a sub-heading (h2) until the page reloads. Published pages are fine.
 - **PREVIEW-SCRIPT-URL** — a badly written theme script address stops a widget's live preview.
 - **THEME-WARNING-LABEL** — a theme-save warning names the setting by an internal code.
 - **UNDO-CLEAN** — undoing back to the saved state leaves Save enabled.
@@ -42,6 +38,7 @@ Closed in this milestone: 15 issues (the milestone's Closed tab).
 - **SETTINGS-LOAD-RETRY** — Site settings doesn't retry after a failed load.
 - **MISSING-IMAGE-MESSAGE** — a theme save with a deleted image just says "Please try again".
 - **THEME-CHECKER** — the theme checker passes a few things that break on export and crashes on one valid tag.
+- **PROJECT-THEME-NAME** — after saving Project details, its Theme field shows the theme's internal id ("arch") instead of its name ("Arch") until the page is opened again.
 
 ### Improvements
 
@@ -49,6 +46,7 @@ Closed in this milestone: 15 issues (the milestone's Closed tab).
 - **T53** — make the three-dot menus easier to use with a keyboard.
 - **VIDEO-EMBED-FILTER** — read YouTube/Vimeo links properly in one shared filter (Shorts, unlisted links, bad IDs).
 - **T73** — let themes choose "|" instead of "-" between page and site titles.
+- **SEO-DATA-EXTRAS** — optional extras Google suggests for the search-engine information: an author on news articles, a full time on publication dates, and the page's language.
 
 ### Decisions
 

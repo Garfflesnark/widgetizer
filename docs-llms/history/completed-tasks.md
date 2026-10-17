@@ -373,6 +373,56 @@ A files widget with columns and icons was proposed. The issue was closed on GitH
 
 **Body at:** `10b894d3:docs-llms/TODO-agents.md`.
 
+### GH122 · Review automatic search-engine information
+
+**Done · Unrated · OSS · 2026-10-17**
+
+Structured data (JSON-LD) had been built behind `{% seo %}`: site, identity and page nodes, the breadcrumb list from the visible trail, and BlogPosting from mapped News fields, with export readiness notes.
+
+**Resolution:** Reviewed in the browser on English and Greek exports, with Clean URLs on and with no Site URL, and checked with Google's Rich Results Test: local business, organization, article and breadcrumbs all valid, no errors. The optional extras Google suggests (article author, a full publication datetime, `inLanguage`) are logged as SEO-DATA-EXTRAS. Built in `e3ae2f42`…`163cc588`. [GitHub #122](https://github.com/tsiger/widgetizer/issues/122)
+
+**Body at:** `105e7593:docs-llms/TODO-agents.md`.
+
+### GH133 · Review form limits for embedding apps
+
+**Done · Unrated · OSS · 2026-10-17**
+
+The five-forms-per-site limit was a hard-coded constant applied on every export, the standalone app included. It became the limit key `MAX_FORMS_PER_SITE`: the local adapter answers Infinity, and with no usable answer the export falls back to the default of 5.
+
+**Resolution:** Reviewed on the basis that the hosting side will not cap forms per site (it limits monthly submissions), which makes translated-form counting moot for it. A standalone export with six distinct forms succeeds in the browser. Export tests now cover the wiring from the limits adapter to the forms manifest, the fallback for missing or unusable answers, an adapter that throws, and translated copies under a finite ceiling (`105e7593`). Built in `a3f5fa18`. [GitHub #133](https://github.com/tsiger/widgetizer/issues/133)
+
+**Body at:** `105e7593:docs-llms/TODO-agents.md`.
+
+### GH134 · Autosave and Undo
+
+**Done · Unrated · OSS · 2026-10-17**
+
+Saves, autosave included, cleared the undo history, so a minute of editing took away Undo. The answer was no autosave setting: Undo keeps working across saves.
+
+**Resolution:** Reviewed in the browser against EDIT-045 to EDIT-045D: undo back to the original, quick typing as one step, undo after a save (the reverted value saves; Redo restores it), and undo of a theme setting changed from the editor. All pass. UNDO-CLEAN reproduced (already logged) and PREVIEW-WIDGET-INDEX was found and logged. Fix `e4379a50`. [GitHub #134](https://github.com/tsiger/widgetizer/issues/134)
+
+**Body at:** `105e7593:docs-llms/TODO-agents.md`.
+
+### THEME-LOCALE-STALE · Theme labels stay untranslated after a theme update
+
+**Done · Unrated · Shared · 2026-10-17**
+
+After a theme update, a setting the update added showed its raw locale key in Site settings and the editor until the page reloaded.
+
+**Resolution:** `invalidateThemeLocale(projectId)` refreshes the project's theme labels and `applyThemeUpdate` calls it on success. Reviewed in the browser through a real 0.9.9 → 0.9.10 Arch update: "Show breadcrumbs" shows its label without a reload in both places. An embedding app that applies updates through its own request must call `invalidateThemeLocale` itself. Fix `3b20007c`. [GitHub #155](https://github.com/tsiger/widgetizer/issues/155)
+
+**Body at:** `105e7593:docs-llms/TODO-agents.md`.
+
+### THEME-STRINGS · Translate the remaining built-in breadcrumb and business-details text
+
+**Done · Unrated · Shared · 2026-10-17**
+
+Translated pages showed English in the breadcrumb label, numbered crumbs and the BreadcrumbList, and in Arch's opening-hours day names and "Closed".
+
+**Resolution:** Core `site.breadcrumbs.*` and Arch `site.business_details.*` words (en/el), with the same Arch files in `updates/0.9.10/`. Reviewed in the browser on a Greek export: the page-2 trail ends "Σελίδα 2" in the page and its breadcrumb data, opening hours read "Δευ–Παρ" / "Σάβ–Κυρ Κλειστά", and English is unchanged. Fix `ce862cce`. [GitHub #156](https://github.com/tsiger/widgetizer/issues/156)
+
+**Body at:** `105e7593:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

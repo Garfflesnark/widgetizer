@@ -21,25 +21,15 @@ Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current
 
 ## OSS 0.9.10 milestone (mirrors GitHub)
 
-Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #127, #129, #130, #132, #135, #136, #137, #139, #142, #143, #144, #145 (see the milestone's Closed tab).
+Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156 (see the milestone's Closed tab).
 
 #### GH115 · Multilingual support
 
 **GitHub: To Be Reviewed · anastis, tsiger**
 
-Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. The 2026-10-14 docs-llms pass reconciled the multilingual rules, theme switcher, architecture/package maps and domain model with the code, and added the checklist's Multilingual section (LANG-001 to LANG-042) — docs `202e9dfa`. The leftover English on translated pages is THEME-STRINGS (#156). Awaiting the partner's review.
+Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. The 2026-10-14 docs-llms pass reconciled the multilingual rules, theme switcher, architecture/package maps and domain model with the code, and added the checklist's Multilingual section (LANG-001 to LANG-042) — docs `202e9dfa`. The leftover English on translated pages was fixed under #156. Awaiting the partner's review.
 
 **Start:** [Multilingual rules](domain/multilingual.md), [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
-
-#### GH122 · Review automatic search-engine information
-
-**GitHub: To Be Reviewed · anastis**
-
-Structured-data commits e3ae2f424/e48731228 and docs d065e7ae9 exist. Review the current contract and recorded evidence; do not build a second SEO pipeline.
-
-**Done when:** Existing implementation satisfies the agreed feature, or concrete gaps get separate tasks.
-
-**Start:** [Structured data](core-export.md#structured-data-json-ld), [site identity](core-projects.md#6-site-identity-and-business-details) and [collection mappings](core-collections.md#5c-structured-data-structureddata-block). **Source:** GitHub #122. [GitHub #122](https://github.com/tsiger/widgetizer/issues/122)
 
 #### GH126 · window.confirm bug in Electron
 
@@ -48,44 +38,6 @@ Structured-data commits e3ae2f424/e48731228 and docs d065e7ae9 exist. Review the
 `window.confirm()` left the Windows Electron window unable to take keyboard focus after the dialog closed. Both navigation guards use the in-app confirm (`useConfirm`, with Escape, focus trap and focus return); no native `confirm`/`alert`/`prompt` remains in editor-ui or the app shell. The owner verified it in the Windows desktop app on 2026-10-12. Router-level tests remain T71. Fix `5defb8fe`, hardening `48eef6f4`.
 
 **Start:** [ConfirmProvider.jsx](../packages/editor-ui/src/components/ui/ConfirmProvider.jsx). [GitHub #126](https://github.com/tsiger/widgetizer/issues/126)
-
-#### GH133 · Review form limits for embedding apps
-
-**GitHub: To Be Reviewed · anastis**
-
-MAX_FORMS_PER_SITE is read by export and LocalLimitsAdapter returns Infinity. Preserve fallback semantics. Host must answer the key; decide language-stream counting and item physical/group counts without documenting private tiers.
-
-**Done when:** Integration answers the key and tests its chosen limits, including translations.
-
-**Start:** [core-packages.md](core-packages.md). **Source:** GitHub #133. [GitHub #133](https://github.com/tsiger/widgetizer/issues/133)
-
-#### GH134 · Autosave and Undo
-
-**GitHub: To Be Reviewed · tsiger**
-
-Undo history survives saves (undoing past a save makes the page dirty again), quick edits to one setting within 500 ms are one step, the limit is 150, and server theme corrections go through the history. No autosave toggle was added. Fix `e4379a50`. The "Split into pages" multi-step undo found in review is PAGINATE-UNDO.
-
-**Start:** [pageStore.js](../packages/editor-ui/src/stores/pageStore.js). [GitHub #134](https://github.com/tsiger/widgetizer/issues/134)
-
-#### THEME-LOCALE-STALE · Theme labels stay untranslated after a theme update
-
-**GitHub: To Be Reviewed · anastis**
-
-After applying a theme update, a setting the update added (e.g. `show_breadcrumbs`) showed its raw key (`global.general.settings.show_breadcrumbs.label`) in Site settings and the editor until the page reloaded: `useThemeLocale` kept a module-level cache per project and language for 5 minutes with no invalidation. Fixed on `0.9.10`: `invalidateThemeLocale(projectId)` marks every language of that project stale and refetches where mounted (old labels stay until the new arrive), with a per-project generation so a refresh never cancels another project's load; `projectManager.applyThemeUpdate` calls it on success; a non-OK locale reply no longer replaces cached labels. An embedding app that applies updates through its own request must call `invalidateThemeLocale` itself.
-
-**Done when:** Applying a theme update shows the new settings' labels in Site settings and the editor without a reload, confirmed in the app.
-
-**Start:** [useThemeLocale.js](../packages/editor-ui/src/hooks/useThemeLocale.js), [projectManager.js](../packages/editor-ui/src/queries/projectManager.js), [useThemeLocaleInvalidate.test.jsx](../packages/editor-ui/src/hooks/__tests__/useThemeLocaleInvalidate.test.jsx). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`; fixed 2026-10-14. [GitHub #155](https://github.com/tsiger/widgetizer/issues/155)
-
-#### THEME-STRINGS · Translate the remaining built-in breadcrumb and business-details text
-
-**GitHub: To Be Reviewed · anastis**
-
-Translated pages showed English: the core breadcrumbs snippet defaulted `aria_label` to "Breadcrumb" and `page_label` to "Page", `breadcrumbNode.js` named numbered crumbs `Page N`, and Arch's `business-details.liquid` sliced English day ids ("Mon"–"Sun") and printed a literal "Closed". Fixed on `0.9.10` in `ce862cce`: core `site.breadcrumbs.{label,page}` (en/el) as the snippet defaults, the seo tag passes the page word into the BreadcrumbList, Arch `site.business_details.{closed,days.*}` (en/el) with each name escaped once, the same Arch files in `updates/0.9.10/`, the engine falls back to the core English dictionary when no `loadSiteStrings` is supplied, and the locale checker counts core snippets as users of core keys.
-
-**Done when:** Confirmed in the app: a Greek page-2 trail ends "Σελίδα 2", Greek opening hours read "Δευ–Παρ" / "Κλειστά", English is unchanged.
-
-**Start:** [breadcrumbs.liquid](../packages/core/src/snippets/breadcrumbs.liquid), [business-details.liquid](../themes/arch/snippets/business-details.liquid), [SeoTag.js](../packages/core/src/tags/SeoTag.js). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`; fixed 2026-10-14. [GitHub #156](https://github.com/tsiger/widgetizer/issues/156)
 
 #### GH117 · Featured image as the fallback social image
 
@@ -185,6 +137,16 @@ Recommended: on server start, check each project for a leftover `.theme-update-b
 
 **Start:** [mediaUsageDisplay.js](../packages/editor-ui/src/utils/mediaUsageDisplay.js), [Media.jsx](../packages/editor-ui/src/pages/Media.jsx). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
 
+#### PREVIEW-WIDGET-INDEX · A re-rendered widget in the editor preview loses its page position
+
+**Open · Low · Shared**
+
+After an edit (or undo) the editor re-renders only the changed widget: `previewController.js` (~553) calls `renderWidget` without an `index`, so `widget.index` is null. Templates that test `widget.index == 1` — about 50 Arch widgets choose `h1` vs `h2` this way, and `core-form` too — render the first widget's heading as `h2`, and `data-widget-index` is dropped, until the page is fully re-rendered. Export and publish number every widget, so output is unaffected; Arch styles both levels alike, so it shows only in the preview's heading structure. Seen 2026-10-17 on Arch's About page (Key Figures) during the #134 review.
+
+**Done when:** A single-widget re-render gets the same `widget.index` as the full render (from the page's `widgetsOrder`, which the controller already has), with a test.
+
+**Start:** [previewController.js](../packages/builder-server/src/controllers/previewController.js), [renderEngine.js](../packages/render-engine/src/renderEngine.js) (`renderWidget`). **Source:** 2026-10-17 browser review of #134.
+
 #### PREVIEW-SCRIPT-URL · A malformed theme script address stops a widget's live preview
 
 **Open · Low · Shared**
@@ -212,6 +174,8 @@ A theme save whose value the server corrects warns `"tTheme:global.colors.settin
 In the page editor, undoing a theme edit or a structural change (delete, reorder) back to exactly the saved state leaves Save enabled. `reconcileModifiedWidgets` (`saveStore.js` ~136-180) re-derives per-widget dirtiness but never clears `themeSettingsModified` or `structureModified`, and `hasUnsavedChanges` reads both flags. Saving then sends nothing for the theme (empty change list) and clears the flags.
 
 **Done when:** After undo returns page, globals and theme to their saved state, Save is disabled and no unsaved marker shows, with a test.
+
+Reproduced 2026-10-17: in the editor, turn a theme checkbox on then Undo — no unsaved dot anywhere, Save still enabled.
 
 **Start:** [saveStore.js](../packages/editor-ui/src/stores/saveStore.js), [EditorTopBar.jsx](../packages/editor-ui/src/components/pageEditor/EditorTopBar.jsx). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
 
@@ -303,6 +267,16 @@ The export viewer (`routes/export.js`) calls `res.sendFile` with an absolute pat
 
 **Start:** [export.js](../packages/builder-server/src/routes/export.js), [core-electron.md](core-electron.md). [GitHub #154](https://github.com/tsiger/widgetizer/issues/154)
 
+#### PROJECT-THEME-NAME · Project details shows the theme id after a save
+
+**Open · Low · OSS**
+
+Only `GET /api/projects` adds the display `themeName` (`getAllProjects` in `projectController.js`, ~392-416). `ProjectsEdit.jsx` replaces its project with the `PUT /api/projects/:id` reply after a save (~109-113); that reply has no `themeName`, so `ProjectForm.jsx` (~302) falls back to `theme` and the Theme field reads "arch" instead of "Arch" until Project details is reopened. Cosmetic. Seen 2026-10-17 in the browser after turning on Receive Theme Updates.
+
+**Done when:** The Theme field keeps the display name after a save (the update reply carries `themeName`, or the page keeps the one it loaded), with a test.
+
+**Start:** [projectController.js](../packages/builder-server/src/controllers/projectController.js), [ProjectsEdit.jsx](../app/src/pages/ProjectsEdit.jsx), [ProjectForm.jsx](../app/src/components/projects/ProjectForm.jsx). **Source:** 2026-10-17 browser review of #155.
+
 ### Improvements
 
 #### T66 · Explain form errors beside the right field
@@ -346,6 +320,19 @@ Keep SeoTag and renderEngine buildPageTitle aligned, including pagination; escap
 **Done when:** Title output and page_title agree for default/custom separators.
 
 **Start:** [SeoTag.js](../packages/core/src/tags/SeoTag.js). **Source:** Original §73.
+
+#### SEO-DATA-EXTRAS · Optional structured-data properties Google recommends
+
+**Open · Low · Shared**
+
+Possible future improvements found reviewing #122 with Google's Rich Results Test (2026-10-17); every item validated, these were optional warnings or omissions:
+- **Article author.** `BlogPosting` has no `author` (Google: "Missing field author (optional)"); `ARTICLE_PROPERTIES` in `articleNode.js` maps only headline, datePublished, description, image and articleBody. A cheap default is the identity node (`#identity`) as author; a mapped author field could come later.
+- **Publication date without time.** A `date` field yields `datePublished: "2026-05-30"`, valid schema.org but flagged twice by Google (invalid datetime, missing timezone). `dateModified` (a full timestamp) passes. Decide whether to emit a full datetime, and with which timezone.
+- **Language.** No node carries `inLanguage`; pages state it only through `<html lang>` and hreflang. Adding the rendering language to `WebPage`/`BlogPosting` makes translated pages explicit.
+
+**Done when:** Each item is either emitted (with tests) or deliberately declined in the structured-data docs.
+
+**Start:** [articleNode.js](../packages/core/src/structuredData/articleNode.js), [siteNodes.js](../packages/core/src/structuredData/siteNodes.js), [Structured data](core-export.md#structured-data-json-ld). **Source:** 2026-10-17 browser review of #122.
 
 ### Decisions
 
