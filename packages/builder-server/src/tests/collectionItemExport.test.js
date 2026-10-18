@@ -179,6 +179,17 @@ describe("collection item-page export — fail-fast validation", () => {
     const res = await runExport();
     assert.equal(res._status, 400, JSON.stringify(res._json));
     assert.ok(/collection item/i.test(res._json.error), res._json.error);
+    // The reply names the item, its language and the field, so the screen can link to it.
+    assert.deepEqual(res._json.invalidItems, [
+      {
+        collection: "news",
+        collectionName: "News",
+        slug: "broken",
+        title: "broken",
+        language: "en",
+        errors: [{ fieldId: "title", reason: "required field is empty", fieldLabel: "Title" }],
+      },
+    ]);
     // No output directory should have been created (validation precedes disk writes).
     assert.ok(!(await fs.pathExists(path.join(PUBLISH_DIR, `${PROJECT_FOLDER}-v1`))), "no partial export dir on a blocked export");
   });

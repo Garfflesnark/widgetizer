@@ -135,7 +135,7 @@ Before any HTML is written, `exportProjectToDir` enumerates `listCollectionSchem
 
 - **Pass 1 — gather.** Items are read and validated in every exported language, so an untranslated required field blocks the export. Every collection contributes to `manifestCollections` (`{ type, itemPages, itemCount, itemCountByLanguage }`, feeds `manifest.json`; the counts are accumulated over the exported languages and pushed once per collection). Invalid items (`item.invalid`) are accumulated into `invalidCollectionItems` with their per-field `validationErrors`. For `hasItemPages` collections, valid items (in listing order) are pushed into `itemPagesForSeo` (feeds sitemap/robots) and the item render loop.
 - **Pass 1 — template preflight.** A `hasItemPages` collection that has renderable (valid) items but **no** `template.liquid` (`loadCollectionTemplate` returns `null`) is recorded in `missingTemplates`.
-- **Pass 2 — refuse.** If any invalid items exist, the export throws `statusCode 400` / "Export failed: invalid collection items" with the full per-item-per-field error list. If any templates are missing, it throws `statusCode 400` / "Export failed: missing collection template". Either way **no HTML is written**.
+- **Pass 2 — refuse.** If any invalid items exist, the export throws `statusCode 400` / "Export failed: invalid collection items" with the full per-item-per-field error list; the reply carries it as `invalidItems` (`{ collection, collectionName, slug, title, language, errors: [{ fieldId, reason, fieldLabel }] }`), which the Export screen lists — the first five, each linking to its item editor, then "and N more". If any templates are missing, it throws `statusCode 400` / "Export failed: missing collection template". Either way **no HTML is written**.
 
 ### Item-page render loop
 
@@ -222,7 +222,7 @@ Exported as a standalone function: removes **all** export directories and histor
 
 ### Failed-export recording
 
-If `exportProjectToDir` throws, the `exportProject` handler records a `"failed"` row (`recordExport(projectId, nextVersion, null, "failed")`) before responding. Errors carrying an explicit `statusCode` (e.g. homepage/collection validation) return that code with `errorTitle`/`message`; theme- and page-read failures map to 404/500; anything else is a generic 500 (with `stack` outside production).
+If `exportProjectToDir` throws, the `exportProject` handler records a `"failed"` row (`recordExport(projectId, nextVersion, null, "failed")`) before responding — except for a refusal from the checks that run before any write (missing homepage, two homepages, invalid items, missing template, homepage pages clashing with a collection, a collection clashing with a language). Those are built with `exportRefusal` (`refusedBeforeWrite`), write nothing and record nothing, so they never take a version number. Errors carrying an explicit `statusCode` return that code with `errorTitle`/`message` (plus `invalidItems` for invalid collection items); theme- and page-read failures map to 404/500; anything else is a generic 500 (with `stack` outside production).
 
 ### API Endpoints
 

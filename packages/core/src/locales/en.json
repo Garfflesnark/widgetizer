@@ -922,6 +922,12 @@
       "exportError": "Exporting failed with an unknown issue.",
       "unknownError": "An unknown error occurred during exporting."
     },
+    "invalidItems": {
+      "title": "These items need fixing before the site can be exported",
+      "field": "{{field}} is empty",
+      "more_one": "and {{count}} more item",
+      "more_other": "and {{count}} more items"
+    },
     "languages": {
       "skippedTitle": "Some languages were not exported",
       "skipped_one": "{{languages}} has no homepage, so it was left out — and links pointing into it were removed from the exported pages. Create a page with the slug 'index' in it and export again.",

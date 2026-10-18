@@ -105,6 +105,19 @@ async function getDirectorySize(dirPath) {
 const serializeExportOps = createKeyedSerializer();
 
 /**
+ * An export refused by a check that runs before anything is written. It is the
+ * user's to fix, not a failed export, so it records no history row: a row would
+ * take a version number and the next real export would skip it.
+ */
+function exportRefusal(message, errorTitle) {
+  const err = new Error(message);
+  err.statusCode = 400;
+  err.errorTitle = errorTitle;
+  err.refusedBeforeWrite = true;
+  return err;
+}
+
+/**
  * Where a tracked media path's file is, when it lies inside the project's
  * `uploads/<folder>`; null otherwise. The media library can arrive from a backup
  * made elsewhere, and a path such as `/uploads/images/../../../etc/passwd` would
@@ -319,10 +332,10 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
     // authoritative slug.
     const hasIndexPage = rootPages.some((page) => isHomeSlug(page.id));
     if (!hasIndexPage) {
-      const err = new Error('Your project must have a page with the slug "index" to serve as the homepage. Please create or rename a page to have the slug "index" before exporting.');
-      err.statusCode = 400;
-      err.errorTitle = "Export failed: No homepage found";
-      throw err;
+      throw exportRefusal(
+        'Your project must have a page with the slug "index" to serve as the homepage. Please create or rename a page to have the slug "index" before exporting.',
+        "Export failed: No homepage found",
+      );
     }
 
     // `index` and `home` both publish as the language's index.html, so a language
@@ -332,12 +345,10 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
       const homes = allPages.filter((pageData) => pageData.language === language && isHomeSlug(pageData.id));
       if (homes.length < 2) continue;
       const folder = languageFolder(pageLang(homes[0]));
-      const err = new Error(
+      throw exportRefusal(
         `The ${folder ? `"${folder}" ` : ""}pages include both "index" and "home". Both are published as the homepage (${folder ? `${folder}/` : ""}index.html), so one would replace the other. Rename one of them and export again.`,
+        "Export failed: two homepages",
       );
-      err.statusCode = 400;
-      err.errorTitle = "Export failed: two homepages";
-      throw err;
     }
 
     // An enabled language is not an exportable one (§7b). A non-default language
@@ -409,11 +420,19 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
         itemCountByLanguage[language] = items.length;
         for (const item of items) {
           if (item.invalid) {
+            // Enough to name the item on screen and open it: the collection's own
+            // name, the item's title and the label of each field to fill in.
+            const fieldLabels = new Map((schema.settings || []).map((setting) => [setting.id, setting.label]));
             invalidCollectionItems.push({
               collection: schema.type,
+              collectionName: schema.displayName || schema.displayNamePlural || schema.type,
               slug: item.slug,
+              title: item.title,
               language,
-              errors: item.validationErrors,
+              errors: item.validationErrors.map((error) => ({
+                ...error,
+                fieldLabel: fieldLabels.get(error.fieldId) || error.fieldId,
+              })),
             });
           }
         }
@@ -445,21 +464,18 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
       }
     }
     if (invalidCollectionItems.length > 0) {
-      const err = new Error(
+      const err = exportRefusal(
         `Export blocked: ${invalidCollectionItems.length} collection item(s) have validation errors. Fix them before exporting.`,
+        "Export failed: invalid collection items",
       );
-      err.statusCode = 400;
-      err.errorTitle = "Export failed: invalid collection items";
       err.validationErrors = invalidCollectionItems;
       throw err;
     }
     if (missingTemplates.length > 0) {
-      const err = new Error(
+      throw exportRefusal(
         `Export blocked: collection(s) ${missingTemplates.join(", ")} have hasItemPages: true with renderable items but no template.liquid. Add the template before exporting.`,
+        "Export failed: missing collection template",
       );
-      err.statusCode = 400;
-      err.errorTitle = "Export failed: missing collection template";
-      throw err;
     }
 
     const paginationPlans = new Map();
@@ -493,12 +509,10 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
       const folder = languageFolder(pageLang(splitHomepage));
       const pageDir = folder ? `${folder}/page/` : "page/";
       const homepage = folder ? `Your "${folder}" homepage` : "Your homepage";
-      const err = new Error(
+      throw exportRefusal(
         `${homepage} is split into pages, published at ${pageDir}2.html, ${pageDir}3.html and so on. The "${pageCollection.displayNamePlural || pageCollection.type}" collection publishes its items in the same ${pageDir} folder. Turn off "Split into pages" on that homepage.`,
+        "Export failed: homepage pages clash with a collection",
       );
-      err.statusCode = 400;
-      err.errorTitle = "Export failed: homepage pages clash with a collection";
-      throw err;
     }
 
     // A language publishes into a folder named by its code, and a collection's
@@ -512,12 +526,10 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
     );
     if (languageCollection) {
       const code = languageCollection.slugPrefix;
-      const err = new Error(
+      throw exportRefusal(
         `The "${languageCollection.displayNamePlural || languageCollection.type}" collection publishes its items in the ${code}/ folder, where your "${code}" pages are published, so they could overwrite each other. Your theme sets that folder name, so exporting this site needs a theme version that publishes the collection elsewhere.`,
+        "Export failed: a collection clashes with a language",
       );
-      err.statusCode = 400;
-      err.errorTitle = "Export failed: a collection clashes with a language";
-      throw err;
     }
 
     // --- Validation passed: from here on, disk writes are safe ---
@@ -1325,6 +1337,8 @@ export async function exportProject(req, res) {
       try {
         return await exportProjectToDir(projectId, req.body || {}, collectionDeps);
       } catch (error) {
+        // A refusal wrote nothing and is no export; only a real failure is recorded.
+        if (error.refusedBeforeWrite) throw error;
         try {
           const version = exportRepo.getNextVersion(projectId);
           await recordExport(projectId, version, null, "failed");
@@ -1350,6 +1364,8 @@ export async function exportProject(req, res) {
       return res.status(error.statusCode).json({
         error: error.errorTitle || "Export failed",
         message: error.message,
+        // Which items stopped the export, so the screen can list and link them.
+        ...(error.validationErrors ? { invalidItems: error.validationErrors } : {}),
       });
     }
     // Send specific error if theme read failed
