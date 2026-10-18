@@ -179,18 +179,14 @@ export function validateCollectionSchema(schema, folderName) {
 
   // --- usedAsTitle: exactly one, must be a text setting ---
   if (titleSettings.length !== 1) {
-    errors.push(
-      `Exactly one non-header setting must declare \`usedAsTitle: true\` (found ${titleSettings.length}).`,
-    );
+    errors.push(`Exactly one non-header setting must declare \`usedAsTitle: true\` (found ${titleSettings.length}).`);
   } else if (titleSettings[0].type !== "text") {
     errors.push("`usedAsTitle` must be on a `text` setting.");
   }
 
   // --- usedAsDate: at most one, must be a date setting ---
   if (dateSettings.length > 1) {
-    errors.push(
-      `At most one non-header setting may declare \`usedAsDate: true\` (found ${dateSettings.length}).`,
-    );
+    errors.push(`At most one non-header setting may declare \`usedAsDate: true\` (found ${dateSettings.length}).`);
   } else if (dateSettings.length === 1 && dateSettings[0].type !== "date") {
     errors.push("`usedAsDate` must be on a `date` setting.");
   }
@@ -252,24 +248,39 @@ export async function listCollectionSchemas(storage, scope) {
     if (await storage.exists(scope, schemaKey(name))) folderNames.push(name);
   }
 
-  const valid = [];
+  const rawSchemas = [];
   for (const folderName of folderNames) {
     let raw;
     try {
       raw = await readJson(storage, scope, schemaKey(folderName));
     } catch (err) {
-      console.warn(
-        `[collections] Skipping "${folderName}": cannot read schema.json (${err.message}).`,
-      );
+      console.warn(`[collections] Skipping "${folderName}": cannot read schema.json (${err.message}).`);
       continue;
     }
     if (raw == null) continue; // disappeared between list and read
+    rawSchemas.push({ folderName, raw });
+  }
 
+  return loadableCollectionSchemas(rawSchemas);
+}
+
+/**
+ * The schemas a project actually loads from a set of raw `schema.json` contents:
+ * each validated and normalized, invalid ones skipped, and every collection
+ * sharing a `slugPrefix` skipped. Shared by `listCollectionSchemas` and by checks
+ * that must see a theme source's collections the way a project will load them.
+ *
+ * @param {{ folderName: string, raw: object }[]} rawSchemas
+ * @param {object} [options]
+ * @param {boolean} [options.quiet] - Skip schemas without logging why
+ * @returns {object[]} normalized valid schemas
+ */
+export function loadableCollectionSchemas(rawSchemas, { quiet = false } = {}) {
+  const valid = [];
+  for (const { folderName, raw } of rawSchemas) {
     const { valid: ok, errors, normalized } = validateCollectionSchema(raw, folderName);
     if (!ok) {
-      console.warn(
-        `[collections] Skipping invalid schema "${folderName}": ${errors.join("; ")}`,
-      );
+      if (!quiet) console.warn(`[collections] Skipping invalid schema "${folderName}": ${errors.join("; ")}`);
       continue;
     }
     valid.push(normalized);
@@ -284,9 +295,10 @@ export async function listCollectionSchemas(storage, scope) {
   const result = [];
   for (const schema of valid) {
     if (prefixCounts.get(schema.slugPrefix) > 1) {
-      console.warn(
-        `[collections] Skipping "${schema.type}": slugPrefix "${schema.slugPrefix}" is shared by multiple collections.`,
-      );
+      if (!quiet)
+        console.warn(
+          `[collections] Skipping "${schema.type}": slugPrefix "${schema.slugPrefix}" is shared by multiple collections.`,
+        );
       continue;
     }
     result.push(schema);
@@ -647,9 +659,7 @@ export async function readCollectionItems(storage, scope, collectionType, lang) 
       }
       rawEntries.push({ name, raw });
     } catch (err) {
-      console.warn(
-        `[collections] Skipping unreadable item "${collectionType}/${name}": ${err.message}`,
-      );
+      console.warn(`[collections] Skipping unreadable item "${collectionType}/${name}": ${err.message}`);
     }
   }
 
@@ -955,9 +965,7 @@ export async function discardArchivedCollectionItem(storage, scope, collectionTy
   const raw = await readRawCollectionItem(storage, scope, collectionType, itemSlug, lang);
   if (!raw) return null;
 
-  const knownIds = new Set(
-    (schema.settings || []).filter((s) => s.type !== HEADER_TYPE).map((s) => s.id),
-  );
+  const knownIds = new Set((schema.settings || []).filter((s) => s.type !== HEADER_TYPE).map((s) => s.id));
   const settings = {};
   for (const [key, value] of Object.entries(raw.settings || {})) {
     if (knownIds.has(key)) settings[key] = value;
@@ -1100,7 +1108,13 @@ export async function duplicateCollectionItem(storage, scope, collectionType, so
  *
  * @returns {Promise<{ item: object, groupId: string }|null>} null when the source is absent
  */
-export async function createItemLanguageVersion(storage, scope, collectionType, sourceSlug, { fromLang, toLang, slug }) {
+export async function createItemLanguageVersion(
+  storage,
+  scope,
+  collectionType,
+  sourceSlug,
+  { fromLang, toLang, slug },
+) {
   const schema = await getCollectionSchema(storage, scope, collectionType);
   if (!schema) throw new Error(`Unknown collection type "${collectionType}"`);
   if (!SLUG_RE.test(sourceSlug)) return null;
@@ -1298,7 +1312,12 @@ export function prepareCollectionItemForRender(
   // (preview → live media URL, publish → assets/), so an inserted <img> loads without
   // the theme author wiring anything in the template. Runs after sanitize, on the clone.
   if (mediaBasePaths && resolved && resolved.settings) {
-    resolveRichtextMediaInSettings(resolved.settings, schema.settings, mediaBasePaths.imagePath, mediaBasePaths.filePath);
+    resolveRichtextMediaInSettings(
+      resolved.settings,
+      schema.settings,
+      mediaBasePaths.imagePath,
+      mediaBasePaths.filePath,
+    );
   }
   // Resolve stable internal-link refs in richtext anchors (data-page-uuid /
   // data-collection-item-uuid) to current slugs, depth-aware — parity with the
@@ -1344,10 +1363,7 @@ export async function loadCollectionItemsByUuid(storage, scope, reader = null, l
           // agree on has to be defined once. `slugPrefix` comes from the
           // schema, not the item, and `collectionType` is for this map's other
           // readers.
-          map.set(
-            item.uuid,
-            translationSibling(item, { collectionType: schema.type, slugPrefix: schema.slugPrefix }),
-          );
+          map.set(item.uuid, translationSibling(item, { collectionType: schema.type, slugPrefix: schema.slugPrefix }));
         }
       }
     }

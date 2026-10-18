@@ -481,18 +481,42 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
         .map((pageData) => [pageIdentity(pageData), paginationPlans.get(pageIdentity(pageData)).total]),
     );
 
-    const homepagePaginates = rootPages.some(
-      (pageData) => isHomeSlug(pageData.id) && paginationPlans.has(pageIdentity(pageData)),
-    );
-    const clashingCollection = homepagePaginates
-      ? collectionSchemas.find((schema) => schema.hasItemPages && schema.slugPrefix === "page")
+    // A split homepage publishes its copies at <language folder>/page/N.html, and
+    // a collection prefixed "page" publishes that language's items in the same
+    // folder, so one would silently overwrite the other. Checked per language:
+    // every language has its own homepage and its own copy of every collection.
+    const pageCollection = collectionSchemas.find((schema) => schema.hasItemPages && schema.slugPrefix === "page");
+    const splitHomepage = pageCollection
+      ? pagesDataArray.find((pageData) => isHomeSlug(pageData.id) && paginationPlans.has(pageIdentity(pageData)))
       : null;
-    if (clashingCollection) {
+    if (splitHomepage) {
+      const folder = languageFolder(pageLang(splitHomepage));
+      const pageDir = folder ? `${folder}/page/` : "page/";
+      const homepage = folder ? `Your "${folder}" homepage` : "Your homepage";
       const err = new Error(
-        `Your homepage is split into pages, published at page/2.html, page/3.html and so on. The "${clashingCollection.displayNamePlural || clashingCollection.type}" collection publishes its items in the same page/ folder. Turn off "Split into pages" on the homepage, or give that collection a different slugPrefix.`,
+        `${homepage} is split into pages, published at ${pageDir}2.html, ${pageDir}3.html and so on. The "${pageCollection.displayNamePlural || pageCollection.type}" collection publishes its items in the same ${pageDir} folder. Turn off "Split into pages" on that homepage.`,
       );
       err.statusCode = 400;
       err.errorTitle = "Export failed: homepage pages clash with a collection";
+      throw err;
+    }
+
+    // A language publishes into a folder named by its code, and a collection's
+    // main-language items publish into a folder named by its slugPrefix. When the
+    // two names match, items and that language's pages share one folder and can
+    // overwrite each other. Adding a language refuses this; a theme update or an
+    // older project can still bring it in.
+    const exportedFolders = new Set(exportLanguages.map((language) => languageFolder({ language, defaultLanguage })));
+    const languageCollection = collectionSchemas.find(
+      (schema) => schema.hasItemPages && exportedFolders.has(schema.slugPrefix),
+    );
+    if (languageCollection) {
+      const code = languageCollection.slugPrefix;
+      const err = new Error(
+        `The "${languageCollection.displayNamePlural || languageCollection.type}" collection publishes its items in the ${code}/ folder, where your "${code}" pages are published, so they could overwrite each other. Your theme sets that folder name, so exporting this site needs a theme version that publishes the collection elsewhere.`,
+      );
+      err.statusCode = 400;
+      err.errorTitle = "Export failed: a collection clashes with a language";
       throw err;
     }
 

@@ -127,6 +127,30 @@ Recommended: on server start, check each project for a leftover `.theme-update-b
 
 **Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js), [server-common.js](../app/server-common.js). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`; narrowed 2026-10-06.
 
+#### THEME-UPDATE-REMOVED-FOLDER · A theme version that drops a whole updatable folder leaves it in projects
+
+**Open · Medium · Shared**
+
+`applyThemeUpdateToDir` stages each of `UPDATABLE_PATHS` only when the theme source has it (`themeUpdateService.js` ~386, `continue; // not in this theme`), so a path absent from the source is never swapped: the project keeps its old copy. An update that empties a folder with a `deleted/` marker (`layerThemeSnapshot`, `themeController.js` ~399, drops it from `latest/`) therefore leaves e.g. the old `collection-types/` (or `assets/`, `widgets/`, `snippets/`, `locales/`) in every project while the version advances. That contradicts [theme-updates.md](theme-updates.md)'s "Entire folder replaced", and a kept collection is invisible to the update's language-folder check, which reads only the staged copy. Pre-existing; found by reading the code, not reproduced.
+
+Suggested: record a path absent from the source as a planned removal: move the project's copy into the backup during the swap (so rollback and recovery put it back) without placing a replacement. Check what a theme with no `collection-types/` at all means first (never had one vs. removed it); both look the same to the apply.
+
+**Done when:** An update whose snapshot lacks an updatable path removes the project's copy, rolls back with the rest, and is tested (project has a collection, source has no `collection-types/`).
+
+**Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js), [themeController.js](../packages/builder-server/src/controllers/themeController.js). **Source:** 2026-10-18 Codex review of the EXPORT-CLASH-LANG changes.
+
+#### THEME-UPDATE-STAGE-CLEANUP · A staging folder that fails to delete is reused by the next update
+
+**Open · Low · Shared**
+
+Every removal of `.theme-update-stage/` swallows its error (`themeUpdateService.js` ~263 in `recoverInterruptedUpdate`, ~436/~442 in the prepare failure and the language-folder refusal, ~491/~502 after the swap). If one fails, the next run's `ensureDir` reuses the folder and `fs.copy` merges into it, so leftover staged files (an old collection folder, a stale asset) can be swapped into the project or cause a false refusal; the refusal also returns its 409 as if the stage were gone. Pre-existing pattern; found by reading the code, not reproduced.
+
+Suggested: at the start of a run, remove the stage without swallowing the error and refuse with the usual "could not be prepared" message if it is still there; on the refusal path, report a cleanup failure instead of the clean 409.
+
+**Done when:** A run never prepares into a stage it did not create, with a test that makes the stage removal fail.
+
+**Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js). **Source:** 2026-10-18 Codex review of the EXPORT-CLASH-LANG changes.
+
 #### MEDIA-USAGE-LABELS · Show readable "Used in" labels for other-language content
 
 **Open · Low · Shared**

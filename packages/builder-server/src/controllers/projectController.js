@@ -1817,6 +1817,9 @@ export async function applyProjectThemeUpdate(req, res) {
     res.json(result);
   } catch (error) {
     console.error("Error applying theme update:", error);
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
     if (error.message.includes("not found")) {
       return res.status(404).json({ error: error.message });
     }

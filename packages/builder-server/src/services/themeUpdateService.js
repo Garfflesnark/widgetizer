@@ -17,6 +17,8 @@ import { withContentWriteLock } from "./contentCoordination.js";
 import { getUpdateStatus } from "../utils/updateStatus.js";
 import { processTemplatesRecursive } from "../utils/templateHelpers.js";
 import { findThemeSetting } from "@widgetizer/core/themeSettingChanges";
+import { projectLanguages } from "../utils/contentLanguage.js";
+import { loadableCollectionSchemas } from "./collectionService.js";
 
 /**
  * Updatable paths - these are copied from theme to project during updates.
@@ -297,6 +299,47 @@ async function recoverInterruptedUpdate(projectDir) {
 }
 
 /**
+ * The first collection among a theme's files that would publish its item pages
+ * into one of the project's language folders, or null. The theme's schemas are
+ * read the way the project will load them, so one the project would skip (invalid,
+ * or sharing its prefix) is no clash. A language's pages and
+ * a collection's main-language items both publish into a folder named by their
+ * code or slugPrefix, so a match lets one overwrite the other. Adding a language
+ * refuses this; an update must not bring it in either.
+ * @param {string} themeDir - The theme files to check: an update's staged copy
+ * @param {string[]} languages - The project's additional language codes
+ * @returns {Promise<{name: string, prefix: string}|null>}
+ */
+async function findLanguageFolderCollection(themeDir, languages) {
+  if (!languages.length) return null;
+  const typesDir = path.join(themeDir, "collection-types");
+  let entries = [];
+  try {
+    entries = await fs.readdir(typesDir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const rawSchemas = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    try {
+      rawSchemas.push({
+        folderName: entry.name,
+        raw: await fs.readJson(path.join(typesDir, entry.name, "schema.json")),
+      });
+    } catch {
+      // An unreadable schema is skipped when the project loads it, so it publishes nothing.
+    }
+  }
+  // Quiet: the project logs these skips when it loads the schemas; repeating
+  // them on every update attempt only adds noise.
+  const clash = loadableCollectionSchemas(rawSchemas, { quiet: true }).find(
+    (schema) => schema.hasItemPages && languages.includes(schema.slugPrefix),
+  );
+  return clash ? { name: clash.displayNamePlural || clash.displayName || clash.type, prefix: clash.slugPrefix } : null;
+}
+
+/**
  * Apply a theme update to a project directory — the file-level core of an update.
  *
  * All of it, or none of it. The update is built off to the side first, and only
@@ -316,10 +359,12 @@ async function recoverInterruptedUpdate(projectDir) {
  * @param {object} params
  * @param {string} params.themeSourceDir - Directory holding the theme source to apply
  * @param {string} params.projectDir - The project's content directory
+ * @param {string[]} [params.languages] - The project's additional language codes; an update whose
+ *   collections would publish into one of their folders is refused before the swap
  * @returns {Promise<{newVersion: string|null}>} The version from the theme source's theme.json, or null if unreadable
  * @throws {Error} When the update could not be applied; the project is unchanged
  */
-export async function applyThemeUpdateToDir({ themeSourceDir, projectDir }) {
+export async function applyThemeUpdateToDir({ themeSourceDir, projectDir, languages = [] }) {
   const stageDir = path.join(projectDir, STAGE_DIR);
   const backupDir = path.join(projectDir, BACKUP_DIR);
 
@@ -330,6 +375,7 @@ export async function applyThemeUpdateToDir({ themeSourceDir, projectDir }) {
   const staged = [];
   const additions = [];
   let mergedThemeJson = null;
+  let clash = null;
   const newThemeJsonPath = path.join(themeSourceDir, "theme.json");
 
   try {
@@ -380,10 +426,25 @@ export async function applyThemeUpdateToDir({ themeSourceDir, projectDir }) {
       await fs.readJson(path.join(projectDir, "theme.json")),
       await fs.readJson(newThemeJsonPath),
     );
+
+    // Read from the staged copy, so what is checked is exactly what would be
+    // applied, even if the theme source changes meanwhile. A theme without
+    // collection-types leaves the project's own in place, and those were
+    // already loaded without a clash.
+    clash = await findLanguageFolderCollection(stageDir, languages);
   } catch (error) {
     await fs.remove(stageDir).catch(() => {});
     console.error(`[applyThemeUpdate] Could not prepare the update: ${error.message}`);
     throw new Error("The update could not be prepared, so nothing in the project was changed.");
+  }
+
+  if (clash) {
+    await fs.remove(stageDir).catch(() => {});
+    const error = new Error(
+      `This update publishes the "${clash.name}" collection in the ${clash.prefix}/ folder, where your "${clash.prefix}" pages are published, so they could overwrite each other. This update was not applied. Keep using your current theme version until the theme publishes this collection under a different prefix.`,
+    );
+    error.statusCode = 409;
+    throw error;
   }
 
   // ---- Swap. The plan is written first and in full, so a run that dies at any
@@ -524,7 +585,7 @@ async function applyThemeUpdateExclusively(projectId) {
   // wholesale from the theme either way. Rolling the files back for it would
   // mean holding the backup across a database write, which is more machinery
   // than the outcome warrants.
-  await applyThemeUpdateToDir({ themeSourceDir, projectDir });
+  await applyThemeUpdateToDir({ themeSourceDir, projectDir, languages: projectLanguages(project).languages });
 
   // 4. Update project metadata
   projectRepo.updateProject(projectId, {
