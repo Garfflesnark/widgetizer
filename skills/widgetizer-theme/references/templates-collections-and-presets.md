@@ -81,7 +81,7 @@ Collections are optional. Put schemas in `collection-types/<type>/schema.json`; 
 - A supplied `structuredData` mapping must match the supported type/field rules below.
 - Presets must not contain `collection-types/`.
 
-**Contract:** provide the item template when advertising item pages; the schema validator is not a complete template-existence/render check. Keep setting IDs unique and define all values your templates use. `schemaVersion` is bookkeeping, not an automatic migration script. Avoid collisions with generated page paths; `page` is reserved as a page/item slug, and a collection prefix `page` can conflict with homepage pagination during export.
+**Contract:** provide the item template when advertising item pages; the schema validator is not a complete template-existence/render check. Keep setting IDs unique and define all values your templates use. `schemaVersion` is bookkeeping, not an automatic migration script. Avoid collisions with generated page paths; `page` is reserved as a page/item slug, and a collection prefix `page` can conflict with homepage pagination during export. Don't use an item-page prefix shaped like a language code (two letters, optionally followed by a real region or script, such as `pt-br` or `zh-hant`): a site's additional languages publish into folders named by their codes, so a site with that language can't add it, and an update that brings the collection in is refused. The validator warns about both.
 
 An item-page template reads `item.settings`, `collection`, `page`, and `theme`. It produces the item's main content; the engine surrounds it with header/footer and the theme layout. Do not embed another complete HTML document inside it.
 

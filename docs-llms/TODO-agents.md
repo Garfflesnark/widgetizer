@@ -261,6 +261,18 @@ Choosing a library image in a theme setting and saving after that image was dele
 
 **Start:** [validate-theme.js](../scripts/validate-theme.js), [build-theme-skill-contract.js](../scripts/build-theme-skill-contract.js), [themeSkill.test.js](../packages/builder-server/src/tests/themeSkill.test.js). **Source:** 2026-10-05 code review of `9e98dad7..e2f61b21`.
 
+#### LANG-PREFIX-WARNING · The theme checker's language-code prefix warning is a heuristic
+
+**Open · Low · OSS**
+
+`looksLikeLanguageCode` (`scripts/validate-theme.js` ~35) warns on an item-page prefix that `isValidLanguageCode` accepts and that is a bare code or carries a two-letter region or four-letter script `Intl.DisplayNames` names. The app accepts more: `de-1996` (a variant) and even `my-work` pass `isValidLanguageCode` and could be added as a language, yet the checker stays quiet (adding the language, theme updates and export still refuse the actual clash, so only the author's early warning is missed). `Intl.DisplayNames` is also not a registry: `zz` ("Unknown Region"), `zzzz` and retired regions (`bu`, `an`, `su`) have names, so `en-zz` warns. [core-collections.md](core-collections.md) and the skill's `templates-collections-and-presets.md` say "real region or script", which overclaims.
+
+Options: keep the heuristic and reword the two docs ("a region or script code Node recognises", named as a heuristic); or warn on everything `isValidLanguageCode` accepts (brings back warnings on `my-work`, `hr-jobs`); or ship a region/script/variant registry.
+
+**Done when:** The docs describe what the checker actually does, and the chosen rule is tested with `de-1996`, `en-zz` and a retired region.
+
+**Start:** [validate-theme.js](../scripts/validate-theme.js), [themeSkill.test.js](../packages/builder-server/src/tests/themeSkill.test.js), [languages.js](../packages/core/src/utils/languages.js). **Source:** 2026-10-18 Codex review of the EXPORT-CLASH-LANG changes.
+
 #### GH148 · The testimonial carousel shows part of the next card on phones
 
 **Open · Unrated · OSS**

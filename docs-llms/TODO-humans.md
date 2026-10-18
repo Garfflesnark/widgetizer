@@ -40,6 +40,7 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 - **SETTINGS-LOAD-RETRY** — Site settings doesn't retry after a failed load.
 - **MISSING-IMAGE-MESSAGE** — a theme save with a deleted image just says "Please try again".
 - **THEME-CHECKER** — the theme checker passes a few things that break on export and crashes on one valid tag.
+- **LANG-PREFIX-WARNING** — the theme checker's "this prefix looks like a language code" warning is a best guess: it misses a few codes a site could add and the docs describe it as more exact than it is.
 - **PROJECT-THEME-NAME** — after saving Project details, its Theme field shows the theme's internal id ("arch") instead of its name ("Arch") until the page is opened again.
 
 ### Improvements
