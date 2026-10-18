@@ -423,6 +423,16 @@ Translated pages showed English in the breadcrumb label, numbered crumbs and the
 
 **Body at:** `105e7593:docs-llms/TODO-agents.md`.
 
+### EXPORT-CLASH-LANG · Catch output-path clashes inside language folders
+
+**Done · Low · Shared · 2026-10-18**
+
+A collection whose `slugPrefix` equals a language code published its main-language items over that language's pages, and a theme update could bring such a collection in unchecked. The split-homepage check against a `page`-prefixed collection covered the main language only.
+
+**Resolution:** Export refuses both clashes in every exported language before writing. A theme update is refused with a 409 when its staged collection types would publish into a language folder; an interrupted run is undone first. The add-language refusal and every message say the theme sets the folder name. The split-homepage policy stays strict: any split homepage plus a `page`-prefixed collection with item pages is refused. `validate:theme` warns about language-code-like and `page` prefixes, in the theme and in the collections its updates bring in. Reproduced and checked in the browser through a theme update. Fix `29289f67`, `6344ab5c`.
+
+**Body at:** `6344ab5c:docs-llms/TODO-agents.md`.
+
 ### PREVIEW-WIDGET-INDEX · A re-rendered widget in the editor preview loses its page position
 
 **Done · Low · Shared · 2026-10-18**
@@ -442,6 +452,26 @@ After an edit or undo, the editor re-rendered only the changed widget without `w
 **Resolution:** The lookup reads `collections/<type>/<language>/<slug>.json` for another language and matches the effective prefix. The theme-setting half of RENDER-LANG stays open. Fix `bcb7fab6`.
 
 **Body at:** `bcb7fab6:docs-llms/TODO-agents.md`.
+
+### MEDIA-USAGE-LABELS · Show readable "Used in" labels for other-language content
+
+**Done · Low · Shared · 2026-10-18**
+
+The Media screen's "Used in" list showed "El:header (Global)" for another language's header, and raw `collection:<uuid>` for other-language items, which it never fetched; same-named pages read "About, About".
+
+**Resolution:** `Media.jsx` fetches every language's collection items; `buildUsageTitleMap` and `resolveUsageTitle` name other-language content with its language ("Header (Global, Ελληνικά)", "About (Ελληνικά)", "Article: … (Ελληνικά)"), resolve rows recorded by language folder and slug, and leave the pre-uuid slug fallbacks to the default language. Reproduced and checked in the browser on a translated site. The request fan-out this adds is logged as MEDIA-USAGE-TITLES. Fix `efc941d0`.
+
+**Body at:** `efc941d0:docs-llms/TODO-agents.md`.
+
+### TRANSLATION-CREATE-NAV · A translation created just before leaving a list pulls the user back
+
+**Done · Low · Shared · 2026-10-18**
+
+Creating a missing translation and leaving before the request returned took the user into the new version's editor anyway.
+
+**Resolution:** `useTranslationVersions` records, refreshes and toasts the created version wherever the user is now (`afterCreate`), and calls `onCreated` (the navigation) only if the screen is still mounted and nothing has navigated since the click — a language tab included, since the collection list and the page editor keep the same screen across addresses. Covers the pages and collection lists, the page editor's language menu and the item form; tested on the hook. Reproduced and checked in the browser on a slowed connection: leaving for Media, for another collection, or for the other language tab all stay put, and the list shows the new version. Fix `efc941d0`.
+
+**Body at:** `efc941d0:docs-llms/TODO-agents.md`.
 
 ## Reconciliation decisions
 

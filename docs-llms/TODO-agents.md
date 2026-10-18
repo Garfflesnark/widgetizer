@@ -74,17 +74,6 @@ Treat a reply of the wrong shape as a load failure, and show it: the existing lo
 
 **Start:** [Pages.jsx](../packages/editor-ui/src/pages/Pages.jsx), [useTranslationVersions.js](../packages/editor-ui/src/hooks/useTranslationVersions.js), [widgetStore.js](../packages/editor-ui/src/stores/widgetStore.js), [Media.jsx](../packages/editor-ui/src/pages/Media.jsx), [mediaUsageDisplay.js](../packages/editor-ui/src/utils/mediaUsageDisplay.js), [themeUpdateStore.js](../packages/editor-ui/src/stores/themeUpdateStore.js), [apiFetch.js](../packages/editor-ui/src/lib/apiFetch.js). **Source:** 2026-10-02 upgrade walkthrough.
 
-#### EXPORT-CLASH-LANG · Catch output-path clashes inside language folders
-
-**Open · Low · Shared**
-
-- A theme update can add a collection whose `slugPrefix` equals an enabled language code: `isReservedSlugPrefix(slugPrefix)` is called without `languages` (`collectionService.js` ~214) and theme updates do no check, while adding a language does (`assertCodeIsFree`). Items then publish over that language's pages (`it/foo.html`).
-- The paginated-homepage vs `page`-prefix clash check uses `rootPages` only (`exportController.js` ~457): a Greek paginated homepage writes `el/page/2.html`, which a Greek item slugged `2` silently overwrites.
-
-**Done when:** Export (and ideally theme update) refuses both clashes in every language with a clear message, with tests.
-
-**Start:** [exportController.js](../packages/builder-server/src/controllers/exportController.js), [collectionService.js](../packages/builder-server/src/services/collectionService.js), [contentAddress.js](../packages/core/src/utils/contentAddress.js). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
-
 #### SKIPPED-ITEM-NOTICE · Say when a collection item is skipped for a bad slug
 
 **Open · Low · Shared**
@@ -94,16 +83,6 @@ Since `0fd5005a`, `readCollectionItems` (`collectionService.js`) skips an item w
 **Done when:** A skipped item is visible to the user (or repaired), with a test.
 
 **Start:** [collectionService.js](../packages/builder-server/src/services/collectionService.js), [CollectionItems.jsx](../packages/editor-ui/src/pages/CollectionItems.jsx). **Source:** 2026-10-06 review of the containment fix.
-
-#### TRANSLATION-CREATE-NAV · A translation created just before leaving a list pulls the user back
-
-**Open · Low · Shared**
-
-`useTranslationVersions.createIn` awaits the create request, then calls `setCreated`, shows a toast and calls the screen's `onCreated`, which navigates to the new version's editor (`CollectionItems.jsx` `navigate(itemEditPath(created))`, built from the type of the render that started it; `Pages.jsx` `navigate(pageEditorPath(created))`). Nothing checks that the user is still on that screen: start creating a missing translation, switch to another collection or section before the request returns, and the user is pulled into the created item's (or page's) editor. The version is created correctly; only the navigation is unwanted. Found by reading the code in the 2026-10-06 review of `87e96448`.
-
-**Done when:** A creation that finishes after its screen has gone still creates the version but neither navigates nor updates the departed screen (a toast may remain), with a test for both callers.
-
-**Start:** [useTranslationVersions.js](../packages/editor-ui/src/hooks/useTranslationVersions.js), [CollectionItems.jsx](../packages/editor-ui/src/pages/CollectionItems.jsx), [Pages.jsx](../packages/editor-ui/src/pages/Pages.jsx). **Source:** 2026-10-06 review of the collection list fix.
 
 #### THEME-UPLOAD-CLEANUP · A failed theme update upload can leave its new versions installed
 
@@ -137,7 +116,7 @@ Suggested: record a path absent from the source as a planned removal: move the p
 
 **Done when:** An update whose snapshot lacks an updatable path removes the project's copy, rolls back with the rest, and is tested (project has a collection, source has no `collection-types/`).
 
-**Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js), [themeController.js](../packages/builder-server/src/controllers/themeController.js). **Source:** 2026-10-18 Codex review of the EXPORT-CLASH-LANG changes.
+**Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js), [themeController.js](../packages/builder-server/src/controllers/themeController.js). **Source:** 2026-10-18 Codex review of `29289f67..6344ab5c`.
 
 #### THEME-UPDATE-STAGE-CLEANUP · A staging folder that fails to delete is reused by the next update
 
@@ -149,17 +128,7 @@ Suggested: at the start of a run, remove the stage without swallowing the error 
 
 **Done when:** A run never prepares into a stage it did not create, with a test that makes the stage removal fail.
 
-**Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js). **Source:** 2026-10-18 Codex review of the EXPORT-CLASH-LANG changes.
-
-#### MEDIA-USAGE-LABELS · Show readable "Used in" labels for other-language content
-
-**Open · Low · Shared**
-
-`resolveUsageTitle` (`mediaUsageDisplay.js` ~79) strips only `global:` / `global:root:`, so `global:el:header` shows "El:header (Global)". `Media.jsx` (~121-123) fetches only the default language's collection items, so other-language items show raw `collection:<uuid>`. Distinct from UI-LIST-REPLY (null replies).
-
-**Done when:** Every language's globals, pages and items show a readable, language-tagged label, with a test.
-
-**Start:** [mediaUsageDisplay.js](../packages/editor-ui/src/utils/mediaUsageDisplay.js), [Media.jsx](../packages/editor-ui/src/pages/Media.jsx). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
+**Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js). **Source:** 2026-10-18 Codex review of `29289f67..6344ab5c`.
 
 #### PREVIEW-SCRIPT-URL · A malformed theme script address stops a widget's live preview
 
@@ -261,7 +230,7 @@ Options: keep the heuristic and reword the two docs ("a region or script code No
 
 **Done when:** The docs describe what the checker actually does, and the chosen rule is tested with `de-1996`, `en-zz` and a retired region.
 
-**Start:** [validate-theme.js](../scripts/validate-theme.js), [themeSkill.test.js](../packages/builder-server/src/tests/themeSkill.test.js), [languages.js](../packages/core/src/utils/languages.js). **Source:** 2026-10-18 Codex review of the EXPORT-CLASH-LANG changes.
+**Start:** [validate-theme.js](../scripts/validate-theme.js), [themeSkill.test.js](../packages/builder-server/src/tests/themeSkill.test.js), [languages.js](../packages/core/src/utils/languages.js). **Source:** 2026-10-18 Codex review of `29289f67..6344ab5c`.
 
 #### GH148 · The testimonial carousel shows part of the next card on phones
 
@@ -359,6 +328,16 @@ Possible future improvements found reviewing #122 with Google's Rich Results Tes
 **Done when:** Each item is either emitted (with tests) or deliberately declined in the structured-data docs.
 
 **Start:** [articleNode.js](../packages/core/src/structuredData/articleNode.js), [siteNodes.js](../packages/core/src/structuredData/siteNodes.js), [Structured data](core-export.md#structured-data-json-ld). **Source:** 2026-10-17 browser review of #122.
+
+#### MEDIA-USAGE-TITLES · Let the server name the Media screen's "Used in" sources
+
+**Open · Low · Shared**
+
+To label its "Used in" lists, `Media.jsx` (`loadUsageTitles`) fetches every page, the collection schemas, and each collection's items once per language: 2 + schemas × languages requests on every visit, all concurrent, and a fetch that fails just leaves raw ids. Fine for current themes; on a large site with many collections and languages it grows. The server already resolves these ids (`mediaUsageService.js`, `usageId` in `contentAddress.js`), so one endpoint returning `{ usageId: { kind, title, language } }` for the project's media would replace the fan-out, and the client would keep only the formatting (`mediaUsageDisplay.js`).
+
+**Done when:** The Media screen labels its usage from one request, with the same labels as today, or the task is closed as not needed.
+
+**Start:** [Media.jsx](../packages/editor-ui/src/pages/Media.jsx), [mediaUsageDisplay.js](../packages/editor-ui/src/utils/mediaUsageDisplay.js), [mediaUsageService.js](../packages/builder-server/src/services/mediaUsageService.js). **Source:** 2026-10-18 Codex review of the media usage label fix.
 
 ### Decisions
 

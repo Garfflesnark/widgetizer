@@ -20,17 +20,14 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 ### Bugs
 
 - **UI-LIST-REPLY** — a bad reply from the server crashes the Pages screen or empties editor screens. Show a clear "couldn't load" instead.
-- **EXPORT-CLASH-LANG** — in a translated language, a collection can silently overwrite pages on export. Refuse the export with a clear message.
 - **GH148** — the testimonial carousel shows part of the next card on phones (reported on 0.9.9).
 - **GH154** — on the Linux desktop app, "View site" fails.
 - **GH153** — pages and menus a theme update adds aren't linked like a new project's, so their links don't follow renames.
 - **SKIPPED-ITEM-NOTICE** — a collection item with a broken address disappears with nothing on screen to say so.
-- **TRANSLATION-CREATE-NAV** — creating a translation and leaving the list before it finishes pulls you into its editor anyway.
 - **THEME-UPLOAD-CLEANUP** — a theme update upload that fails near the end can leave its new versions installed.
 - **THEME-UPDATE-RESUME** — after a crash mid theme update the site looks broken until the update is pressed again.
 - **THEME-UPDATE-REMOVED-FOLDER** — when a theme version drops a whole folder (for example all its collection types), sites that update keep the old one.
 - **THEME-UPDATE-STAGE-CLEANUP** — if a theme update can't delete its temporary folder, the next update can pick up stale files from it.
-- **MEDIA-USAGE-LABELS** — "Used in" shows codes like "El:header (Global)" for translated content.
 - **PREVIEW-SCRIPT-URL** — a badly written theme script address stops a widget's live preview.
 - **THEME-WARNING-LABEL** — a theme-save warning names the setting by an internal code.
 - **UNDO-CLEAN** — undoing back to the saved state leaves Save enabled.
@@ -49,6 +46,7 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 - **VIDEO-EMBED-FILTER** — read YouTube/Vimeo links properly in one shared filter (Shorts, unlisted links, bad IDs).
 - **T73** — let themes choose "|" instead of "-" between page and site titles.
 - **SEO-DATA-EXTRAS** — optional extras Google suggests for the search-engine information: an author on news articles, a full time on publication dates, and the page's language.
+- **MEDIA-USAGE-TITLES** — the Media screen makes many requests to name where each file is used; on big multilingual sites one request from the server would be better.
 
 ### Decisions
 
