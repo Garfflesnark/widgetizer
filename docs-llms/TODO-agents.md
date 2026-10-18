@@ -161,16 +161,6 @@ Suggested: at the start of a run, remove the stage without swallowing the error 
 
 **Start:** [mediaUsageDisplay.js](../packages/editor-ui/src/utils/mediaUsageDisplay.js), [Media.jsx](../packages/editor-ui/src/pages/Media.jsx). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
 
-#### PREVIEW-WIDGET-INDEX · A re-rendered widget in the editor preview loses its page position
-
-**Open · Low · Shared**
-
-After an edit (or undo) the editor re-renders only the changed widget: `previewController.js` (~553) calls `renderWidget` without an `index`, so `widget.index` is null. Templates that test `widget.index == 1` — about 50 Arch widgets choose `h1` vs `h2` this way, and `core-form` too — render the first widget's heading as `h2`, and `data-widget-index` is dropped, until the page is fully re-rendered. Export and publish number every widget, so output is unaffected; Arch styles both levels alike, so it shows only in the preview's heading structure. Seen 2026-10-17 on Arch's About page (Key Figures) during the #134 review.
-
-**Done when:** A single-widget re-render gets the same `widget.index` as the full render (from the page's `widgetsOrder`, which the controller already has), with a test.
-
-**Start:** [previewController.js](../packages/builder-server/src/controllers/previewController.js), [renderEngine.js](../packages/render-engine/src/renderEngine.js) (`renderWidget`). **Source:** 2026-10-17 browser review of #134.
-
 #### PREVIEW-SCRIPT-URL · A malformed theme script address stops a widget's live preview
 
 **Open · Low · Shared**
@@ -458,14 +448,13 @@ The containment checks that keep file-sourced paths inside their folder compare 
 
 Confirm the problem first; not confirmed bugs.
 
-#### RENDER-LANG · Make site-wide links and single-widget re-renders follow the page language
+#### RENDER-LANG · Make site-wide links in theme settings follow the page language
 
 **Investigate · Low · Shared**
 
-- `resolveThemeSettingReferences` (`renderEngine.js` ~760-860): a theme-setting `link` resolves to the target's own language and a uuid menu to that exact menu; `theme.json` is one file for all languages, so Greek pages show English targets (the leak d0442659 fixed for `page_url`). On item pages theme settings resolve before `currentPageData` is set, so a slug menu resolves to the root-language menu. Arch declares no such settings, so third-party themes only.
-- `resolveItemFromPath` (`renderEngine.js` ~561-598) strips the language folder but reads `collections/<type>/<slug>.json` without it, so a header re-rendered alone for a Greek item page shows an empty or English breadcrumb. Preview only; reachability unconfirmed.
+`resolveThemeSettingReferences` (`renderEngine.js` ~760-860): a theme-setting `link` resolves to the target's own language and a uuid menu to that exact menu; `theme.json` is one file for all languages, so Greek pages show English targets (the leak d0442659 fixed for `page_url`). On item pages theme settings resolve before `currentPageData` is set, so a slug menu resolves to the root-language menu. Arch declares no such settings, so third-party themes only. (The single-widget item lookup this entry also covered reads the language folder since `bcb7fab6`.)
 
-**Done when:** Theme-setting references resolve per rendering language (or the limitation is documented in the theme contract), and the single-widget item lookup uses the language folder.
+**Done when:** Theme-setting references resolve per rendering language, or the limitation is documented in the theme contract.
 
 **Start:** [renderEngine.js](../packages/render-engine/src/renderEngine.js). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
 

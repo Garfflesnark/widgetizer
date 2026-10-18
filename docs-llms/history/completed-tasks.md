@@ -423,6 +423,26 @@ Translated pages showed English in the breadcrumb label, numbered crumbs and the
 
 **Body at:** `105e7593:docs-llms/TODO-agents.md`.
 
+### PREVIEW-WIDGET-INDEX · A re-rendered widget in the editor preview loses its page position
+
+**Done · Low · Shared · 2026-10-18**
+
+After an edit or undo, the editor re-rendered only the changed widget without `widget.index`, so Arch's first widget showed its heading as `h2` until the page reloaded.
+
+**Resolution:** `renderSingleWidget` numbers the widget as the full render does: its place in the page's `widgetsOrder` (or the widgets' own order when there is none), counting only ids with data; the header and footer, told apart by type, stay unnumbered. Reproduced and checked in the browser on Arch's About page: the heading stays `h1` after an edit and after its undo. Fix `bcb7fab6`.
+
+**Body at:** `bcb7fab6:docs-llms/TODO-agents.md`.
+
+### RENDER-LANG (part) · A widget rendered with only an item's path reads the item's language
+
+**Done · Low · Shared · 2026-10-18**
+
+`resolveItemFromPath` stripped the language folder but read the item from the main-language folder, so a widget rendered with only a translated item's path showed an empty or main-language trail. It also matched only an explicit `slugPrefix`, missing a collection that leaves it to default to its type. The editor's own morph always sends its page and never takes this path.
+
+**Resolution:** The lookup reads `collections/<type>/<language>/<slug>.json` for another language and matches the effective prefix. The theme-setting half of RENDER-LANG stays open. Fix `bcb7fab6`.
+
+**Body at:** `bcb7fab6:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

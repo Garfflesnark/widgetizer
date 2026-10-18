@@ -31,7 +31,6 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 - **THEME-UPDATE-REMOVED-FOLDER** — when a theme version drops a whole folder (for example all its collection types), sites that update keep the old one.
 - **THEME-UPDATE-STAGE-CLEANUP** — if a theme update can't delete its temporary folder, the next update can pick up stale files from it.
 - **MEDIA-USAGE-LABELS** — "Used in" shows codes like "El:header (Global)" for translated content.
-- **PREVIEW-WIDGET-INDEX** — after you edit the first widget, the editor preview shows its heading as a sub-heading (h2) until the page reloads. Published pages are fine.
 - **PREVIEW-SCRIPT-URL** — a badly written theme script address stops a widget's live preview.
 - **THEME-WARNING-LABEL** — a theme-save warning names the setting by an internal code.
 - **UNDO-CLEAN** — undoing back to the saved state leaves Save enabled.
