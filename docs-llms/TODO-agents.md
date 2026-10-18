@@ -276,7 +276,7 @@ Only `GET /api/projects` adds the display `themeName` (`getAllProjects` in `proj
 
 **Open · Unrated · OSS · For: Gerasimos**
 
-Arch's header `ctaButtonLink` default is the typed link `{"href":"contact.html","text":"Get in touch"}` (`themes/arch/widgets/global/header/schema.json` ~90, same in `updates/0.9.10/`). A link without `pageUuid` is a custom URL and passes through unprefixed by design (`resolveLinkValue` in `renderEngine.js`), so any page one folder deep links to a `contact.html` in its own folder: `de/index.html` → `de/contact.html` ("File not found" in View site), `services/growth.html` → `services/contact.html`, `el/services/growth.html` → `el/services/contact.html`. On `el/` pages it only works when a Greek `contact` happens to exist. Item pages had this before languages; every non-default language now sits in a folder, so most translated pages show it. Seen in the 2026-10-18 #115 export review (GH115 Review v1). Open question: from a translated page, should the button reach the default Contact or that language's Contact when one exists (page links are never re-pointed to a translation today)?
+Arch's header `ctaButtonLink` default is the typed link `{"href":"contact.html","text":"Get in touch"}` (`themes/arch/widgets/global/header/schema.json` ~90, same in `updates/0.9.10/`). A link without `pageUuid` is a custom URL and passes through unprefixed by design (`resolveLinkValue` in `renderEngine.js`), so any page one folder deep links to a `contact.html` in its own folder: `de/index.html` → `de/contact.html` ("File not found" in View site), `services/growth.html` → `services/contact.html`, `el/services/growth.html` → `el/services/contact.html`. On `el/` pages it only works when a Greek `contact` happens to exist. Item pages had this before languages; every non-default language now sits in a folder, so most translated pages show it. Seen in the 2026-10-18 #115 review: an Arch project with Deutsch, exported and opened in View site (reproduction steps in [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)). Open question: from a translated page, should the button reach the default Contact or that language's Contact when one exists (page links are never re-pointed to a translation today)?
 
 **Done when:** The default button reaches Contact from root, item and language-folder pages in preview and export, shipped in a new Arch version's `updates/<version>/` copy; typed links keep passing through unchanged.
 
@@ -312,7 +312,7 @@ The Core Form posts to `/__widgetizer/forms/<key>`, which only a publishing host
 
 **Done when:** A submit in the preview stays on the page and says forms work once the site is published, with a test.
 
-**Start:** [core-form widget](../packages/core/src/widgets/core-form/widget.liquid), [previewRuntime.js](../src/utils/previewRuntime.js).
+**Start:** [core-form widget](../packages/core/src/widgets/core-form/widget.liquid), [previewRuntime.js](../packages/core/src/runtime/previewRuntime.js).
 
 #### VIEWER-OPENER · The export viewer window keeps `window.opener`
 
@@ -457,9 +457,9 @@ A header `menu` setting holds either a menu uuid (picked in the dropdown) or a s
 
 **Decision needed · Unrated · OSS**
 
-Arch text settings start from literal English `default`s and template fallbacks (`| default: '…'`), so an untouched translated page shows English: header skip link "Skip to main content", "Primary", "Menu", "Close menu"; News/Projects/Services Grid "Read more" / "View project" / "View service" / "View all"; widget headings ("Latest News", …); fallbacks such as "Learn More", "Download", "Before"/"After", "Play video", "Features". Settings with `defaultKey` (Core Form, `services_grid.empty`, …) already follow the page language, and every non-editable theme and core word is translated (Arch `site.*` 59/59 in `el`, core 15/15). Seen in the 2026-10-18 #115 review (LANG-034). Options: (A) give Arch's editable defaults `defaultKey`s with locale entries in every language Arch ships; (B) only the always-present chrome (skip link, nav label, menu title/close, "Read more", "View all"), leaving headings; (C) leave it and reword LANG-034 to mean non-editable words only. Proposed: B now, A over time.
+Arch text settings start from literal English `default`s and template fallbacks (`| default: '…'`), so an untouched translated page shows English: header skip link "Skip to main content", "Primary", "Menu", "Close menu"; News/Projects/Services Grid "Read more" / "View project" / "View service" / "View all"; widget headings ("Latest News", …); fallbacks such as "Learn More", "Download", "Before"/"After", "Play video", "Features". Settings with `defaultKey` (Core Form, `services_grid.empty`, …) already follow the page language, and every non-editable theme and core word is translated (Arch `site.*` 59/59 in `el`, core 15/15). Seen in the 2026-10-18 #115 review (LANG-034; LANG-044 makes the same claim). Options: (A) give Arch's editable defaults `defaultKey`s with locale entries in every language Arch ships; (B) only the always-present chrome (skip link, nav label, menu title/close, "Read more", "View all"), leaving headings; (C) leave it and reword LANG-034 to mean non-editable words only. Proposed: B now, A over time.
 
-**Done when:** The chosen set resolves per page language in preview and export (new Arch version under `updates/<version>/`), or LANG-034 says defaults are the owner's to translate.
+**Done when:** The chosen set resolves per page language in preview and export (new Arch version under `updates/<version>/`), or LANG-034 and LANG-044 say defaults are the owner's to translate.
 
 **Start:** [header widget](../themes/arch/widgets/global/header/widget.liquid), [news-grid](../themes/arch/widgets/news-grid/widget.liquid), [Arch locales](../themes/arch/locales/), `settingDefault` in [renderEngine.js](../packages/render-engine/src/renderEngine.js).
 
