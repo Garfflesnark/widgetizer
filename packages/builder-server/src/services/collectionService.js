@@ -1062,7 +1062,7 @@ export async function duplicateCollectionItem(storage, scope, collectionType, so
   const settings = { ...(source.settings || {}) };
   const titleSetting = (schema.settings || []).find((s) => s.usedAsTitle);
   if (titleSetting && settings[titleSetting.id]) {
-    settings[titleSetting.id] = `${settings[titleSetting.id]} (copy)`;
+    settings[titleSetting.id] = `${settings[titleSetting.id]} (Copy)`;
   }
 
   // A copy is a new item in its own translation group, not a translation of the source.

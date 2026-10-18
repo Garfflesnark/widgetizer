@@ -1367,7 +1367,7 @@ describe("pages in another language", () => {
   it("refuses a language the project has not enabled", async () => {
     const created = await callController(createPage, { body: { name: "Bonjour", language: "fr" } });
     assert.equal(created._status, 400);
-    assert.match(created._json.message, /"fr"/);
+    assert.equal(created._json.message, "French is not enabled for this project.");
     const read = await callController(getPage, { params: { id: "anything" }, query: { language: "fr" } });
     assert.equal(read._status, 400);
     const malformed = await callController(createPage, { body: { name: "Odd", language: "not-a-language" } });
