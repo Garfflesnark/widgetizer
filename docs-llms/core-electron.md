@@ -280,7 +280,7 @@ The editor preview opens in a dedicated Electron `BrowserWindow` (`createPreview
 
 - Repeated preview opens **reuse the same preview window** if it already exists; if minimized it is restored, then shown and focused.
 - A new preview window is offset from the editor so it doesn't sit exactly on top when the editor isn't maximized.
-- The incoming `previewPath` arrives over IPC and is **untrusted**: it is validated by `isSafePreviewPath` (`electron/previewPath.js`) before being turned into a renderer URL. Unsafe paths are ignored. See that module for the rationale.
+- The incoming `previewPath` arrives over IPC and is **untrusted**: it is validated by `isSafePreviewPath` (`electron/previewPath.js`) before being turned into a renderer URL. It accepts exactly the standalone preview route shapes (`app/src/previewRoutes.jsx`): a page, a numbered copy, and a collection item, each with or without a language. Unsafe paths are ignored. See that module for the rationale.
 - The preview renderer's `will-prevent-unload` is overridden so a stuck `beforeunload` handler can't block closing.
 - In web builds, the editor uses a named browser tab for the same reuse behavior.
 
