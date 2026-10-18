@@ -27,7 +27,7 @@ Open issues in the milestone, with their GitHub board status. Closed in this mil
 
 **GitHub: To Be Reviewed · anastis, tsiger**
 
-Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. The 2026-10-14 docs-llms pass reconciled the multilingual rules, theme switcher, architecture/package maps and domain model with the code, and added the checklist's Multilingual section (LANG-001 to LANG-042) — docs `202e9dfa`. The leftover English on translated pages was fixed under #156. Awaiting the partner's review.
+Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. The 2026-10-14 docs-llms pass reconciled the multilingual rules, theme switcher, architecture/package maps and domain model with the code, and added the checklist's Multilingual section (LANG-001 to LANG-042) — docs `202e9dfa`. The leftover English on translated pages was fixed under #156. A 2026-10-18 Fable/Codex gap review extended §18 to LANG-074 (refusals, cross-language links and menus, removal cleanup, editor guards, export combinations, preview paths, shared settings) and found the desktop app refusing language preview paths, fixed in `electron/previewPath.js`. Awaiting the partner's review.
 
 **Start:** [Multilingual rules](domain/multilingual.md), [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
 
@@ -272,7 +272,87 @@ Only `GET /api/projects` adds the display `themeName` (`getAllProjects` in `proj
 
 **Start:** [projectController.js](../packages/builder-server/src/controllers/projectController.js), [ProjectsEdit.jsx](../app/src/pages/ProjectsEdit.jsx), [ProjectForm.jsx](../app/src/components/projects/ProjectForm.jsx). **Source:** 2026-10-17 browser review of #155.
 
+#### GH158 · Arch's default header button breaks on pages inside a folder
+
+**Open · Unrated · OSS · For: Gerasimos**
+
+Arch's header `ctaButtonLink` default is the typed link `{"href":"contact.html","text":"Get in touch"}` (`themes/arch/widgets/global/header/schema.json` ~90, same in `updates/0.9.10/`). A link without `pageUuid` is a custom URL and passes through unprefixed by design (`resolveLinkValue` in `renderEngine.js`), so any page one folder deep links to a `contact.html` in its own folder: `de/index.html` → `de/contact.html` ("File not found" in View site), `services/growth.html` → `services/contact.html`, `el/services/growth.html` → `el/services/contact.html`. On `el/` pages it only works when a Greek `contact` happens to exist. Item pages had this before languages; every non-default language now sits in a folder, so most translated pages show it. Seen in the 2026-10-18 #115 export review (GH115 Review v1). Open question: from a translated page, should the button reach the default Contact or that language's Contact when one exists (page links are never re-pointed to a translation today)?
+
+**Done when:** The default button reaches Contact from root, item and language-folder pages in preview and export, shipped in a new Arch version's `updates/<version>/` copy; typed links keep passing through unchanged.
+
+**Start:** [header schema](../themes/arch/widgets/global/header/schema.json), [renderEngine.js](../packages/render-engine/src/renderEngine.js) (`resolveLinkValue`). [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)
+
+#### GH159 · Links whose target is gone still publish as working links
+
+**Open · Unrated · OSS**
+
+Deleting a page or removing a language keeps a pointing link's label and empties its address (`clearDeletedReferencesInSection` in `linkEnrichment.js` ~907 returns `{ ...rest, href: "" }`; menus clear `link` in `menuResolver.js`). The label stays on purpose so the editor shows what to re-point, but the published site writes it as a link: the core menu snippet emits `<a href="">Greek About</a>`, and Arch's button templates show a button whenever its text is set (e.g. `image-text` `link.text != blank`), emitting `<a href="" class="widget-button">View services</a>`. An empty `href` reloads the current page. Seen in the 2026-10-18 #115 export review after removing Greek (LANG-043 says "no destination"). Proposed: a menu item with no address renders as plain text (keeping its sub-items); a button with no address is left out; the editor keeps showing both.
+
+**Done when:** Preview and export write no `href=""` for cleared menu items or buttons, the editor still lists them, with tests for the menu snippet and at least one Arch button template.
+
+**Start:** [menu.liquid](../packages/core/src/snippets/menu.liquid), [linkEnrichment.js](../packages/builder-server/src/utils/linkEnrichment.js), [image-text](../themes/arch/widgets/image-text/widget.liquid). [GitHub #159](https://github.com/tsiger/widgetizer/issues/159)
+
 ### Improvements
+
+#### BACKUP-ZIP-NAME · Backups download as `project-export.zip` in the dev setup
+
+**Open · Low · OSS**
+
+`exportProject` in `projectController.js` (~1260) sends `Content-Disposition: attachment; filename="<project>-export-<timestamp>.zip"`, but `projectManager.js` (~240) can only read that header if the response exposes it; across origins (dev: editor on :3000, API on :3001, including the dev Electron app) it can't, so it falls back to `project-export.zip` and repeat backups become `project-export (3).zip`. Same-origin builds (packaged app, built web app) should get the real name — unconfirmed. Seen 2026-10-18 in the browser and the dev desktop app.
+
+**Done when:** The downloaded backup carries the project name in dev and packaged/same-origin setups (e.g. expose `Content-Disposition`, or let the server name it via a plain navigation), checked in both.
+
+**Start:** [projectController.js](../packages/builder-server/src/controllers/projectController.js), [projectManager.js](../packages/editor-ui/src/queries/projectManager.js).
+
+#### PREVIEW-FORM-SUBMIT · Submitting a form in the preview shows a raw server error
+
+**Open · Low · OSS**
+
+The Core Form posts to `/__widgetizer/forms/<key>`, which only a publishing host provides; OSS has no such route by design (`docs-llms/domain/entities/form.md`). In the editor preview and the desktop preview window a submit therefore navigates the frame to Express's "Cannot POST /__widgetizer/forms/el:contact". Seen 2026-10-18 (LANG-059, web and desktop).
+
+**Done when:** A submit in the preview stays on the page and says forms work once the site is published, with a test.
+
+**Start:** [core-form widget](../packages/core/src/widgets/core-form/widget.liquid), [previewRuntime.js](../src/utils/previewRuntime.js).
+
+#### VIEWER-OPENER · The export viewer window keeps `window.opener`
+
+**Open · Low · OSS**
+
+`ExportHistoryTable.jsx` (~72-86) opens View site / issues reports with `window.open(url, "_blank")`; in the desktop app `electron/main.js` has no `setWindowOpenHandler`, so the viewer is a new app window. It gets no preload bridge (checked), but keeps `window.opener`, so script in an exported site (embed code) could navigate the editor window. Seen 2026-10-18 in the dev desktop app.
+
+**Done when:** The viewer opens without an opener (`noopener`, or a window-open handler that drops it) in browser and desktop, checked in both.
+
+**Start:** [ExportHistoryTable.jsx](../packages/editor-ui/src/components/export/ExportHistoryTable.jsx), [electron/main.js](../electron/main.js).
+
+#### MULTILANG-ONLY-SETTINGS · Hide language-only settings on single-language sites
+
+**Open · Low · OSS**
+
+Arch's header shows "Languages", "Show language switcher" and "Language switcher name" (`languages_header`, `show_language_switcher`, `language_switcher_label`) even when the site has one language, where they do nothing. Schemas have no conditional-visibility property and the platform doesn't know these ids (only Arch and `archLanguageSwitcher.test.js` reference them). Proposed design: a generic setting property `"multilingualOnly": true` the editor honours by hiding the row when `useIsMultilang()` is false; Arch flags its three rows (base and `updates/<version>/`). It is a theme-contract addition: document it with the setting types, add it to the theme skill reference and regenerate the catalog (`scripts/build-theme-skill-contract.js`), and let `validate-theme.js` accept it. Seen 2026-10-18 (#115 review, LANG-074).
+
+**Done when:** Flagged settings are hidden on single-language sites and shown once a second language is added, with editor tests, docs and the skill catalog updated.
+
+**Start:** [header schema](../themes/arch/widgets/global/header/schema.json), [SettingsPanel.jsx](../packages/editor-ui/src/components/pageEditor/SettingsPanel.jsx), [validate-theme.js](../scripts/validate-theme.js).
+
+#### LANG-NAME-IN-SENTENCES · Name languages in the interface language inside messages
+
+**Open · Low · Shared**
+
+`languageLabel.js` documents the rule: inside an English sentence a language is named in the interface language ("Greek"), while pickers, tabs and the public switcher use its own name ("Ελληνικά"). Server errors follow it (`languageNameForMessage` in `contentLanguage.js`) and so does the removed-language banner, but several editor messages put the native name in an English sentence: "Ελληνικά added." / "… removed." (`nameOf` in `app/src/components/projects/LanguagesSection.jsx` ~42), "Ελληνικά version created." (`useTranslationVersions.js` ~81), the export's "Français has no homepage…" (`ExportCreator.jsx`, skipped languages), and the Media "Used in" tags "About (Ελληνικά)" / "Header (Global, Ελληνικά)" (`mediaUsageDisplay.js` ~74, ~110 — a list, so possibly fine). Owner, 2026-10-19: "we probably shouldn't mix languages like 'Ελληνικά added.'" — revisit later.
+
+**Done when:** Every sentence-style message uses `languageLabel`, the labelled lists are decided either way, and tests assert the names.
+
+**Start:** [languageLabel.js](../packages/editor-ui/src/lib/languageLabel.js), [LanguagesSection.jsx](../app/src/components/projects/LanguagesSection.jsx), [useTranslationVersions.js](../packages/editor-ui/src/hooks/useTranslationVersions.js).
+
+#### ITEM-COPY-NUMBERING · Number duplicated collection items like pages and menus
+
+**Open · Low · OSS**
+
+`duplicateItem` in `collectionService.js` (~1063) appends a fixed " (Copy)" to the title field, so duplicating a copy gives "X (Copy) (Copy)"; pages, menus and projects use `generateCopyName` (`utils/namingHelpers.js`) for "X (Copy)", "X (Copy 2)", …, checked against the existing names. Items need the existing titles of the same collection and language to do the same. The slug already numbers itself (`x-copy`, `x-copy-1` via `generateUniqueSlug`). Noted 2026-10-19 while fixing the copy casing.
+
+**Done when:** Duplicating an item, then its copy, gives "X (Copy)" and "X (Copy 2)" per language, with a test.
+
+**Start:** [collectionService.js](../packages/builder-server/src/services/collectionService.js), [namingHelpers.js](../packages/builder-server/src/utils/namingHelpers.js).
 
 #### T66 · Explain form errors beside the right field
 
@@ -362,6 +442,36 @@ The data model treats `""` in `media_file_translations` as "deliberately blank" 
 **Done when:** UI, server and multilingual docs describe and implement the same rule, with a test.
 
 **Start:** [MediaDrawer.jsx](../packages/editor-ui/src/components/media/MediaDrawer.jsx), [mediaController.js](../packages/builder-server/src/controllers/mediaController.js), [mediaRepository.js](../packages/builder-server/src/db/repositories/mediaRepository.js). **Source:** 2026-10-05 code review of `48eef6f4..9e98dad7`.
+
+#### MENU-LANG-FALLBACK · Decide whether a translated header falls back to the default language's menu
+
+**Decision needed · Unrated · OSS**
+
+A header `menu` setting holds either a menu uuid (picked in the dropdown) or a slug (the theme default, e.g. `main-menu`, until someone picks). `resolveMenuSettings` (`menuResolver.js` ~185-200) resolves a slug in the rendering language's folder and, failing that, in the default language's — documented in `core-menus.md`. So deleting the Greek Main menu makes a Greek header still on the default show the **English** main menu (English labels, English targets), while a header whose Greek menu was picked shows no menu. The editor's dropdown then reads "Main menu (en)", but nothing else says so, and the Delete Menu dialog doesn't mention the header uses it. Seen in the 2026-10-18 #115 review (LANG-057). Options: (A) no slug fallback for non-default languages — a missing language menu shows no menu, as with a picked one; (B) keep the fallback and reword LANG-057, optionally warning in the delete dialog; (C) keep it but block or warn on deleting a menu a header uses. Proposed: A plus a "used by the Greek header" warning when deleting.
+
+**Done when:** The chosen rule is implemented in `menuResolver.js` with tests, `core-menus.md` and LANG-057 describe it, and the delete dialog warning (if chosen) names where the menu is used.
+
+**Start:** [menuResolver.js](../packages/render-engine/src/menuResolver.js), [core-menus.md](core-menus.md), [Menus.jsx](../packages/editor-ui/src/pages/Menus.jsx).
+
+#### ARCH-DEFAULT-WORDS · Decide whether Arch's editable defaults follow the page language
+
+**Decision needed · Unrated · OSS**
+
+Arch text settings start from literal English `default`s and template fallbacks (`| default: '…'`), so an untouched translated page shows English: header skip link "Skip to main content", "Primary", "Menu", "Close menu"; News/Projects/Services Grid "Read more" / "View project" / "View service" / "View all"; widget headings ("Latest News", …); fallbacks such as "Learn More", "Download", "Before"/"After", "Play video", "Features". Settings with `defaultKey` (Core Form, `services_grid.empty`, …) already follow the page language, and every non-editable theme and core word is translated (Arch `site.*` 59/59 in `el`, core 15/15). Seen in the 2026-10-18 #115 review (LANG-034). Options: (A) give Arch's editable defaults `defaultKey`s with locale entries in every language Arch ships; (B) only the always-present chrome (skip link, nav label, menu title/close, "Read more", "View all"), leaving headings; (C) leave it and reword LANG-034 to mean non-editable words only. Proposed: B now, A over time.
+
+**Done when:** The chosen set resolves per page language in preview and export (new Arch version under `updates/<version>/`), or LANG-034 says defaults are the owner's to translate.
+
+**Start:** [header widget](../themes/arch/widgets/global/header/widget.liquid), [news-grid](../themes/arch/widgets/news-grid/widget.liquid), [Arch locales](../themes/arch/locales/), `settingDefault` in [renderEngine.js](../packages/render-engine/src/renderEngine.js).
+
+#### DATE-ORDER-LANG · Decide whether date order follows the page language
+
+**Decision needed · Low · Shared**
+
+The site has one `date_format` theme setting; `formatDateOnly` (`packages/core/src/utils/dateFormat.js`) localizes month names via `Intl` but keeps the chosen order, so with the default "December 31, 2026" a Greek page reads "Μαρτίου 15, 2026" where Greek usage is "15 Μαρτίου 2026". Options: a per-language date format, a "follow the language's usual order" format, or leave it to the owner's choice. Seen 2026-10-18 (#115 review, LANG-034).
+
+**Done when:** The chosen rule is implemented with tests, or documented as the owner's choice.
+
+**Start:** [dateFormat.js](../packages/core/src/utils/dateFormat.js), [dateFilter.js](../packages/core/src/filters/dateFilter.js).
 
 #### GH138 · Edit project details directly from the project list
 

@@ -38,9 +38,17 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 - **THEME-CHECKER** — the theme checker passes a few things that break on export and crashes on one valid tag.
 - **LANG-PREFIX-WARNING** — the theme checker's "this prefix looks like a language code" warning is a best guess: it misses a few codes a site could add and the docs describe it as more exact than it is.
 - **PROJECT-THEME-NAME** — after saving Project details, its Theme field shows the theme's internal id ("arch") instead of its name ("Arch") until the page is opened again.
+- **GH158** (for Gerasimos) — Arch's default "Get in touch" header button links to `contact.html` as typed text, so on pages inside a folder (other languages, collection items) it points to a Contact page that isn't there. Fix the theme default; to decide: from a Greek page, go to English Contact or to Greek Contact when there is one.
+- **GH159** — when a link's target page is deleted or its language removed, the menu item or button keeps its label but publishes as a link to nowhere that just reloads the page. Show the menu item as plain text and leave the button out; the editor keeps showing them so they can be re-pointed.
+- **BACKUP-ZIP-NAME** — backups download as `project-export.zip` instead of the project's name (seen in the dev setup; the packaged app may be fine).
+- **PREVIEW-FORM-SUBMIT** — submitting a form in the preview shows a raw "Cannot POST" error; say forms work once published instead.
+- **VIEWER-OPENER** — the export viewer window can reach back to the editor window; open it without that link.
 
 ### Improvements
 
+- **LANG-NAME-IN-SENTENCES** — some messages mix languages, like "Ελληνικά added." or "Ελληνικά version created."; inside an English sentence the language should read "Greek". Revisit later.
+- **ITEM-COPY-NUMBERING** — duplicating a copied item gives "X (Copy) (Copy)"; number it "X (Copy 2)" like pages and menus.
+- **MULTILANG-ONLY-SETTINGS** — the header's language switcher settings show on single-language sites, where they do nothing. Let themes mark settings as "only with several languages" so the editor hides them.
 - **T66** — form errors should say which field to fix and how.
 - **T53** — make the three-dot menus easier to use with a keyboard.
 - **VIDEO-EMBED-FILTER** — read YouTube/Vimeo links properly in one shared filter (Shorts, unlisted links, bad IDs).
@@ -52,6 +60,9 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 
 - **T76** — can a site's main language change once it has translations?
 - **MEDIA-BLANK-ALT** — allow deliberately blank alt text in one language, or drop the idea.
+- **MENU-LANG-FALLBACK** — when a language's menu is deleted, that language's pages show the main language's menu, unless the header's menu was picked by hand (then they show none). Decide: never fall back (proposed, plus a warning when deleting a menu a header uses), or keep the fallback and say so.
+- **ARCH-DEFAULT-WORDS** — Arch's editable starting texts ("Skip to main content", "Menu", "Read more", "View all", headings like "Latest News") stay English on translated pages until the owner edits them. Decide: translate them per language (proposed first for the header and "Read more"/"View all"), or leave them as the owner's to change.
+- **DATE-ORDER-LANG** — dates keep the site's one date order in every language, so Greek shows "Μαρτίου 15, 2026" instead of "15 Μαρτίου 2026". Decide whether each language gets its own order.
 - **GH138** — edit a project's details from the project list?
 - **GH128** — which extra image-optimisation tools to add.
 - **T54** — which accessibility standard to aim for.

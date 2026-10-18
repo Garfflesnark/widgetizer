@@ -54,6 +54,7 @@ Before testing starts, the test owner should provide these. If something is not 
 - An Arch project with a Site Address, at least one News item with date, excerpt, featured image and body, and a News grid split into pages, for the structured-data tasks.
 - An Arch project still on a theme version before 0.9.10, if available.
 - An Arch project with a second language (e.g. Greek) added in Project details > Site, with a Greek homepage, at least one translated page and News item, a Greek menu, a Core Form widget, and an image whose alt text is translated. A second copy of it with no Greek homepage, for the export-skip task.
+- The "Clash Test" theme ZIPs, `clash-test-1.0.0.zip` and `clash-test-1.1.0.zip`: an Arch copy whose Bulletins collection publishes its items under `page/` (from 1.0.0) and whose 1.1.0 update adds a Highlights collection under `el/`. For LANG-048 and LANG-070.
 - Internet access to Google's Rich Results Test (its "Code" option accepts pasted page source).
 - An older Electron desktop build for auto-update testing, if desktop update testing is in scope.
 
@@ -1874,7 +1875,7 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
   Expected: It is disabled while any other language exists.
 
 - [ ] LANG-007 - After adding Greek, open Pages, Menus and the Header/Footer in the Greek tab or editor.
-  Expected: Greek has its own header, footer and menus copied from the default language; it has no pages.
+  Expected: Greek has its own header, footer and menus copied from the default language; it has no pages. The Greek header uses the Greek copy of the menu: edit only the Greek main menu and preview, and the Greek header shows the change while the default one does not. The copied menu items still point at default-language pages until you re-point them.
 
 - [ ] LANG-008 - Click Remove next to Greek.
   Expected: A "Remove Ελληνικά?" dialog lists the page, collection item and menu counts plus "its header and footer", says uploaded images are kept, and says it cannot be undone. Cancel changes nothing.
@@ -1887,6 +1888,27 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
 
 - [ ] LANG-011 - Before removing a language, link a default-language page or menu item to a Greek page, then remove Greek and preview.
   Expected: The link is cleared or harmless. If some links could not be updated, a warning says "… was removed, but some links couldn't be updated. Check pages and menus that linked to it."
+
+- [ ] LANG-043 - Before removing Greek, set up: a default-language button and a menu item linking to a Greek page; a default-language child page whose parent is a Greek page that has a default-language translation; an image used only on a Greek page and in the Greek header. Remove Greek.
+  Expected: The button's link is empty and the menu item keeps its label with no destination. The child page's parent becomes the default-language translation. The image is no longer "Used in" anything and can be deleted.
+
+- [ ] LANG-044 - On a single-language project with pages, change Default Language to Greek and save. Preview and export.
+  Expected: Pages keep their addresses (no `el/` folder). The page is marked as Greek (`<html lang="el">`), theme words and dates are in Greek, and there is no switcher or `hreflang`. Then add English: English gets its own header, footer and menus but no pages, and once it has an `index` page its pages publish under `en/`.
+
+- [ ] LANG-045 - Create a default-language page with the slug `de`, then try to add Deutsch.
+  Expected: Refused with ""de" is already the slug of a page. Rename that page before adding the language." Nothing is added. After renaming the page, adding Deutsch works.
+
+- [ ] LANG-046 - With Greek added, change a default-language page's slug to `el` and save.
+  Expected: Refused with ""el" is reserved and cannot be used as a page filename." because `el.html` and the `el/` folder would share an address.
+
+- [ ] LANG-047 - On the Greek tab, with a Greek `index` page, give another Greek page the slug `home`.
+  Expected: Refused with ""home" would be a second homepage: this language already has one. Please choose a different slug."
+
+- [ ] LANG-048 - Upload `clash-test-1.0.0.zip`, create a project from it (Arch preset, theme updates on) and add Greek. Upload `clash-test-1.1.0.zip` and apply the update to that project. Then create a second project from the theme (now 1.1.0) and try to add Greek.
+  Expected: Greek is added on 1.0.0. The update is refused: "This update publishes the "Highlights" collection in the el/ folder, where your "el" pages are published, so they could overwrite each other. This update was not applied…"; the project stays on 1.0.0 with its content unchanged. On the second project, adding Greek is refused: ""el" pages would be published in the el/ folder, where the "Highlights" collection publishes its items… this language can't be added with the current theme version."
+
+- [ ] LANG-049 - Add a third language that the theme has no words for (e.g. Français), create its `index` page and preview.
+  Expected: Theme words fall back to English without errors, dates use French month names, the page is marked as French, and the switcher and chips show three languages.
 
 ### Lists
 
@@ -1914,6 +1936,18 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
 - [ ] LANG-019 - Open Menus on the Greek project.
   Expected: Language tabs filter the menus; "New menu" creates in the selected tab's language. Menus have no Languages chips.
 
+- [ ] LANG-050 - Give a page the same slug in both languages (e.g. `contact`). On the Greek tab, search, select some rows, switch tabs and back, then bulk-delete Greek pages and duplicate one.
+  Expected: Search and counts cover only the tab's language; switching tabs clears the selection. Only Greek pages are deleted or duplicated; the default-language `contact` survives. Repeat on a collection list: while a search is active, items cannot be dragged to reorder.
+
+- [ ] LANG-051 - Click the same dashed chip in two browser tabs at nearly the same time.
+  Expected: Only one Greek version is created; the second attempt shows an error instead of making a duplicate.
+
+- [ ] LANG-052 - With the browser's network throttled (DevTools > Slow 3G), click a dashed chip and, before it finishes, go to another screen, another collection, or the other language tab.
+  Expected: You stay where you went. The version is still created ("… version created." toast), and the list shows it when you look.
+
+- [ ] LANG-053 - Give a default-language page and an item a custom canonical URL and noindex, then create their Greek versions.
+  Expected: The Greek versions copy the other SEO fields, but their custom canonical URL is empty, so they use their own Greek address.
+
 ### Editing
 
 - [ ] LANG-020 - In the page editor, open the language menu in the top bar.
@@ -1934,6 +1968,24 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
 - [ ] LANG-025 - Open a Greek page in the editor, remove Greek in another tab, then make an edit and save.
   Expected: A yellow banner says Greek was removed and the page can no longer be saved; clicking Save shows "Saving is turned off for this page because its language was removed…". The edits stay on screen until "Discard changes and return to Pages" or reload.
 
+- [ ] LANG-054 - Open a Greek collection item and a Greek menu, remove Greek in another tab, then save each.
+  Expected: Saving fails with an error that Greek is not enabled for this project; nothing is saved. After adding Greek again, the item and menu do not come back.
+
+- [ ] LANG-055 - Make an unsaved change on a Greek page, then pick English in the language menu. Cancel the leave dialog, then repeat and confirm. Repeat on a collection item.
+  Expected: Cancel keeps the Greek editor and the change. Confirm discards the change and opens the English version.
+
+- [ ] LANG-056 - On a Greek page, open a link picker (a button link or rich text).
+  Expected: The picker opens on Greek targets, with buttons to switch to another language or to All, where targets are grouped by language and each carries a language badge. Pick the English About page and preview: the link goes to English About, and still does after a Greek About is created. Links are never re-pointed to a translation for you.
+
+- [ ] LANG-057 - Open the Greek header's Menu setting, then delete the Greek main menu on the Menus Greek tab and preview a Greek page.
+  Expected: Only Greek menus are offered. After the delete, the Greek header shows no menu (not the English one), and the English header is unchanged.
+
+- [ ] LANG-058 - On a Greek page, change a theme setting (e.g. a colour), Site Title and Business Details, save, and preview both languages.
+  Expected: These are shared: both languages show the change. Page content, header and footer stay per language.
+
+- [ ] LANG-059 - On a Greek page, add a Core Form, then create the English version of the page.
+  Expected: The new Greek form shows its labels, button and required-fields note in Greek. The English copy keeps whatever was saved on the Greek form (the field labels, and any text you changed); anything left at its default shows in English. The messages shown after sending come from the host the site is published on, so the preview has none to check.
+
 ### Media Text
 
 - [ ] LANG-026 - Open an image in the Media Library on the Greek project.
@@ -1947,6 +1999,12 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
 
 - [ ] LANG-029 - Clear a Greek field and save, or save Greek with all fields empty.
   Expected: The field goes back to using the default text. A deliberately blank Greek value cannot be set from the drawer.
+
+- [ ] LANG-060 - Give an image Greek alt text and a Greek caption, leave Greek title empty, save, and preview a Greek page using it.
+  Expected: Each field translates or falls back on its own; saving one does not erase the others.
+
+- [ ] LANG-061 - Use an image only on a Greek page, in the Greek header and on a Greek item, then try to delete it in the Media Library.
+  Expected: Deleting is refused because the file is in use. "Used in" names each place with its language, e.g. "About (Ελληνικά)", "Header (Global, Ελληνικά)", "Article: … (Ελληνικά)".
 
 ### Preview and Site
 
@@ -1963,10 +2021,19 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
   Expected: The switcher is gone.
 
 - [ ] LANG-034 - Preview Greek pages: theme labels, dates, a News listing and item, and a Core Form.
-  Expected: Theme words, dates and form labels/messages appear in Greek.
+  Expected: Theme words, dates and form labels appear in Greek.
 
 - [ ] LANG-035 - On a Greek page or item, click the header logo.
   Expected: It goes to the Greek homepage, not the default one.
+
+- [ ] LANG-062 - On a Greek page, change a widget and the header without saving, and watch the editor preview.
+  Expected: The redrawn parts stay Greek: Greek collection items, Greek menu with the current page highlighted, and the first heading keeps its level.
+
+- [ ] LANG-063 - Click Preview on a Greek page and on a Greek collection item, in the web app and in the desktop app. Follow links, breadcrumbs and the switcher.
+  Expected: The Greek page or item opens (in the desktop app, in its preview window). Links, breadcrumbs and the header stay Greek. Sidebar "Preview site" opens the default-language homepage.
+
+- [ ] LANG-064 - Give English About a child page Team, create Greek versions of both, and preview Greek Team.
+  Expected: Greek Team keeps its source's parent: Page details shows About with an `en` badge, and pages in any language can be picked. The breadcrumb shows that parent's Greek version: Home → the Greek About title → Team, and Home goes to the Greek homepage.
 
 ### Export
 
@@ -1985,6 +2052,24 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
 - [ ] LANG-040 - Set a translated page to noindex and export.
   Expected: That page lists no alternates, and its siblings do not list it.
 
+- [ ] LANG-065 - In the project whose Greek has no homepage, link an English button and an English menu item to a Greek page, then export.
+  Expected: The exported English page has no link into `el/`; the menu label stays. The "Some languages were not exported" note also says links into Greek were removed. The editor still shows the links.
+
+- [ ] LANG-066 - Turn Clean URLs on and export the full Greek project.
+  Expected: Greek links read `el/…` without `.html`, items `el/news/…`; the switcher, canonicals and sitemap use the same shape.
+
+- [ ] LANG-067 - Give English 7 News items and Greek 2, with the listing split into pages of 3. Preview and export.
+  Expected: English has `news/page/2.html` and `page/3.html`; Greek has none and shows only Greek items. Page 2 has its own canonical and no `hreflang`; its switcher's Greek entry opens the Greek listing.
+
+- [ ] LANG-068 - Leave a required field empty on one Greek item and export.
+  Expected: The whole export is refused before anything is written, naming the Greek item and field.
+
+- [ ] LANG-069 - Export with Markdown copies turned on.
+  Expected: Each Greek page's `.md` copy sits beside it under `el/`.
+
+- [ ] LANG-070 - On a project using the Clash Test theme, with Greek added, add a News listing to the Greek homepage, turn on "Split into pages" with fewer items per page than Greek News items, and export.
+  Expected: The export is refused before anything is written: "Your "el" homepage is split into pages, published at el/page/2.html, el/page/3.html and so on. The "Bulletins" collection publishes its items in the same el/page/ folder. Turn off "Split into pages" on that homepage."
+
 ### Lifecycle
 
 - [ ] LANG-041 - Download a backup of the Greek project and import it.
@@ -1992,6 +2077,18 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
 
 - [ ] LANG-042 - Duplicate the Greek project.
   Expected: Same as LANG-041, and the copy's chips link to its own pages, not the original project's.
+
+- [ ] LANG-071 - Before LANG-041 and LANG-042, give the languages different item orders, a Greek parent/child pair, Greek links, custom SEO and Greek alt, title and caption. Check them all after import and after duplicating.
+  Expected: Everything comes back. In the duplicate, links, parents, chips and menus point only at the copy's own content.
+
+- [ ] LANG-072 - Apply a theme update to an older Arch project that has Greek.
+  Expected: Every language's pages, header, footer, menus, items, item order and media text survive; settings the update adds appear in both languages' headers.
+
+- [ ] LANG-073 - Leave Pages, Menus and an items list on the Greek tab, remove Greek in another tab, then return and reload each.
+  Expected: Each list opens on the default-language tab; no Greek tab remains.
+
+- [ ] LANG-074 - On a single-language project, open the page editor, a link picker, a header Menu setting and an export.
+  Expected: No language menu, no language groups in pickers, no `hreflang`, no language folders.
 
 ---
 
