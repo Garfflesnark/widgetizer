@@ -21,7 +21,7 @@ Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current
 
 ## OSS 0.9.10 milestone (mirrors GitHub)
 
-Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117, #157, #158, #153 (see the milestone's Closed tab).
+Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117, #157, #158, #153, #160 (see the milestone's Closed tab).
 
 #### GH115 · Multilingual support
 
@@ -360,26 +360,6 @@ To label its "Used in" lists, `Media.jsx` (`loadUsageTitles`) fetches every page
 ### Decisions
 
 Agree what we want before building it.
-
-#### GH160 · Decide whether "Split into pages" needs "Main page", then fix its undo
-
-**Decision needed · Low · Shared · For: tsiger**
-
-Two problems with one root: "Split into pages" (`paginate`) is tied to the collection's main page (`listing_anchor`).
-
-- **Undo takes up to three steps.** Turning `paginate` on in `SettingsPanel.handleSettingChange` (`SettingsPanel.jsx` ~87-104) makes up to three `updateWidgetSettings` calls — `listing_anchor` true, the schema's `collection.perPageSetting` (12 when unset or below 1), then `paginate` — and `pageStore`'s undo grouping (one changed path within 500 ms) keeps them as three steps. Turning `listing_anchor` off while paginated is two. The per-page setting is a theme field far above the injected switches (Arch `news-grid`: `limit` is 10th of 24), so the count changes out of view. Reproduced 2026-10-19 in the browser on a News Grid: with a count of 3, one undo leaves "Main News page" on; with a count of 0, the count silently becomes 12 and three undos restore it.
-- **Saving takes both from another page, and undo cannot give them back.** Saving a page that claims the main page runs `clearListingAnchorsElsewhere` (`pageController.js`), which turns off `listing_anchor` and `paginate` on every other page in the language listing that collection and writes them. The editor reports it (`listingAnchorMovedFrom`), but undo only covers the open page: undoing the claim and saving again leaves the other page without its main-page flag and its numbered pages. Found by reading the code 2026-10-19; not reproduced.
-
-Nothing technical requires the tie. Numbered copies live under the hosting page's own slug (`blog/page/2.html`, `contentAddress.js`), `planPagination` ignores the anchor, and the anchor's only reader is breadcrumbs (`breadcrumbs.js`). The tie is enforced only by the editor (turning `paginate` on ticks the anchor; unticking the anchor turns `paginate` off) and the server (`enforcePaginationRules` sets the anchor; the sweep clears `paginate` with it). Its reason is not recorded; the likely one is a single full archive per collection, which items' breadcrumbs lead to.
-
-**Decide:** keep the tie, or let a widget paginate without being the main page. Untied, moving the main page takes only the other page's breadcrumb role and its numbered pages keep working, which shrinks the cross-page problem to one flag. Then:
-
-- Make each linked change one undo step (one widget-settings update for the linked values), and show the injected switches directly after the per-page setting.
-- For the cross-page change, if still needed: the server records what the sweep took and restores it when the claiming page is later saved without the claim and nothing else has claimed it since; or claims stop clearing other pages and the latest claim wins at render; or the editor restores it (fragile across reloads).
-
-**Done when:** the tie is decided; each linked change is one undo step with a test; the switches sit next to the per-page setting; and the cross-page behaviour is fixed or documented.
-
-**Start:** [SettingsPanel.jsx](../packages/editor-ui/src/components/pageEditor/SettingsPanel.jsx), [widgetStore.js](../packages/editor-ui/src/stores/widgetStore.js), [pageStore.js](../packages/editor-ui/src/stores/pageStore.js), [pageController.js](../packages/builder-server/src/controllers/pageController.js) (`enforcePaginationRules`, `clearListingAnchorsElsewhere`), [Collections](core-collections.md) §5b. [GitHub #160](https://github.com/tsiger/widgetizer/issues/160). **Source:** found 2026-10-05 reviewing GitHub #134; reproduced and widened 2026-10-19.
 
 #### T76 · Changing the main language
 

@@ -11,7 +11,7 @@ Two lists: what is in the current GitHub milestone, and what we have found but n
 | --- | --- | --- | --- |
 | [#115](https://github.com/tsiger/widgetizer/issues/115) | Multilingual sites | To Be Reviewed | anastis, tsiger |
 
-Closed in this milestone: 25 issues (the milestone's Closed tab).
+Closed in this milestone: 26 issues (the milestone's Closed tab).
 
 ## Findings, not scheduled
 
@@ -53,7 +53,6 @@ Closed in this milestone: 25 issues (the milestone's Closed tab).
 ### Decisions
 
 - **T76** — can a site's main language change once it has translations?
-- **GH160** (tsiger) — "Split into pages" always makes the widget the collection's main page. That makes turning it on take up to three undos (and silently change the item count), and saving it turns off both settings on whichever page had them before, which undo can't bring back. Nothing technical needs the two tied: decide whether a list can be split into pages without being the main page, then fix the undo.
 - **MEDIA-BLANK-ALT** — allow deliberately blank alt text in one language, or drop the idea.
 - **MENU-LANG-FALLBACK** — when a language's menu is deleted, that language's pages show the main language's menu, unless the header's menu was picked by hand (then they show none). Decide: never fall back (proposed, plus a warning when deleting a menu a header uses), or keep the fallback and say so.
 - **ARCH-DEFAULT-WORDS** — Arch's editable starting texts ("Skip to main content", "Menu", "Read more", "View all", headings like "Latest News") stay English on translated pages until the owner edits them. Decide: translate them per language (proposed first for the header and "Read more"/"View all"), or leave them as the owner's to change.

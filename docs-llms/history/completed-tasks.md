@@ -563,6 +563,16 @@ On a project from the Arch preset, the header's "Get in touch" button linked to 
 
 **Body at:** `be8c8ddb:docs-llms/TODO-agents.md`.
 
+### GH160 · Decide whether "Split into pages" needs "Main page", then fix its undo
+
+**Done · Unrated · OSS · 2026-10-19**
+
+Turning on "Split into pages" also made the page the collection's main page, took up to three undos, and saving it switched off both settings on the page that had them, beyond undo's reach.
+
+**Resolution:** Owner's decision: untie them. `enforcePaginationRules` no longer sets `listing_anchor`; `clearListingAnchorsElsewhere` clears only the anchor on other pages; `duplicatePage` keeps `paginate` and clears the anchor. In the editor, turning on `paginate` no longer ticks the anchor, unticking the anchor leaves `paginate`, and the item-count fill goes through one `updateWidgetSettingValues` call, so it is one undo step. "Split into pages" sits just before the widget's `perPageSetting`; "Main page" has its own Collection section. Losing the main page to another page still can't be undone, which the owner accepted. Reviewed by Codex; checked by the owner in the editor. Fix `59f3703a`. Added to the OSS 0.9.10 milestone and closed on GitHub on 2026-10-19. [GitHub #160](https://github.com/tsiger/widgetizer/issues/160)
+
+**Body at:** `59f3703a:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.
