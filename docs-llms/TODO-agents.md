@@ -162,16 +162,6 @@ Suggested: at the start of a run, remove the stage without swallowing the error 
 
 **Start:** [previewRuntime.js](../packages/core/src/runtime/previewRuntime.js), [previewRuntimeMedia.test.js](../packages/core/src/runtime/__tests__/previewRuntimeMedia.test.js). **Source:** 2026-10-07 review of `b9c9fc13`.
 
-#### THEME-WARNING-LABEL · Name the corrected setting in theme-save warnings
-
-**Open · Low · Shared**
-
-A theme save whose value the server corrects warns `"tTheme:global.colors.settings.standard_border_color.label" contained an invalid value and was reset.` The label is the raw theme key: the server builds the warning from `item.label` (`mergeThemeSettingChanges`, and `sanitizeThemeSettings` ~455 for the whole-file POST), and Settings' `describeWarning` (`Settings.jsx` ~15-24) shows it untranslated. Seen 2026-10-07 in the browser; the same text appeared before `theme-save-concurrency`.
-
-**Done when:** The warning names the setting in the user's language (resolve the label through the theme locale on the client), with a test.
-
-**Start:** [Settings.jsx](../packages/editor-ui/src/pages/Settings.jsx), [useThemeLocale.js](../packages/editor-ui/src/hooks/useThemeLocale.js). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
-
 #### EDITOR-THEME-USAGE-NOTICE · The editor's image-tracking notice says "this page" for theme saves
 
 **Open · Low · Shared**
@@ -301,6 +291,16 @@ The Core Form posts to `/__widgetizer/forms/<key>`, which only a publishing host
 **Done when:** The viewer opens without an opener (`noopener`, or a window-open handler that drops it) in browser and desktop, checked in both.
 
 **Start:** [ExportHistoryTable.jsx](../packages/editor-ui/src/components/export/ExportHistoryTable.jsx), [electron/main.js](../electron/main.js).
+
+#### DESKTOP-WINDOW-OPEN · The desktop app lets any page open new app windows
+
+**Open · Medium · OSS**
+
+`electron/main.js` sets no `setWindowOpenHandler` on the main window (~334) or the preview window (~446), so any `window.open` or `target="_blank"` from a page — including exported sites, theme scripts and pasted embeds shown in a viewer or preview — creates a new `BrowserWindow`. The child does not get the preload bridge (checked 2026-10-19) and, opened with `noopener`, cannot reach its opener; but a page can still open any number of app windows or load any remote site inside one. Electron's security checklist (item 14) is to limit window creation. Found by Codex reviewing VIEWER-OPENER; not reproduced.
+
+**Done when:** a window-open handler allows only the app's own viewer and preview addresses as app windows, sends external `https:` links to the system browser (`shell.openExternal`, after validating the URL), and denies everything else; "View site", the issues report, Media files and external links still work in the desktop app; with a test of the handler's decisions.
+
+**Start:** [electron/main.js](../electron/main.js), [Electron core](core-electron.md).
 
 #### MULTILANG-ONLY-SETTINGS · Hide language-only settings on single-language sites
 

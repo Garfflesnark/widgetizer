@@ -513,6 +513,16 @@ After saving Project details the Theme field read the theme's id ("arch") instea
 
 **Body at:** `de8961a2:docs-llms/TODO-agents.md`.
 
+### THEME-WARNING-LABEL · Name the corrected setting in theme-save warnings
+
+**Done · Low · Shared · 2026-10-19**
+
+A Site settings save whose value the server reset showed the server's English sentence around the theme's raw label key: `"tTheme:global.colors.settings.standard_border_color.label" contained an invalid value and was reset.`
+
+**Resolution:** `describeWarning` (`Settings.jsx`) builds a `VALUE_CORRECTED` warning from the editor's own `themeSettings.toasts.valueCorrected`, naming the setting through the theme locale as its field is labelled. While the theme's words are not loaded it uses `valueCorrectedUnnamed` instead of the key; a correction naming no setting (the older whole-file save) keeps the server's sentence; an unknown code shows its own message (Codex review). Reproduced and checked in the browser: "Border Color" contained an invalid value and was reset. Tests in `Settings.test.jsx`. Fix `0ad5c505`.
+
+**Body at:** `53cc80f3:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

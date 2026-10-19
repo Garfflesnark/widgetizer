@@ -30,7 +30,6 @@ Closed in this milestone: 21 issues (the milestone's Closed tab).
 - **THEME-UPDATE-STAGE-CLEANUP** — if a theme update can't delete its temporary folder, the next update can pick up stale files from it.
 - **THEME-UPDATE-PREPARE-DIRS** — getting a theme update ready creates empty page folders in the site, which stay behind if the update then fails.
 - **PREVIEW-SCRIPT-URL** — a badly written theme script address stops a widget's live preview.
-- **THEME-WARNING-LABEL** — a theme-save warning names the setting by an internal code.
 - **EDITOR-THEME-USAGE-NOTICE** — a site-settings save in the editor says "this page" in its image notice.
 - **SETTINGS-LOAD-RETRY** — Site settings doesn't retry after a failed load.
 - **MISSING-IMAGE-MESSAGE** — a theme save with a deleted image just says "Please try again".
@@ -41,6 +40,7 @@ Closed in this milestone: 21 issues (the milestone's Closed tab).
 - **BACKUP-ZIP-NAME** — backups download as `project-export.zip` instead of the project's name (seen in the dev setup; the packaged app may be fine).
 - **PREVIEW-FORM-SUBMIT** — submitting a form in the preview shows a raw "Cannot POST" error; say forms work once published instead.
 - **VIEWER-OPENER** — the export viewer window can reach back to the editor window; open it without that link.
+- **DESKTOP-WINDOW-OPEN** — in the desktop app, any page (including an exported site or a theme script) can open new app windows and load any website in them. Allow only the app's own windows, send external links to the system browser, block the rest.
 
 ### Improvements
 

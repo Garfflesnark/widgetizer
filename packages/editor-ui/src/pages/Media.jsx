@@ -70,9 +70,7 @@ export default function Media() {
         setLightboxOpen(true);
       }
     } else {
-      // Open non-image files in a new tab
-      const fileUrl = API_URL(`/api/media/projects/${mediaState.activeProject?.id}/media/${file.id}`);
-      window.open(fileUrl, "_blank");
+      mediaMetadata.handleFileView(file);
     }
   };
 
