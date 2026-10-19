@@ -441,6 +441,7 @@ export async function createCollectionPreviewToken(req, res) {
       created: now,
       updated: now,
       settings: settings || {},
+      ...(saved?.seo ? { seo: saved.seo } : {}),
     };
 
     const apiUrl = "";

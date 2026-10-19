@@ -74,6 +74,7 @@ Collections are optional. Put schemas in `collection-types/<type>/schema.json`; 
 - `type` matches `^[a-z0-9-]+$` and the folder name; `settings` is an array of supported fields with IDs.
 - Exactly one non-header field has `usedAsTitle: true`, and it is `text`.
 - At most one non-header field has `usedAsDate: true`, and it is `date`.
+- At most one non-header field has `usedAsImage: true`, and it is `image`. Item pages use it as the share image when the item's SEO image is empty.
 - Schema-level blocks and setting keys `multiple`, `repeater`, and `blocks` are unsupported. Items are flat records; use `gallery` or `table` fields for supported repeated content.
 - `defaultSort`, if supplied, is `manual`, `created_desc`, `created_asc`, `title_asc`, `title_desc`, `date_desc`, or `date_asc`. Date sorting requires the date field.
 - Item-page `slugPrefix` matches the slug pattern and is not `assets`; omitted prefix defaults to `type`. Effective prefixes must be unique across collections on theme import, including after applying updates.

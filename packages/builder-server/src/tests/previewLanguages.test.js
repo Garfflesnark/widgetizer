@@ -476,6 +476,25 @@ describe("a collection item's own switcher", () => {
     assert.match(html, /<a href="el\/index.html" data-lang="el" data-fallback="true"/);
     assert.doesNotMatch(html, /hreflang="el"/);
   });
+
+  it("keeps the saved item's own SEO", async () => {
+    await storage.write(
+      scope,
+      "collections/news/shared.json",
+      JSON.stringify({
+        id: "shared",
+        uuid: "u-shared",
+        slug: "shared",
+        created: "2026-01-01T00:00:00.000Z",
+        updated: "2026-01-01T00:00:00.000Z",
+        settings: { title: "Shared" },
+        seo: { description: "Saved description", og_image: "https://cdn.example.com/social.jpg" },
+      }),
+    );
+    const html = await itemHtml({}, "shared");
+    assert.match(html, /name="description" content="Saved description"/);
+    assert.match(html, /property="og:image" content="https:\/\/cdn.example.com\/social.jpg"/);
+  });
 });
 
 // A morph re-renders one widget with no page around it. The editor sends the

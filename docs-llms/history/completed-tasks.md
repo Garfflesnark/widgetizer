@@ -533,6 +533,16 @@ View site and the issues report (`ExportHistoryTable.jsx`) and Media's file view
 
 **Body at:** `ca9ee2b1:docs-llms/TODO-agents.md`.
 
+### GH117 · Featured image as the fallback social image
+
+**Done · Unrated · OSS · 2026-10-19**
+
+A collection item with no SEO image of its own published no og:image, even when it had a featured image.
+
+**Resolution:** Collection items only (pages have no featured image). A collection-type field flagged `usedAsImage: true` (at most one, `image`) fills the item page's `seo.og_image` when it is empty, in `buildCollectionItemPageData`; an explicit SEO image still wins, and the Site URL rule is unchanged. Arch marks `featured_image` on news, projects and services, also in `updates/0.9.10/`. Item preview now carries the saved item's SEO, which it had been dropping. Checked by the owner in preview and export on Bedrock. Fix `c91fc86b`. [GitHub #117](https://github.com/tsiger/widgetizer/issues/117)
+
+**Body at:** `c91fc86b:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

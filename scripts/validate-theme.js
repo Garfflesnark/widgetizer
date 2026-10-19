@@ -134,6 +134,7 @@ export function validateTheme(dir) {
     "required",
     "usedAsTitle",
     "usedAsDate",
+    "usedAsImage",
     "options",
     "min",
     "max",

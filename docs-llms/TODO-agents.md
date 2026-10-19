@@ -21,7 +21,7 @@ Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current
 
 ## OSS 0.9.10 milestone (mirrors GitHub)
 
-Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126 (see the milestone's Closed tab).
+Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117 (see the milestone's Closed tab).
 
 #### GH115 · Multilingual support
 
@@ -30,16 +30,6 @@ Open issues in the milestone, with their GitHub board status. Closed in this mil
 Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. The 2026-10-14 docs-llms pass reconciled the multilingual rules, theme switcher, architecture/package maps and domain model with the code, and added the checklist's Multilingual section (LANG-001 to LANG-042) — docs `202e9dfa`. The leftover English on translated pages was fixed under #156. A 2026-10-18 Fable/Codex gap review extended §18 to LANG-074 (refusals, cross-language links and menus, removal cleanup, editor guards, export combinations, preview paths, shared settings) and found the desktop app refusing language preview paths, fixed in `electron/previewPath.js`. Awaiting the partner's review.
 
 **Start:** [Multilingual rules](domain/multilingual.md), [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
-
-#### GH117 · Featured image as the fallback social image
-
-**GitHub: Todo · tsiger**
-
-Issue is title-only: should a page or item with no `og_image` use its featured image? Today `{% seo %}` emits `og:image` only from `seo.og_image` (`SeoTag.js`), and a Site URL is required for any absolute image (an owner decision). Decide the rule (collection items only, or pages too; which field counts as "featured") before building.
-
-**Done when:** The agreed fallback ships with a test, or the issue moves out of the milestone.
-
-**Start:** [SeoTag.js](../packages/core/src/tags/SeoTag.js), [publishedUrls.js](../packages/core/src/utils/publishedUrls.js). [GitHub #117](https://github.com/tsiger/widgetizer/issues/117)
 
 #### GH158 · Arch's default header button breaks on pages inside a folder
 

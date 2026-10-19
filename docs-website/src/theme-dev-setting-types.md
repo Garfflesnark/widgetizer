@@ -385,6 +385,6 @@ Optional properties:
 - **Theme settings** live in `theme.json` and render via `{% theme_settings %}`.
 - **Widget settings** live in `widgets/*/schema.json` and are accessed via `widget.settings.*`.
 - **Block settings** live in the widget schema's `blocks` array and are accessed via `block.settings.*`.
-- **Collection fields** live in `collection-types/*/schema.json` and are accessed via `item.settings.*`. They use these same types, plus a few collection-only flags (`usedAsTitle`, `usedAsDate`, `required`); see [Collections](theme-dev-collections.html).
+- **Collection fields** live in `collection-types/*/schema.json` and are accessed via `item.settings.*`. They use these same types, plus a few collection-only flags (`usedAsTitle`, `usedAsDate`, `usedAsImage`, `required`); see [Collections](theme-dev-collections.html).
 
 See [Widgets & Blocks](theme-dev-widgets-blocks.html) for widget schema patterns, and [Liquid Tags & Filters](theme-dev-liquid-assets.html) for rendering tips.

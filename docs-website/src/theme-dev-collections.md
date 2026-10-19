@@ -36,7 +36,7 @@ The folder name is the type's machine id. Here's a complete `schema.json` (the A
     { "type": "text", "id": "title", "label": "Title", "required": true, "usedAsTitle": true },
     { "type": "date", "id": "date", "label": "Publication date", "usedAsDate": true },
     { "type": "textarea", "id": "excerpt", "label": "Excerpt" },
-    { "type": "image", "id": "featured_image", "label": "Featured image" },
+    { "type": "image", "id": "featured_image", "label": "Featured image", "usedAsImage": true },
     { "type": "richtext", "id": "body", "label": "Body", "allow_headings": true, "allow_images": true }
   ]
 }
@@ -64,6 +64,7 @@ A few flags are specific to collection fields:
 
 - **`usedAsTitle: true`:** exactly one `text` field. It supplies the item's title and its auto-generated slug.
 - **`usedAsDate: true`:** at most one `date` field. It becomes the sort key for `date_desc` / `date_asc` (items with a blank date sort last).
+- **`usedAsImage: true`:** at most one `image` field. Item pages use it as the social share image when the item has no SEO image of its own.
 - **`required: true`:** the item fails validation until the field has a value.
 
 # Listing Items: the `collection` filter
@@ -214,7 +215,7 @@ When you export the site, each item page is written to `{slugPrefix}/{slug}.html
 # Authoring Checklist
 
 - [ ] `collection-types/{type}/schema.json` with a unique lowercase `type` matching the folder
-- [ ] Exactly one `usedAsTitle` text field; at most one `usedAsDate` date field
+- [ ] Exactly one `usedAsTitle` text field; at most one `usedAsDate` date field; at most one `usedAsImage` image field
 - [ ] `slugPrefix` set (or rely on the default `type`)
 - [ ] If `hasItemPages: true`, a `template.liquid` that renders `item.settings.*`
 - [ ] Richtext fields rendered with `| raw`
