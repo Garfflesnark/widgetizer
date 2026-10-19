@@ -21,7 +21,7 @@ Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current
 
 ## OSS 0.9.10 milestone (mirrors GitHub)
 
-Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117, #157, #158 (see the milestone's Closed tab).
+Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117, #157, #158, #153 (see the milestone's Closed tab).
 
 #### GH115 · Multilingual support
 

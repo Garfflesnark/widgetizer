@@ -11,7 +11,7 @@ Two lists: what is in the current GitHub milestone, and what we have found but n
 | --- | --- | --- | --- |
 | [#115](https://github.com/tsiger/widgetizer/issues/115) | Multilingual sites | To Be Reviewed | anastis, tsiger |
 
-Closed in this milestone: 24 issues (the milestone's Closed tab).
+Closed in this milestone: 25 issues (the milestone's Closed tab).
 
 ## Findings, not scheduled
 
