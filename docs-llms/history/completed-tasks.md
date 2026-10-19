@@ -483,6 +483,26 @@ Creating a missing translation and leaving before the request returned took the 
 
 **Body at:** `8768d405:docs-llms/TODO-agents.md`.
 
+### GH153 · Pages and menus added by a theme update are not linked like a new project's
+
+**Done · Low · Shared · 2026-10-19**
+
+A theme update wrote the pages and menus it adds without page references, so their slug links (`contact.html`) did not follow a page the owner later renamed. Reproduced in the browser: after an update added a Team page and Contact was renamed, Team's button still published `contact.html`.
+
+**Resolution:** `applyThemeUpdateToDir` gives added pages their uuid while preparing the update, and `enrichThemeUpdateAdditions` (sharing its transforms with project creation) stamps `pageUuid` on links and richtext in added pages and on added menus' items, per language folder, and on link/richtext settings the update's `theme.json` brings, before the merge so owner values stay as they are. Menu selections stay slugs (they resolve per language); existing content is not touched. Reviewed by Codex and Fable; checked in the browser by updating a project, renaming Contact and exporting. The prepare phase's live-folder creation is logged as THEME-UPDATE-PREPARE-DIRS. Fix `aa1f17df`. [GitHub #153](https://github.com/tsiger/widgetizer/issues/153)
+
+**Body at:** `aa1f17df:docs-llms/TODO-agents.md`.
+
+### UNDO-CLEAN · Undoing back to the saved state leaves Save enabled
+
+**Done · Low · Shared · 2026-10-19**
+
+Undoing a theme-setting edit or a structural change (delete, add, reorder) back to exactly the saved state left Save enabled, the page's unsaved dot on and the leave-page prompt armed: `reconcileModifiedWidgets` never cleared `structureModified` or `themeSettingsModified`.
+
+**Resolution:** after undo/redo, `reconcileModifiedWidgets` keeps each flag only while the page or the theme still differs from what is saved, and keeps both while a save is in flight (that save is writing the edit the undo reverses; Codex review). Reproduced and checked in the browser: a theme toggle and a widget delete, each undone, leave Save disabled with no unsaved dot or leave-page prompt, and redo marks the page changed again. Tests in `saveStore.test.js`. Fix `de8961a2`.
+
+**Body at:** `aa1f17df:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

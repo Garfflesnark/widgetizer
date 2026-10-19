@@ -172,30 +172,6 @@ A theme save whose value the server corrects warns `"tTheme:global.colors.settin
 
 **Start:** [Settings.jsx](../packages/editor-ui/src/pages/Settings.jsx), [useThemeLocale.js](../packages/editor-ui/src/hooks/useThemeLocale.js). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
 
-#### UNDO-CLEAN · Undoing back to the saved state leaves Save enabled
-
-**Open · Low · Shared**
-
-In the page editor, undoing a theme edit or a structural change (delete, reorder) back to exactly the saved state leaves Save enabled. `reconcileModifiedWidgets` (`saveStore.js` ~136-180) re-derives per-widget dirtiness but never clears `themeSettingsModified` or `structureModified`, and `hasUnsavedChanges` reads both flags. Saving then sends nothing for the theme (empty change list) and clears the flags.
-
-**Done when:** After undo returns page, globals and theme to their saved state, Save is disabled and no unsaved marker shows, with a test.
-
-Reproduced 2026-10-17: in the editor, turn a theme checkbox on then Undo — no unsaved dot anywhere, Save still enabled.
-
-**Start:** [saveStore.js](../packages/editor-ui/src/stores/saveStore.js), [EditorTopBar.jsx](../packages/editor-ui/src/components/pageEditor/EditorTopBar.jsx). **Source:** 2026-10-07 browser regression pass on `theme-save-concurrency`.
-
-#### PAGINATE-UNDO · Turning on "Split into pages" takes three undos and changes a setting out of view
-
-**Open · Low · Shared**
-
-Turning `paginate` on in `SettingsPanel.handleSettingChange` (`SettingsPanel.jsx` ~87-104) makes up to three `updateWidgetSettings` calls: `listing_anchor` true, the schema's `collection.perPageSetting` (12 when unset or below 1), then `paginate`. Each is a different setting, so `pageStore`'s undo grouping (one changed path within 500 ms) keeps them as three history steps; one Ctrl+Z turns paginate off and leaves the anchor and the count. Turning `listing_anchor` off while paginated is two steps. The partial states are valid, so nothing is corrupted. Found 2026-10-05.
-
-Layout makes it worse: `paginate` and `listing_anchor` are injected after all the widget's own settings (`allSettings`, ~170-179), while the per-page setting is a theme field much higher up (Arch `news-grid`: `limit` is 10th of 24). Turning on pagination can change the item count where the user can't see it. Consider placing the two injected settings directly after the `perPageSetting` field, so the linked settings sit together.
-
-**Done when:** each linked change is one undo step (both directions) with a test, and the injected settings appear next to the per-page setting, or the placement is decided against.
-
-**Start:** [SettingsPanel.jsx](../packages/editor-ui/src/components/pageEditor/SettingsPanel.jsx), [widgetStore.js](../packages/editor-ui/src/stores/widgetStore.js), [pageStore.js](../packages/editor-ui/src/stores/pageStore.js). **Source:** found 2026-10-05 reviewing GitHub #134; split out when GH134 closed 2026-10-12.
-
 #### EDITOR-THEME-USAGE-NOTICE · The editor's image-tracking notice says "this page" for theme saves
 
 **Open · Low · Shared**
@@ -263,20 +239,6 @@ User report on 0.9.9: on small screens Arch's testimonial slider shows a slice o
 **Done when:** One card shows fully at phone widths, checked in preview and export.
 
 **Start:** [testimonial-slider](../themes/arch/widgets/testimonial-slider). [GitHub #148](https://github.com/tsiger/widgetizer/issues/148)
-
-#### GH153 · Pages and menus added by a theme update are not linked like a new project's
-
-**Fixed · Low · Shared**
-
-Creation runs `enrichNewProjectReferences` (`linkEnrichment.js`) over starter pages and menus; `applyThemeUpdateToDir` (`themeUpdateService.js` ~391–421) writes an update's new pages and menus without it. So links in an added page keep a plain `href` with no `pageUuid`, items in an added menu keep a plain `link` with no `pageUuid`, and, by the code, a menu setting in an added page keeps the menu's slug rather than its uuid. Everything renders; the cost is that these links do not follow a renamed page. Added pages do get a `uuid`: the media-usage refresh that `applyThemeUpdate` runs afterwards stamps any page missing one (`identityOf` in `mediaUsageService.js`). Only updates that ship brand-new pages or menus are affected; pages and menus the project already has are left alone, which is correct and tested.
-
-Reproduced 2026-10-19 in the browser with a two-version Arch copy whose 1.1.0 adds a Team page (a copy of About) and a Team menu: after the update and a rename of Contact to `get-in-touch`, the export's About "Talk to us" button links to `get-in-touch.html` while Team's identical button still links to `contact.html` ("File not found"); the stored Team menu keeps `contact.html` with no `pageUuid`, while the footer menu's Contact item publishes as `get-in-touch.html`. The menu-setting case was reproduced with a 1.2.0 that adds an Hours page whose contact-details menu block selects `footer-menu`: the page stores the bare slug, but nothing visible follows — the editor shows "Footer menu" selected, preview and export render it, and renaming the menu keeps its `id`, so the slug still resolves. A bare slug is also what creation-time globals use when they rely on a schema default, and it deliberately resolves per language (`menuResolver.js` ~183), so converting it to the root menu's uuid is not clearly an improvement.
-
-**Approach (Codex and Fable review, 2026-10-19):** enrich in the prepare phase, in memory, on `additions` and the merged `theme.json` before the plan is written — not after the swap, which would modify files the plan cannot roll back. Give added pages their `uuid` there (skipping `global/`, as `projectScaffold.js` does), and build the slug maps from existing plus added pages and menus. Extract the transforms from `enrichNewProjectReferences` into pure helpers shared by creation and update rather than adding a file-list variant. Leave existing author content alone, including links that already point at a page the update adds. For merged theme settings, enrich only theme-supplied values, never a preserved owner value. Keep `applyThemeUpdateToDir` as the place for it, since embedding apps call it directly. The live-folder side issue Codex found is THEME-UPDATE-PREPARE-DIRS.
-
-**Done when:** Links in pages an update adds, items in menus it adds, and link settings the update's `theme.json` brings get the same page references a new project's do, prepared before the update's all-or-nothing swap, with a test.
-
-**Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js). [GitHub #153](https://github.com/tsiger/widgetizer/issues/153)
 
 #### GH154 · Linux desktop "View site" fails under ~/.config
 
@@ -438,6 +400,26 @@ To label its "Used in" lists, `Media.jsx` (`loadUsageTitles`) fetches every page
 ### Decisions
 
 Agree what we want before building it.
+
+#### GH160 · Decide whether "Split into pages" needs "Main page", then fix its undo
+
+**Decision needed · Low · Shared · For: tsiger**
+
+Two problems with one root: "Split into pages" (`paginate`) is tied to the collection's main page (`listing_anchor`).
+
+- **Undo takes up to three steps.** Turning `paginate` on in `SettingsPanel.handleSettingChange` (`SettingsPanel.jsx` ~87-104) makes up to three `updateWidgetSettings` calls — `listing_anchor` true, the schema's `collection.perPageSetting` (12 when unset or below 1), then `paginate` — and `pageStore`'s undo grouping (one changed path within 500 ms) keeps them as three steps. Turning `listing_anchor` off while paginated is two. The per-page setting is a theme field far above the injected switches (Arch `news-grid`: `limit` is 10th of 24), so the count changes out of view. Reproduced 2026-10-19 in the browser on a News Grid: with a count of 3, one undo leaves "Main News page" on; with a count of 0, the count silently becomes 12 and three undos restore it.
+- **Saving takes both from another page, and undo cannot give them back.** Saving a page that claims the main page runs `clearListingAnchorsElsewhere` (`pageController.js`), which turns off `listing_anchor` and `paginate` on every other page in the language listing that collection and writes them. The editor reports it (`listingAnchorMovedFrom`), but undo only covers the open page: undoing the claim and saving again leaves the other page without its main-page flag and its numbered pages. Found by reading the code 2026-10-19; not reproduced.
+
+Nothing technical requires the tie. Numbered copies live under the hosting page's own slug (`blog/page/2.html`, `contentAddress.js`), `planPagination` ignores the anchor, and the anchor's only reader is breadcrumbs (`breadcrumbs.js`). The tie is enforced only by the editor (turning `paginate` on ticks the anchor; unticking the anchor turns `paginate` off) and the server (`enforcePaginationRules` sets the anchor; the sweep clears `paginate` with it). Its reason is not recorded; the likely one is a single full archive per collection, which items' breadcrumbs lead to.
+
+**Decide:** keep the tie, or let a widget paginate without being the main page. Untied, moving the main page takes only the other page's breadcrumb role and its numbered pages keep working, which shrinks the cross-page problem to one flag. Then:
+
+- Make each linked change one undo step (one widget-settings update for the linked values), and show the injected switches directly after the per-page setting.
+- For the cross-page change, if still needed: the server records what the sweep took and restores it when the claiming page is later saved without the claim and nothing else has claimed it since; or claims stop clearing other pages and the latest claim wins at render; or the editor restores it (fragile across reloads).
+
+**Done when:** the tie is decided; each linked change is one undo step with a test; the switches sit next to the per-page setting; and the cross-page behaviour is fixed or documented.
+
+**Start:** [SettingsPanel.jsx](../packages/editor-ui/src/components/pageEditor/SettingsPanel.jsx), [widgetStore.js](../packages/editor-ui/src/stores/widgetStore.js), [pageStore.js](../packages/editor-ui/src/stores/pageStore.js), [pageController.js](../packages/builder-server/src/controllers/pageController.js) (`enforcePaginationRules`, `clearListingAnchorsElsewhere`), [Collections](core-collections.md) §5b. [GitHub #160](https://github.com/tsiger/widgetizer/issues/160). **Source:** found 2026-10-05 reviewing GitHub #134; reproduced and widened 2026-10-19.
 
 #### T76 · Changing the main language
 

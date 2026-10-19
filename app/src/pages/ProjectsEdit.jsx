@@ -110,7 +110,9 @@ export default function ProjectsEdit() {
         ...formData,
         theme: project.theme,
       });
-      setProject(updatedProject);
+      // The reply is the bare project; only the list adds the theme's display
+      // name. This form cannot change the theme, so the loaded name still holds.
+      setProject({ ...updatedProject, themeName: project.themeName });
 
       // Check if the project folderName changed
       if (updatedProject.folderName !== project.folderName) {

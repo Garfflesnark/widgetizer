@@ -23,7 +23,6 @@ Closed in this milestone: 21 issues (the milestone's Closed tab).
 - **UI-LIST-REPLY** — a bad reply from the server crashes the Pages screen or empties editor screens. Show a clear "couldn't load" instead.
 - **GH148** — the testimonial carousel shows part of the next card on phones (reported on 0.9.9).
 - **GH154** — on the Linux desktop app, "View site" fails.
-- **GH153** (fixed) — links in pages and menus that a theme update adds aren't tied to the pages they point at, so they break when that page is renamed (reproduced: a button on an update-added page still pointed at `contact.html` after Contact was renamed).
 - **SKIPPED-ITEM-NOTICE** — a collection item with a broken address disappears with nothing on screen to say so.
 - **THEME-UPLOAD-CLEANUP** — a theme update upload that fails near the end can leave its new versions installed.
 - **THEME-UPDATE-RESUME** — after a crash mid theme update the site looks broken until the update is pressed again.
@@ -32,8 +31,6 @@ Closed in this milestone: 21 issues (the milestone's Closed tab).
 - **THEME-UPDATE-PREPARE-DIRS** — getting a theme update ready creates empty page folders in the site, which stay behind if the update then fails.
 - **PREVIEW-SCRIPT-URL** — a badly written theme script address stops a widget's live preview.
 - **THEME-WARNING-LABEL** — a theme-save warning names the setting by an internal code.
-- **UNDO-CLEAN** — undoing back to the saved state leaves Save enabled.
-- **PAGINATE-UNDO** — turning on "Split into pages" takes three undos and changes the item count out of view.
 - **EDITOR-THEME-USAGE-NOTICE** — a site-settings save in the editor says "this page" in its image notice.
 - **SETTINGS-LOAD-RETRY** — Site settings doesn't retry after a failed load.
 - **MISSING-IMAGE-MESSAGE** — a theme save with a deleted image just says "Please try again".
@@ -60,6 +57,7 @@ Closed in this milestone: 21 issues (the milestone's Closed tab).
 ### Decisions
 
 - **T76** — can a site's main language change once it has translations?
+- **GH160** (tsiger) — "Split into pages" always makes the widget the collection's main page. That makes turning it on take up to three undos (and silently change the item count), and saving it turns off both settings on whichever page had them before, which undo can't bring back. Nothing technical needs the two tied: decide whether a list can be split into pages without being the main page, then fix the undo.
 - **MEDIA-BLANK-ALT** — allow deliberately blank alt text in one language, or drop the idea.
 - **MENU-LANG-FALLBACK** — when a language's menu is deleted, that language's pages show the main language's menu, unless the header's menu was picked by hand (then they show none). Decide: never fall back (proposed, plus a warning when deleting a menu a header uses), or keep the fallback and say so.
 - **ARCH-DEFAULT-WORDS** — Arch's editable starting texts ("Skip to main content", "Menu", "Read more", "View all", headings like "Latest News") stay English on translated pages until the owner edits them. Decide: translate them per language (proposed first for the header and "Read more"/"View all"), or leave them as the owner's to change.

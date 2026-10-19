@@ -39,9 +39,10 @@ vi.mock("@widgetizer/editor-ui/components/layout/PageLayout.jsx", () => ({
   default: ({ children }) => <div>{children}</div>,
 }));
 vi.mock("../../components/projects/ProjectForm.jsx", () => ({
-  default: ({ onSubmit }) => (
+  default: ({ onSubmit, initialData }) => (
     <>
       <p>project form</p>
+      <p>theme: {initialData?.themeName || initialData?.theme}</p>
       <button type="button" onClick={() => onSubmit({ name: "Bakery", folderName: "bakery-new" })}>
         submit form
       </button>
@@ -154,5 +155,28 @@ describe("ProjectsEdit — folder rename", () => {
     const { showToast } = useToastStore.getState();
     await waitFor(() => expect(showToast).toHaveBeenCalled());
     expect(showToast).toHaveBeenCalledWith(expect.any(String), "success");
+  });
+});
+
+describe("ProjectsEdit — saving details", () => {
+  beforeEach(() => {
+    storeState = { activeProject: { id: "p1" }, loading: false, setActiveProject: vi.fn() };
+    getAllProjects.mockResolvedValue([
+      { id: "p1", name: "Bakery", folderName: "bakery", theme: "arch", themeName: "Arch" },
+    ]);
+    getActiveProject
+      .mockReset()
+      .mockResolvedValue({ id: "p1", name: "Bakery", folderName: "bakery-new", theme: "arch" });
+    useToastStore.getState().showToast.mockReset();
+  });
+
+  it("keeps the theme's display name after a save, though the reply has only its id", async () => {
+    updateProject.mockReset().mockResolvedValue({ id: "p1", name: "Bakery", folderName: "bakery-new", theme: "arch" });
+    openDetails("p1");
+    expect(await screen.findByText("theme: Arch")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("submit form"));
+    await waitFor(() => expect(useToastStore.getState().showToast).toHaveBeenCalled());
+    expect(screen.getByText("theme: Arch")).toBeTruthy();
   });
 });
