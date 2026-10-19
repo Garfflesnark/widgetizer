@@ -553,6 +553,16 @@ The installed desktop app should put a shortcut on the desktop.
 
 **Body at:** `de115fb6:docs-llms/TODO-agents.md`.
 
+### GH158 · Arch's default header button breaks on pages inside a folder
+
+**Done · Unrated · OSS · 2026-10-19**
+
+On a project from the Arch preset, the header's "Get in touch" button linked to a missing `contact.html` from language-folder and collection-item pages.
+
+**Resolution:** Only the Arch preset left `ctaButtonLink` unset, so the header used the schema default, a typed `contact.html` that creation-time enrichment never stamps with a `pageUuid`. The preset's header (base and `updates/0.9.10/`) now stores the button, so creation stamps it like every other preset. The schema default and render engine are unchanged; projects already created keep their button, and translated pages link to the default-language Contact, as picked links do. Resolving page-naming schema defaults (also the Action Bar's `contact.html` defaults) in the app was left for a later version, by the owner's choice. Fix `be8c8ddb`. [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)
+
+**Body at:** `be8c8ddb:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

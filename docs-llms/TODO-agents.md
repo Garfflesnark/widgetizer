@@ -21,7 +21,7 @@ Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current
 
 ## OSS 0.9.10 milestone (mirrors GitHub)
 
-Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117, #157 (see the milestone's Closed tab).
+Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117, #157, #158 (see the milestone's Closed tab).
 
 #### GH115 · Multilingual support
 
@@ -30,16 +30,6 @@ Open issues in the milestone, with their GitHub board status. Closed in this mil
 Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. The 2026-10-14 docs-llms pass reconciled the multilingual rules, theme switcher, architecture/package maps and domain model with the code, and added the checklist's Multilingual section (LANG-001 to LANG-042) — docs `202e9dfa`. The leftover English on translated pages was fixed under #156. A 2026-10-18 Fable/Codex gap review extended §18 to LANG-074 (refusals, cross-language links and menus, removal cleanup, editor guards, export combinations, preview paths, shared settings) and found the desktop app refusing language preview paths, fixed in `electron/previewPath.js`. Awaiting the partner's review.
 
 **Start:** [Multilingual rules](domain/multilingual.md), [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
-
-#### GH158 · Arch's default header button breaks on pages inside a folder
-
-**GitHub: open, board status not read · tsiger**
-
-Arch's header `ctaButtonLink` default is the typed link `{"href":"contact.html","text":"Get in touch"}` (`themes/arch/widgets/global/header/schema.json` ~90, same in `updates/0.9.10/`). A link without `pageUuid` is a custom URL and passes through unprefixed by design (`resolveLinkValue` in `renderEngine.js`), so any page one folder deep links to a `contact.html` in its own folder: `de/index.html` → `de/contact.html` ("File not found" in View site), `services/growth.html` → `services/contact.html`, `el/services/growth.html` → `el/services/contact.html`. On `el/` pages it only works when a Greek `contact` happens to exist. Item pages had this before languages; every non-default language now sits in a folder, so most translated pages show it. Seen in the 2026-10-18 #115 review: an Arch project with Deutsch, exported and opened in View site (reproduction steps in [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)). Open question: from a translated page, should the button reach the default Contact or that language's Contact when one exists (page links are never re-pointed to a translation today)?
-
-**Done when:** The default button reaches Contact from root, item and language-folder pages in preview and export, shipped in a new Arch version's `updates/<version>/` copy; typed links keep passing through unchanged.
-
-**Start:** [header schema](../themes/arch/widgets/global/header/schema.json), [renderEngine.js](../packages/render-engine/src/renderEngine.js) (`resolveLinkValue`). [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)
 
 ## Findings (not scheduled)
 
