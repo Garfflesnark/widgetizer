@@ -503,6 +503,16 @@ Undoing a theme-setting edit or a structural change (delete, add, reorder) back 
 
 **Body at:** `aa1f17df:docs-llms/TODO-agents.md`.
 
+### PROJECT-THEME-NAME · Project details shows the theme id after a save
+
+**Done · Low · OSS · 2026-10-19**
+
+After saving Project details the Theme field read the theme's id ("arch") instead of its name ("Arch") until the page was reopened: `ProjectsEdit.jsx` replaced its project with the update reply, which has no `themeName` (only `getAllProjects` adds it).
+
+**Resolution:** the page keeps the `themeName` it loaded when it takes the update reply; the form cannot change the theme, so the name still holds. Chosen over adding `themeName` to every project reply, which nothing else needs (Fable review). Checked in the browser and reviewed by Codex; test in `ProjectsEdit.test.jsx`. Fix `b1795090`.
+
+**Body at:** `de8961a2:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

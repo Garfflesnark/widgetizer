@@ -36,8 +36,8 @@ Closed in this milestone: 21 issues (the milestone's Closed tab).
 - **MISSING-IMAGE-MESSAGE** — a theme save with a deleted image just says "Please try again".
 - **THEME-CHECKER** — the theme checker passes a few things that break on export and crashes on one valid tag.
 - **LANG-PREFIX-WARNING** — the theme checker's "this prefix looks like a language code" warning is a best guess: it misses a few codes a site could add and the docs describe it as more exact than it is.
-- **PROJECT-THEME-NAME** — after saving Project details, its Theme field shows the theme's internal id ("arch") instead of its name ("Arch") until the page is opened again.
 - **GH159** — when a link's target page is deleted or its language removed, the menu item or button keeps its label but publishes as a link to nowhere that just reloads the page. For tsiger: what to publish instead isn't decided. The issue proposes showing the menu item as plain text and leaving the button out, while the editor keeps showing them so they can be re-pointed.
+- **PROJECT-DETAILS-STALE** — if you save Project details and switch to another project's details within a second, the old save can make the first project active again (sending you back to the Projects list) or show its messages on the new page.
 - **BACKUP-ZIP-NAME** — backups download as `project-export.zip` instead of the project's name (seen in the dev setup; the packaged app may be fine).
 - **PREVIEW-FORM-SUBMIT** — submitting a form in the preview shows a raw "Cannot POST" error; say forms work once published instead.
 - **VIEWER-OPENER** — the export viewer window can reach back to the editor window; open it without that link.

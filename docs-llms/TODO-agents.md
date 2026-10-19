@@ -250,16 +250,6 @@ The export viewer (`routes/export.js`) calls `res.sendFile` with an absolute pat
 
 **Start:** [export.js](../packages/builder-server/src/routes/export.js), [core-electron.md](core-electron.md). [GitHub #154](https://github.com/tsiger/widgetizer/issues/154)
 
-#### PROJECT-THEME-NAME · Project details shows the theme id after a save
-
-**Open · Low · OSS**
-
-Only `GET /api/projects` adds the display `themeName` (`getAllProjects` in `projectController.js`, ~392-416). `ProjectsEdit.jsx` replaces its project with the `PUT /api/projects/:id` reply after a save (~109-113); that reply has no `themeName`, so `ProjectForm.jsx` (~302) falls back to `theme` and the Theme field reads "arch" instead of "Arch" until Project details is reopened. Cosmetic. Seen 2026-10-17 in the browser after turning on Receive Theme Updates.
-
-**Done when:** The Theme field keeps the display name after a save (the update reply carries `themeName`, or the page keeps the one it loaded), with a test.
-
-**Start:** [projectController.js](../packages/builder-server/src/controllers/projectController.js), [ProjectsEdit.jsx](../app/src/pages/ProjectsEdit.jsx), [ProjectForm.jsx](../app/src/components/projects/ProjectForm.jsx). **Source:** 2026-10-17 browser review of #155.
-
 #### GH159 · Links whose target is gone still publish as working links
 
 **Open · Unrated · OSS · For: tsiger**
@@ -271,6 +261,16 @@ Deleting a page or removing a language keeps a pointing link's label and empties
 **Start:** [menu.liquid](../packages/core/src/snippets/menu.liquid), [linkEnrichment.js](../packages/builder-server/src/utils/linkEnrichment.js), [image-text](../themes/arch/widgets/image-text/widget.liquid). [GitHub #159](https://github.com/tsiger/widgetizer/issues/159)
 
 ### Improvements
+
+#### PROJECT-DETAILS-STALE · An old Project details save can reset the active project or toast on another project
+
+**Open · Low · OSS**
+
+`ProjectsEdit.jsx` starts a fresh page per project (`key={id}`), so a load, save or Apply Update still running for a project the user has left only touches its own, unmounted page. Two writes still reach outside it. A save's follow-up `getActiveProject()` → `setActiveProject(...)` (the folder-rename and the plain branch of `handleSubmit`) writes the shared project store: save p1, activate p2 and open its details before that request returns, and p1 becomes active again, so p2's page redirects to the Projects list. And toasts from the old page (a failed load, a save or update finishing) still show on the new one. Needs the user to leave, activate another project and reopen details within the save's round trip. Pre-existing; found by Codex reviewing the update-banner refresh, 2026-10-19; not reproduced.
+
+**Done when:** a save whose page has unmounted no longer writes the active project (a mounted ref, or a store write that checks the active id is still the saved project's), and its toasts are skipped or name the project, with a test that moves to p2 while a p1 save is pending.
+
+**Start:** [ProjectsEdit.jsx](../app/src/pages/ProjectsEdit.jsx), [projectStore.js](../packages/editor-ui/src/stores/projectStore.js).
 
 #### BACKUP-ZIP-NAME · Backups download as `project-export.zip` in the dev setup
 
