@@ -10,10 +10,9 @@ Two lists: what is in the current GitHub milestone, and what we have found but n
 | Issue | What | GitHub status | Who |
 | --- | --- | --- | --- |
 | [#115](https://github.com/tsiger/widgetizer/issues/115) | Multilingual sites | To Be Reviewed | anastis, tsiger |
-| [#157](https://github.com/tsiger/widgetizer/issues/157) | Desktop shortcut from the installer | open (board status not read) | tsiger |
 | [#158](https://github.com/tsiger/widgetizer/issues/158) | Arch's "Get in touch" header button points to a missing Contact page on pages inside a folder (other languages, collection items). To decide: from a Greek page, go to English Contact or to Greek Contact when there is one | open (board status not read) | tsiger |
 
-Closed in this milestone: 22 issues (the milestone's Closed tab).
+Closed in this milestone: 23 issues (the milestone's Closed tab).
 
 ## Findings, not scheduled
 

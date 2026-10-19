@@ -543,6 +543,16 @@ A collection item with no SEO image of its own published no og:image, even when 
 
 **Body at:** `c91fc86b:docs-llms/TODO-agents.md`.
 
+### GH157 · Desktop shortcut from the installer
+
+**Done · Unrated · OSS · 2026-10-19**
+
+The installed desktop app should put a shortcut on the desktop.
+
+**Resolution:** A first Windows install already created one (electron-builder's default, confirmed by a fresh install of the 0.9.9 release). A reinstall kept shortcuts as the user left them, so a deleted one never came back. `nsis.createDesktopShortcut: "always"` now recreates it on a manual reinstall; in-app updates still leave a removed shortcut alone, by the owner's choice. Mac and Linux unchanged. Checked by the owner with a test installer. Fix `de115fb6`. [GitHub #157](https://github.com/tsiger/widgetizer/issues/157)
+
+**Body at:** `de115fb6:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

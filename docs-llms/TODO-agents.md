@@ -21,7 +21,7 @@ Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current
 
 ## OSS 0.9.10 milestone (mirrors GitHub)
 
-Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117 (see the milestone's Closed tab).
+Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126, #117, #157 (see the milestone's Closed tab).
 
 #### GH115 · Multilingual support
 
@@ -40,16 +40,6 @@ Arch's header `ctaButtonLink` default is the typed link `{"href":"contact.html",
 **Done when:** The default button reaches Contact from root, item and language-folder pages in preview and export, shipped in a new Arch version's `updates/<version>/` copy; typed links keep passing through unchanged.
 
 **Start:** [header schema](../themes/arch/widgets/global/header/schema.json), [renderEngine.js](../packages/render-engine/src/renderEngine.js) (`resolveLinkValue`). [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)
-
-#### GH157 · Desktop shortcut from the installer
-
-**GitHub: open, board status not read · tsiger**
-
-Issue is title-only: the installed desktop app should put a shortcut on the desktop. `electron/builder.config.mjs` sets no `nsis` (Windows), `dmg` (Mac) or Linux `desktop` shortcut options beyond the entry name, so each installer uses electron-builder's defaults; check what each one does today before changing anything.
-
-**Done when:** The agreed platforms get a desktop shortcut from a fresh install, checked on an installer build.
-
-**Start:** [builder.config.mjs](../electron/builder.config.mjs). [GitHub #157](https://github.com/tsiger/widgetizer/issues/157)
 
 ## Findings (not scheduled)
 
