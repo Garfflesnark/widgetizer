@@ -473,6 +473,16 @@ Creating a missing translation and leaving before the request returned took the 
 
 **Body at:** `efc941d0:docs-llms/TODO-agents.md`.
 
+### GH126 · window.confirm bug in Electron
+
+**Done · Unrated · OSS · 2026-10-17**
+
+`window.confirm()` left the Windows Electron window unable to take keyboard focus after the dialog closed.
+
+**Resolution:** Both navigation guards use the in-app confirm (`useConfirm`, with Escape, focus trap and focus return); no native `confirm`/`alert`/`prompt` remains in editor-ui or the app shell. The owner verified it in the Windows desktop app on 2026-10-12, and the issue was closed on GitHub. Router-level tests remain T71. Fix `5defb8fe`, hardening `48eef6f4`. [GitHub #126](https://github.com/tsiger/widgetizer/issues/126)
+
+**Body at:** `8768d405:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.

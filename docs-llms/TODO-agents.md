@@ -17,11 +17,11 @@
 Snapshot: 2026-09-20, source revision `f10e20ce`. Linked-issue assignees are preserved from GitHub; local-only tasks have no assigned owner. Historical reports are evidence, not fresh reproductions.
 Original local details: `git show f10e20ce:docs-llms/TODO.md` (original numbered sections).
 Original review reasoning: `git show f10e20ce:docs-llms/domain/review-status.md` and `git show f10e20ce:docs-llms/domain/review-questions.md`.
-Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current milestone [OSS - 0.9.10](https://github.com/tsiger/widgetizer/milestone/2). Milestone section reconciled with GitHub on 2026-10-14.
+Public board: [OSS Roadmap](https://github.com/users/tsiger/projects/7); current milestone [OSS - 0.9.10](https://github.com/tsiger/widgetizer/milestone/2). Milestone section reconciled with GitHub on 2026-10-19.
 
 ## OSS 0.9.10 milestone (mirrors GitHub)
 
-Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156 (see the milestone's Closed tab).
+Open issues in the milestone, with their GitHub board status. Closed in this milestone: #118, #120, #121, #122, #127, #129, #130, #132, #133, #134, #135, #136, #137, #139, #142, #143, #144, #145, #155, #156, #126 (see the milestone's Closed tab).
 
 #### GH115 · Multilingual support
 
@@ -30,14 +30,6 @@ Open issues in the milestone, with their GitHub board status. Closed in this mil
 Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. The 2026-10-14 docs-llms pass reconciled the multilingual rules, theme switcher, architecture/package maps and domain model with the code, and added the checklist's Multilingual section (LANG-001 to LANG-042) — docs `202e9dfa`. The leftover English on translated pages was fixed under #156. A 2026-10-18 Fable/Codex gap review extended §18 to LANG-074 (refusals, cross-language links and menus, removal cleanup, editor guards, export combinations, preview paths, shared settings) and found the desktop app refusing language preview paths, fixed in `electron/previewPath.js`. Awaiting the partner's review.
 
 **Start:** [Multilingual rules](domain/multilingual.md), [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
-
-#### GH126 · window.confirm bug in Electron
-
-**GitHub: To Be Reviewed · anastis**
-
-`window.confirm()` left the Windows Electron window unable to take keyboard focus after the dialog closed. Both navigation guards use the in-app confirm (`useConfirm`, with Escape, focus trap and focus return); no native `confirm`/`alert`/`prompt` remains in editor-ui or the app shell. The owner verified it in the Windows desktop app on 2026-10-12. Router-level tests remain T71. Fix `5defb8fe`, hardening `48eef6f4`.
-
-**Start:** [ConfirmProvider.jsx](../packages/editor-ui/src/components/ui/ConfirmProvider.jsx). [GitHub #126](https://github.com/tsiger/widgetizer/issues/126)
 
 #### GH117 · Featured image as the fallback social image
 
@@ -48,6 +40,26 @@ Issue is title-only: should a page or item with no `og_image` use its featured i
 **Done when:** The agreed fallback ships with a test, or the issue moves out of the milestone.
 
 **Start:** [SeoTag.js](../packages/core/src/tags/SeoTag.js), [publishedUrls.js](../packages/core/src/utils/publishedUrls.js). [GitHub #117](https://github.com/tsiger/widgetizer/issues/117)
+
+#### GH158 · Arch's default header button breaks on pages inside a folder
+
+**GitHub: open, board status not read · tsiger**
+
+Arch's header `ctaButtonLink` default is the typed link `{"href":"contact.html","text":"Get in touch"}` (`themes/arch/widgets/global/header/schema.json` ~90, same in `updates/0.9.10/`). A link without `pageUuid` is a custom URL and passes through unprefixed by design (`resolveLinkValue` in `renderEngine.js`), so any page one folder deep links to a `contact.html` in its own folder: `de/index.html` → `de/contact.html` ("File not found" in View site), `services/growth.html` → `services/contact.html`, `el/services/growth.html` → `el/services/contact.html`. On `el/` pages it only works when a Greek `contact` happens to exist. Item pages had this before languages; every non-default language now sits in a folder, so most translated pages show it. Seen in the 2026-10-18 #115 review: an Arch project with Deutsch, exported and opened in View site (reproduction steps in [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)). Open question: from a translated page, should the button reach the default Contact or that language's Contact when one exists (page links are never re-pointed to a translation today)?
+
+**Done when:** The default button reaches Contact from root, item and language-folder pages in preview and export, shipped in a new Arch version's `updates/<version>/` copy; typed links keep passing through unchanged.
+
+**Start:** [header schema](../themes/arch/widgets/global/header/schema.json), [renderEngine.js](../packages/render-engine/src/renderEngine.js) (`resolveLinkValue`). [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)
+
+#### GH157 · Desktop shortcut from the installer
+
+**GitHub: open, board status not read · tsiger**
+
+Issue is title-only: the installed desktop app should put a shortcut on the desktop. `electron/builder.config.mjs` sets no `nsis` (Windows), `dmg` (Mac) or Linux `desktop` shortcut options beyond the entry name, so each installer uses electron-builder's defaults; check what each one does today before changing anything.
+
+**Done when:** The agreed platforms get a desktop shortcut from a fresh install, checked on an installer build.
+
+**Start:** [builder.config.mjs](../electron/builder.config.mjs). [GitHub #157](https://github.com/tsiger/widgetizer/issues/157)
 
 ## Findings (not scheduled)
 
@@ -129,6 +141,16 @@ Suggested: at the start of a run, remove the stage without swallowing the error 
 **Done when:** A run never prepares into a stage it did not create, with a test that makes the stage removal fail.
 
 **Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js). **Source:** 2026-10-18 Codex review of `29289f67..6344ab5c`.
+
+#### THEME-UPDATE-PREPARE-DIRS · Preparing a theme update creates folders in the live project
+
+**Open · Low · Shared**
+
+`applyThemeUpdateToDir` documents its prepare phase as touching nothing the project uses, but it walks the theme's templates with `processTemplatesRecursive` (`templateHelpers.js`), which calls `fs.ensureDir` on each target under the project's `pages/` (including subfolders such as `pages/el/`). A prepare that then fails leaves those empty folders behind, and the update plan does not name them. Found by Codex while reviewing GH153; not reproduced.
+
+**Done when:** Preparing an update computes the target paths without creating live folders, with a test that a failed prepare leaves `pages/` as it was.
+
+**Start:** [templateHelpers.js](../packages/builder-server/src/utils/templateHelpers.js), [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js).
 
 #### PREVIEW-SCRIPT-URL · A malformed theme script address stops a widget's live preview
 
@@ -244,11 +266,15 @@ User report on 0.9.9: on small screens Arch's testimonial slider shows a slice o
 
 #### GH153 · Pages and menus added by a theme update are not linked like a new project's
 
-**Open · Low · Shared**
+**Fixed · Low · Shared**
 
-Creation runs `enrichNewProjectReferences` over starter pages and menus; `applyThemeUpdateToDir` does not, so a page an update adds has no `uuid` until saved, its menu items keep plain links with no `pageUuid`, and a menu setting keeps the menu id. Renders fine, but those links do not follow renames. Only affects updates that ship brand-new pages or menus. Found by reading the code.
+Creation runs `enrichNewProjectReferences` (`linkEnrichment.js`) over starter pages and menus; `applyThemeUpdateToDir` (`themeUpdateService.js` ~391–421) writes an update's new pages and menus without it. So links in an added page keep a plain `href` with no `pageUuid`, items in an added menu keep a plain `link` with no `pageUuid`, and, by the code, a menu setting in an added page keeps the menu's slug rather than its uuid. Everything renders; the cost is that these links do not follow a renamed page. Added pages do get a `uuid`: the media-usage refresh that `applyThemeUpdate` runs afterwards stamps any page missing one (`identityOf` in `mediaUsageService.js`). Only updates that ship brand-new pages or menus are affected; pages and menus the project already has are left alone, which is correct and tested.
 
-**Done when:** Added pages get a uuid and the linking runs over just the added files inside the update's swap, with a test.
+Reproduced 2026-10-19 in the browser with a two-version Arch copy whose 1.1.0 adds a Team page (a copy of About) and a Team menu: after the update and a rename of Contact to `get-in-touch`, the export's About "Talk to us" button links to `get-in-touch.html` while Team's identical button still links to `contact.html` ("File not found"); the stored Team menu keeps `contact.html` with no `pageUuid`, while the footer menu's Contact item publishes as `get-in-touch.html`. The menu-setting case was reproduced with a 1.2.0 that adds an Hours page whose contact-details menu block selects `footer-menu`: the page stores the bare slug, but nothing visible follows — the editor shows "Footer menu" selected, preview and export render it, and renaming the menu keeps its `id`, so the slug still resolves. A bare slug is also what creation-time globals use when they rely on a schema default, and it deliberately resolves per language (`menuResolver.js` ~183), so converting it to the root menu's uuid is not clearly an improvement.
+
+**Approach (Codex and Fable review, 2026-10-19):** enrich in the prepare phase, in memory, on `additions` and the merged `theme.json` before the plan is written — not after the swap, which would modify files the plan cannot roll back. Give added pages their `uuid` there (skipping `global/`, as `projectScaffold.js` does), and build the slug maps from existing plus added pages and menus. Extract the transforms from `enrichNewProjectReferences` into pure helpers shared by creation and update rather than adding a file-list variant. Leave existing author content alone, including links that already point at a page the update adds. For merged theme settings, enrich only theme-supplied values, never a preserved owner value. Keep `applyThemeUpdateToDir` as the place for it, since embedding apps call it directly. The live-folder side issue Codex found is THEME-UPDATE-PREPARE-DIRS.
+
+**Done when:** Links in pages an update adds, items in menus it adds, and link settings the update's `theme.json` brings get the same page references a new project's do, prepared before the update's all-or-nothing swap, with a test.
 
 **Start:** [themeUpdateService.js](../packages/builder-server/src/services/themeUpdateService.js). [GitHub #153](https://github.com/tsiger/widgetizer/issues/153)
 
@@ -272,23 +298,13 @@ Only `GET /api/projects` adds the display `themeName` (`getAllProjects` in `proj
 
 **Start:** [projectController.js](../packages/builder-server/src/controllers/projectController.js), [ProjectsEdit.jsx](../app/src/pages/ProjectsEdit.jsx), [ProjectForm.jsx](../app/src/components/projects/ProjectForm.jsx). **Source:** 2026-10-17 browser review of #155.
 
-#### GH158 · Arch's default header button breaks on pages inside a folder
-
-**Open · Unrated · OSS · For: Gerasimos**
-
-Arch's header `ctaButtonLink` default is the typed link `{"href":"contact.html","text":"Get in touch"}` (`themes/arch/widgets/global/header/schema.json` ~90, same in `updates/0.9.10/`). A link without `pageUuid` is a custom URL and passes through unprefixed by design (`resolveLinkValue` in `renderEngine.js`), so any page one folder deep links to a `contact.html` in its own folder: `de/index.html` → `de/contact.html` ("File not found" in View site), `services/growth.html` → `services/contact.html`, `el/services/growth.html` → `el/services/contact.html`. On `el/` pages it only works when a Greek `contact` happens to exist. Item pages had this before languages; every non-default language now sits in a folder, so most translated pages show it. Seen in the 2026-10-18 #115 review: an Arch project with Deutsch, exported and opened in View site (reproduction steps in [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)). Open question: from a translated page, should the button reach the default Contact or that language's Contact when one exists (page links are never re-pointed to a translation today)?
-
-**Done when:** The default button reaches Contact from root, item and language-folder pages in preview and export, shipped in a new Arch version's `updates/<version>/` copy; typed links keep passing through unchanged.
-
-**Start:** [header schema](../themes/arch/widgets/global/header/schema.json), [renderEngine.js](../packages/render-engine/src/renderEngine.js) (`resolveLinkValue`). [GitHub #158](https://github.com/tsiger/widgetizer/issues/158)
-
 #### GH159 · Links whose target is gone still publish as working links
 
-**Open · Unrated · OSS**
+**Open · Unrated · OSS · For: tsiger**
 
-Deleting a page or removing a language keeps a pointing link's label and empties its address (`clearDeletedReferencesInSection` in `linkEnrichment.js` ~907 returns `{ ...rest, href: "" }`; menus clear `link` in `menuResolver.js`). The label stays on purpose so the editor shows what to re-point, but the published site writes it as a link: the core menu snippet emits `<a href="">Greek About</a>`, and Arch's button templates show a button whenever its text is set (e.g. `image-text` `link.text != blank`), emitting `<a href="" class="widget-button">View services</a>`. An empty `href` reloads the current page. Seen in the 2026-10-18 #115 export review after removing Greek (LANG-043 says "no destination"). Proposed: a menu item with no address renders as plain text (keeping its sub-items); a button with no address is left out; the editor keeps showing both.
+Deleting a page or removing a language keeps a pointing link's label and empties its address (`clearDeletedReferencesInSection` in `linkEnrichment.js` ~907 returns `{ ...rest, href: "" }`; menus clear `link` in `menuResolver.js`). The label stays on purpose so the editor shows what to re-point, but the published site writes it as a link: the core menu snippet emits `<a href="">Greek About</a>`, and Arch's button templates show a button whenever its text is set (e.g. `image-text` `link.text != blank`), emitting `<a href="" class="widget-button">View services</a>`. An empty `href` reloads the current page. Seen in the 2026-10-18 #115 export review after removing Greek (LANG-043 says "no destination"). The behaviour is not decided; tsiger owns it, since most of the work is in Arch's button templates. The issue proposes: a menu item with no address renders as plain text (keeping its sub-items); a button with no address is left out; the editor keeps showing both.
 
-**Done when:** Preview and export write no `href=""` for cleared menu items or buttons, the editor still lists them, with tests for the menu snippet and at least one Arch button template.
+**Done when:** The behaviour is decided, and preview and export then write no `href=""` for cleared menu items or buttons, the editor still lists them, with tests for the menu snippet and at least one Arch button template.
 
 **Start:** [menu.liquid](../packages/core/src/snippets/menu.liquid), [linkEnrichment.js](../packages/builder-server/src/utils/linkEnrichment.js), [image-text](../themes/arch/widgets/image-text/widget.liquid). [GitHub #159](https://github.com/tsiger/widgetizer/issues/159)
 

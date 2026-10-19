@@ -183,6 +183,10 @@ These paths receive additions but preserve existing files:
 
 This allows theme authors to add new menus or page templates without overwriting user customizations.
 
+An added page or menu gets the page references a new project's content gets, so its links follow a page the owner later renames. Added pages (not added `header`/`footer` globals) get their `uuid`; slug links (`contact.html`) in their widgets and richtext, and in the added menus' items, gain the `pageUuid` of the page they name; the same goes for `link` and `richtext` defaults and values the update's `theme.json` brings, enriched before the merge so an owner's carried-over value is left as it is (`enrichThemeUpdateAdditions` in `linkEnrichment.js`). A slug resolves against the project's pages plus the added ones in the same language folder, so `contact.html` in an added `el/` page names the Greek Contact. Menu selections in added pages stay slugs: a menu slug already resolves per language at render time. This happens while the update is prepared, before anything is written, so the enriched pages and menus are ordinary additions: a failed swap removes them, and an interrupted one is undone by the next update's recovery (see below).
+
+Existing content is left as it is: a hand-typed link that already names a page the update adds (`team.html`) stays a typed link.
+
 `locales/` belongs to the project-owned theme package. The editor locale API reads `data/projects/<folder>/locales/`, and so does rendering for the visitor `site` strings (`loadSiteStrings` in `siteStringsService.js`), so locale changes — including new or translated visitor words — only affect an existing project after that project applies a theme update (or is recreated).
 
 ## Theme Settings Merge

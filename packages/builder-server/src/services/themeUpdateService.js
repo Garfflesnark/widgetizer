@@ -16,6 +16,7 @@ import { refreshMediaUsageAfterStructuralChange } from "./mediaUsageService.js";
 import { withContentWriteLock } from "./contentCoordination.js";
 import { getUpdateStatus } from "../utils/updateStatus.js";
 import { processTemplatesRecursive } from "../utils/templateHelpers.js";
+import { enrichThemeUpdateAdditions } from "../utils/linkEnrichment.js";
 import { findThemeSetting } from "@widgetizer/core/themeSettingChanges";
 import { projectLanguages } from "../utils/contentLanguage.js";
 import { loadableCollectionSchemas } from "./collectionService.js";
@@ -415,17 +416,29 @@ export async function applyThemeUpdateToDir({ themeSourceDir, projectDir, langua
       async (template, slug, targetPath) => {
         if (await fs.pathExists(targetPath)) return; // the author's page
         const now = new Date().toISOString();
+        // A page gets its uuid here, as in a new project, so links to it can be
+        // stamped before anything is written.
+        const isGlobal = template.type === "header" || template.type === "footer";
         additions.push({
           rel: path.relative(projectDir, targetPath),
-          content: { ...template, id: slug, slug, created: now, updated: now },
+          content: {
+            ...template,
+            ...(isGlobal ? {} : { uuid: randomUUID() }),
+            id: slug,
+            slug,
+            created: now,
+            updated: now,
+          },
         });
       },
     );
 
-    mergedThemeJson = mergeThemeSettings(
-      await fs.readJson(path.join(projectDir, "theme.json")),
-      await fs.readJson(newThemeJsonPath),
-    );
+    // Enriched before the merge, so only values the theme supplies are touched:
+    // an owner's value carried over by the merge keeps whatever it holds.
+    const newThemeJson = await fs.readJson(newThemeJsonPath);
+    await enrichThemeUpdateAdditions({ pagesDir: path.join(projectDir, "pages"), additions, themeJson: newThemeJson });
+
+    mergedThemeJson = mergeThemeSettings(await fs.readJson(path.join(projectDir, "theme.json")), newThemeJson);
 
     // Read from the staged copy, so what is checked is exactly what would be
     // applied, even if the theme source changes meanwhile. A theme without

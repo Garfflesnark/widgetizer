@@ -10,10 +10,11 @@ Two lists: what is in the current GitHub milestone, and what we have found but n
 | Issue | What | GitHub status | Who |
 | --- | --- | --- | --- |
 | [#115](https://github.com/tsiger/widgetizer/issues/115) | Multilingual sites | To Be Reviewed | anastis, tsiger |
-| [#126](https://github.com/tsiger/widgetizer/issues/126) | Leave-page prompt froze typing on Windows | To Be Reviewed | anastis |
 | [#117](https://github.com/tsiger/widgetizer/issues/117) | Featured image as the fallback social image | Todo | tsiger |
+| [#157](https://github.com/tsiger/widgetizer/issues/157) | Desktop shortcut from the installer | open (board status not read) | tsiger |
+| [#158](https://github.com/tsiger/widgetizer/issues/158) | Arch's "Get in touch" header button points to a missing Contact page on pages inside a folder (other languages, collection items). To decide: from a Greek page, go to English Contact or to Greek Contact when there is one | open (board status not read) | tsiger |
 
-Closed in this milestone: 20 issues (the milestone's Closed tab).
+Closed in this milestone: 21 issues (the milestone's Closed tab).
 
 ## Findings, not scheduled
 
@@ -22,12 +23,13 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 - **UI-LIST-REPLY** — a bad reply from the server crashes the Pages screen or empties editor screens. Show a clear "couldn't load" instead.
 - **GH148** — the testimonial carousel shows part of the next card on phones (reported on 0.9.9).
 - **GH154** — on the Linux desktop app, "View site" fails.
-- **GH153** — pages and menus a theme update adds aren't linked like a new project's, so their links don't follow renames.
+- **GH153** (fixed) — links in pages and menus that a theme update adds aren't tied to the pages they point at, so they break when that page is renamed (reproduced: a button on an update-added page still pointed at `contact.html` after Contact was renamed).
 - **SKIPPED-ITEM-NOTICE** — a collection item with a broken address disappears with nothing on screen to say so.
 - **THEME-UPLOAD-CLEANUP** — a theme update upload that fails near the end can leave its new versions installed.
 - **THEME-UPDATE-RESUME** — after a crash mid theme update the site looks broken until the update is pressed again.
 - **THEME-UPDATE-REMOVED-FOLDER** — when a theme version drops a whole folder (for example all its collection types), sites that update keep the old one.
 - **THEME-UPDATE-STAGE-CLEANUP** — if a theme update can't delete its temporary folder, the next update can pick up stale files from it.
+- **THEME-UPDATE-PREPARE-DIRS** — getting a theme update ready creates empty page folders in the site, which stay behind if the update then fails.
 - **PREVIEW-SCRIPT-URL** — a badly written theme script address stops a widget's live preview.
 - **THEME-WARNING-LABEL** — a theme-save warning names the setting by an internal code.
 - **UNDO-CLEAN** — undoing back to the saved state leaves Save enabled.
@@ -38,8 +40,7 @@ Closed in this milestone: 20 issues (the milestone's Closed tab).
 - **THEME-CHECKER** — the theme checker passes a few things that break on export and crashes on one valid tag.
 - **LANG-PREFIX-WARNING** — the theme checker's "this prefix looks like a language code" warning is a best guess: it misses a few codes a site could add and the docs describe it as more exact than it is.
 - **PROJECT-THEME-NAME** — after saving Project details, its Theme field shows the theme's internal id ("arch") instead of its name ("Arch") until the page is opened again.
-- **GH158** (for Gerasimos) — Arch's default "Get in touch" header button links to `contact.html` as typed text, so on pages inside a folder (other languages, collection items) it points to a Contact page that isn't there. Fix the theme default; to decide: from a Greek page, go to English Contact or to Greek Contact when there is one.
-- **GH159** — when a link's target page is deleted or its language removed, the menu item or button keeps its label but publishes as a link to nowhere that just reloads the page. Show the menu item as plain text and leave the button out; the editor keeps showing them so they can be re-pointed.
+- **GH159** — when a link's target page is deleted or its language removed, the menu item or button keeps its label but publishes as a link to nowhere that just reloads the page. For tsiger: what to publish instead isn't decided. The issue proposes showing the menu item as plain text and leaving the button out, while the editor keeps showing them so they can be re-pointed.
 - **BACKUP-ZIP-NAME** — backups download as `project-export.zip` instead of the project's name (seen in the dev setup; the packaged app may be fine).
 - **PREVIEW-FORM-SUBMIT** — submitting a form in the preview shows a raw "Cannot POST" error; say forms work once published instead.
 - **VIEWER-OPENER** — the export viewer window can reach back to the editor window; open it without that link.
