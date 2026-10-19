@@ -1,6 +1,6 @@
 # Electron Auto-Update And Theme Update Test
 
-This is a human-run playbook for testing real Windows Electron auto-updates and bundled theme-update deltas between any two releases.
+This is a playbook for testing real Windows and macOS Electron auto-updates and bundled theme-update deltas between any two releases.
 
 Use it for `0.9.8 -> 0.9.9`, `0.9.9 -> 0.9.10`, or future version pairs. The important rule is that the base app must be built from the real previous release tag, not by editing or emulating the app version.
 
@@ -67,7 +67,11 @@ The human then:
 
 Restore afterwards (Widgetizer closed): stop the feed, delete the four install/data folders again, copy the backup back with `robocopy "$test\backup-appdata-widgetizer" "$env:APPDATA\widgetizer" /E /COPY:DAT`, and reinstall the official signed release (`gh release download <fromVersion> --repo tsiger/widgetizer --pattern "Widgetizer-Setup-*.exe"`, then run it with `/S`). Keep the backup until the developer confirms their projects look right.
 
-### Mac (not yet run)
+### Mac (verified 2026-10-19, Apple silicon, 0.9.9 → 0.9.10)
+
+The installed signed 0.9.9 app detected the local feed, downloaded the signed and notarized arm64 ZIP, and installed/relaunched as 0.9.10 through **Update → Restart Now**. The installed signature verified, SQLite integrity passed, and all 442 existing project files were unchanged by the app upgrade. Arch then updated to 0.9.10; the opted-in project accepted its theme update, while the opted-out project remained on 0.9.8 with its files unchanged. These were existing blank-preset test projects, so this run does not establish populated-site rendering/export coverage. The original app and data were restored afterward. Intel and differential downloads were not tested; this run used a full download.
+
+Notarization initially returned HTTP 403 about a missing or expired agreement. The account showed the updated agreement accepted, but retries still failed. After replacing the app-specific password in `.env.mac`, the next submission succeeded. This sequence does not establish whether credential replacement or agreement propagation resolved the error. Keep credentials out of logs and chat; no signing certificate replacement was needed.
 
 macOS only installs updates that are code-signed by the same Developer ID as the running app. **An unsigned → unsigned test does not work on Mac.** Use the official signed release as the base and a signed (and notarized) build of the target.
 
