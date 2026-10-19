@@ -697,13 +697,14 @@
     "noWidgetsFound": "No widgets found",
     "paginate": {
       "label": "Split into pages",
-      "description": "Shows this many items per page, with page links below the list. Makes this the main page for the collection.",
+      "description": "Shows this many items per page, with page links below the list.",
       "onlyOne": "Only one list per page can be split into pages, and \"{{widget}}\" already is."
     },
     "listingAnchor": {
+      "header": "Collection",
       "label": "Main {{collection}} page",
       "description": "Marks this page as the home of this collection. Its items show it in their breadcrumbs, e.g. Home › Blog › A post. Only one page per collection.",
-      "moved": "This is now the main page for that collection — moved from {{pages}}. If that page was split into pages, it no longer is."
+      "moved": "This is now the main page for that collection — moved from {{pages}}."
     },
     "themeConflict": "Site settings were changed elsewhere since this editor opened. Your theme changes are kept on top of the current settings and will be saved.",
     "mediaUsage": {

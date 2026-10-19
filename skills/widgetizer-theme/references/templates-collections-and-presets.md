@@ -121,7 +121,7 @@ This is a fragment to merge into a full widget schema. The editor injects the `l
 
 Define the visitor string used here. `entry.url` is absent/null for a list-only collection. Results contain prepared settings and stable record identity. The theme is responsible for a useful empty state.
 
-**Enforced on page save:** at most one paginating widget per page; positive whole-number items per page; valid collection/perPageSetting configuration. Pagination makes that widget an anchor. Anchor coordination clears competing anchors/pagination for the collection on other pages.
+**Enforced on page save:** at most one paginating widget per page; positive whole-number items per page; valid collection/perPageSetting configuration. Pagination and the anchor are independent. Anchor coordination clears competing anchors for the collection on other pages and leaves their pagination alone.
 
 The engine supplies `pagination.current`, `.total`, `.perPage`, `.totalItems`, `.prevHref`, `.nextHref`, and `.pages` entries (`number`, `href`, `current`). Pagination can be absent when all items fit on one page. The filter's slice is applied to the active listing widget only. Use supplied hrefs; do not calculate nested page URLs yourself.
 

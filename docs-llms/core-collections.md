@@ -162,12 +162,12 @@ ticked: the editor holds the change until save, so clearing another page earlier
 would strip its anchor for an edit the user might discard. The save response
 carries `listingAnchorMovedFrom` with the names of the pages it cleared, which
 the editor announces. A duplicated page starts unclaimed — it is written directly
-and the sweep never sees it (duplicating or pasting a widget in the editor clears the flag too). A duplicated *project* keeps its anchors, since the
+and the sweep never sees it (duplicating or pasting a widget in the editor clears the flag too, and `paginate` with it, since one page cannot hold two paginators). A duplicated page keeps `paginate`. A duplicated *project* keeps its anchors, since the
 whole hierarchy is copied and stays internally consistent. If data ever holds two
 anchors anyway, the first page by slug wins so every render agrees.
 
-Pagination leans on the anchor: a paginating widget always holds it, and when the
-sweep takes the anchor from a page it also turns that page's `paginate` off (§5b).
+Pagination is independent of the anchor: a paginating widget need not hold it, and
+the sweep leaves `paginate` alone on the pages it takes the anchor from (§5b).
 
 ---
 
@@ -181,9 +181,9 @@ A listing widget can split its page into numbered copies. The schema names the s
 "collection": { "type": "news", "perPageSetting": "limit" }
 ```
 
-`SettingsPanel.jsx` then injects a **"Split into pages"** checkbox (`paginate`) beside the anchor checkbox. Turning it on also ticks the anchor, sets items per page to 12 when it was below 1, and refuses (a toast naming the holder) when another widget on the page already paginates. While it is on, items per page cannot drop below 1, and unticking the anchor turns it off.
+`SettingsPanel.jsx` then injects a **"Split into pages"** checkbox (`paginate`) just before that setting (at the end when the schema has no such setting); the anchor checkbox sits apart, in its own **Collection** section after the theme's settings. Turning it on sets items per page to 12 when it was below 1, in the same undo step (`updateWidgetSettingValues`), and refuses (a toast naming the holder) when another widget on the page already paginates. While it is on, items per page cannot drop below 1. It does not touch the anchor.
 
-**Server rules** — `enforcePaginationRules` in `pageController.js`, run by `savePageContent` and by `updatePage` whenever widgets are sent. Items per page (the widget's value, else the schema default) must be a whole number ≥ 1, else `422`. A widget whose schema lacks `collection.type`, a string `perPageSetting` or an array `settings` has `paginate` switched off. Two paginating widgets on one page → `422`. A paginating widget gets `listing_anchor: true`; the anchor sweep then clears the anchor and `paginate` on other pages.
+**Server rules** — `enforcePaginationRules` in `pageController.js`, run by `savePageContent` and by `updatePage` whenever widgets are sent. Items per page (the widget's value, else the schema default) must be a whole number ≥ 1, else `422`. A widget whose schema lacks `collection.type`, a string `perPageSetting` or an array `settings` has `paginate` switched off. Two paginating widgets on one page → `422`. `paginate` never sets or needs `listing_anchor`.
 
 **Planning** — `planPagination(deps, widgets, widgetsOrder, { pageSlug, currentPage })` in `render-engine` picks the first widget that can paginate, counts valid items through `deps.countCollectionItems`, and returns `{ widgetId, collectionType, perPage, totalItems, total, current, pageSlug }` — or `null` when nothing paginates or everything fits on one page, in which case output is unchanged. Callers put the plan on `sharedGlobals.paginationPlan`. Never name it `sharedGlobals.pagination`: render globals are visible to Liquid, so that name would hand a pager object to every widget.
 
