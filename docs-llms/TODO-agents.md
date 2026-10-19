@@ -282,21 +282,11 @@ The Core Form posts to `/__widgetizer/forms/<key>`, which only a publishing host
 
 **Start:** [core-form widget](../packages/core/src/widgets/core-form/widget.liquid), [previewRuntime.js](../packages/core/src/runtime/previewRuntime.js).
 
-#### VIEWER-OPENER · The export viewer window keeps `window.opener`
-
-**Open · Low · OSS**
-
-`ExportHistoryTable.jsx` (~72-86) opens View site / issues reports with `window.open(url, "_blank")`; in the desktop app `electron/main.js` has no `setWindowOpenHandler`, so the viewer is a new app window. It gets no preload bridge (checked), but keeps `window.opener`, so script in an exported site (embed code) could navigate the editor window. Seen 2026-10-18 in the dev desktop app.
-
-**Done when:** The viewer opens without an opener (`noopener`, or a window-open handler that drops it) in browser and desktop, checked in both.
-
-**Start:** [ExportHistoryTable.jsx](../packages/editor-ui/src/components/export/ExportHistoryTable.jsx), [electron/main.js](../electron/main.js).
-
 #### DESKTOP-WINDOW-OPEN · The desktop app lets any page open new app windows
 
 **Open · Medium · OSS**
 
-`electron/main.js` sets no `setWindowOpenHandler` on the main window (~334) or the preview window (~446), so any `window.open` or `target="_blank"` from a page — including exported sites, theme scripts and pasted embeds shown in a viewer or preview — creates a new `BrowserWindow`. The child does not get the preload bridge (checked 2026-10-19) and, opened with `noopener`, cannot reach its opener; but a page can still open any number of app windows or load any remote site inside one. Electron's security checklist (item 14) is to limit window creation. Found by Codex reviewing VIEWER-OPENER; not reproduced.
+`electron/main.js` sets no `setWindowOpenHandler` on the main window (~334) or the preview window (~446), so any `window.open` or `target="_blank"` from a page — including exported sites, theme scripts and pasted embeds shown in a viewer or preview — creates a new `BrowserWindow`. The child does not get the preload bridge (checked 2026-10-19) and, opened with `noopener`, cannot reach its opener; but a page can still open any number of app windows or load any remote site inside one. Electron's security checklist (item 14) is to limit window creation. Found by Codex reviewing VIEWER-OPENER (`ca9ee2b1`); not reproduced.
 
 **Done when:** a window-open handler allows only the app's own viewer and preview addresses as app windows, sends external `https:` links to the system browser (`shell.openExternal`, after validating the URL), and denies everything else; "View site", the issues report, Media files and external links still work in the desktop app; with a test of the handler's decisions.
 

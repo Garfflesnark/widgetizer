@@ -523,6 +523,16 @@ A Site settings save whose value the server reset showed the server's English se
 
 **Body at:** `53cc80f3:docs-llms/TODO-agents.md`.
 
+### VIEWER-OPENER · The export viewer window keeps `window.opener`
+
+**Done · Low · OSS · 2026-10-19**
+
+View site and the issues report (`ExportHistoryTable.jsx`) and Media's file view opened with plain `window.open(url, "_blank")`, so an exported site or an uploaded HTML/SVG file kept `window.opener` and its scripts could navigate the editor (reverse tabnabbing), in the browser and as a new desktop-app window.
+
+**Resolution:** those openings pass `noopener,noreferrer`; Media uses the single opener in `useMediaMetadata`. Codex found the standalone site preview had the same exposure; it is opened by name for reuse, which rules out `noopener`, so `SitePreviewLayout` calls `detachPreviewFromOpener()` (`lib/openSitePreview.js`) before the site frame loads (embedding apps with their own preview page call it too). Checked in Chrome and the dev desktop app: the viewer and the preview have no opener, and Preview still reuses its window. The desktop app's unrestricted window creation is logged as DESKTOP-WINDOW-OPEN. Fix `ca9ee2b1`.
+
+**Body at:** `ca9ee2b1:docs-llms/TODO-agents.md`.
+
 ## Reconciliation decisions
 
 - GitHub #115, #122, #126, #133, #134 and #135 have implementation evidence. Their remaining local entries are review/documentation/integration work, not instructions to rebuild the features. GitHub statuses were left unchanged.
