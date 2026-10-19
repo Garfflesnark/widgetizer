@@ -145,6 +145,7 @@ export function validateCollectionSchema(schema, folderName) {
   // --- settings array + per-setting checks ---
   let titleSettings = [];
   let dateSettings = [];
+  let imageSettings = [];
   if (!Array.isArray(schema.settings)) {
     errors.push("`settings` must be an array.");
   } else {
@@ -174,6 +175,9 @@ export function validateCollectionSchema(schema, folderName) {
       if (setting.usedAsDate === true && setting.type !== "header") {
         dateSettings.push(setting);
       }
+      if (setting.usedAsImage === true && setting.type !== "header") {
+        imageSettings.push(setting);
+      }
     });
   }
 
@@ -189,6 +193,13 @@ export function validateCollectionSchema(schema, folderName) {
     errors.push(`At most one non-header setting may declare \`usedAsDate: true\` (found ${dateSettings.length}).`);
   } else if (dateSettings.length === 1 && dateSettings[0].type !== "date") {
     errors.push("`usedAsDate` must be on a `date` setting.");
+  }
+
+  // --- usedAsImage: at most one, must be an image setting ---
+  if (imageSettings.length > 1) {
+    errors.push(`At most one non-header setting may declare \`usedAsImage: true\` (found ${imageSettings.length}).`);
+  } else if (imageSettings.length === 1 && imageSettings[0].type !== "image") {
+    errors.push("`usedAsImage` must be on an `image` setting.");
   }
 
   if (schema.structuredData !== undefined && Array.isArray(schema.settings)) {
@@ -1398,6 +1409,11 @@ export function buildCollectionItemPageData(schema, item, siteUrl, cleanUrls = f
   const titleValue = (titleField && settings[titleField.id]) || item.slug;
 
   const seo = shapeItemSeo(item.seo);
+  const imageField = fieldSettings.find((s) => s.usedAsImage);
+  const featuredImage = imageField ? settings[imageField.id] : "";
+  if (!seo.og_image.trim() && typeof featuredImage === "string" && featuredImage.trim()) {
+    seo.og_image = featuredImage;
+  }
   // One shared base, same as page canonicals and the sitemap; "" when the Site
   // URL is unset or unusable, which leaves the canonical omitted.
   const canonical_url =

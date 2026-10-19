@@ -142,7 +142,7 @@ Example table field and value:
 ]
 ```
 
-`required` is enforced for collection item data through its validation path; do not assume setting the flag gives all widget inputs server-side required validation. Collection-only `usedAsTitle`/`usedAsDate` rules are in the content reference. `outputAsCssVar` is for global theme settings, not automatic per-widget styling.
+`required` is enforced for collection item data through its validation path; do not assume setting the flag gives all widget inputs server-side required validation. Collection-only `usedAsTitle`/`usedAsDate`/`usedAsImage` rules are in the content reference. `outputAsCssVar` is for global theme settings, not automatic per-widget styling.
 
 ## Defaults and links
 

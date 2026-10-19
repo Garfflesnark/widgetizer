@@ -29,6 +29,7 @@ A collection type is defined by `collection-types/{type}/schema.json` in the the
 - **Allowed field types** are the standard editor setting types — validated via `isSupportedSettingType` against `SUPPORTED_SETTING_TYPES` (`packages/core/src/config/settingTypes.js`), the single source of truth shared with the editor's `SettingsRenderer`. An item is a **flat record**, so the repeater-style keys `multiple`, `repeater`, and `blocks` are **disallowed** (use a `table` or `gallery` for repetition within a field). For the per-type authoring shapes — including the `richtext` toolbar options — see [Setting Types](theming-setting-types.md).
 - **`usedAsTitle: true`** — exactly one field, which must be `text`. It supplies the item's title and the auto-generated slug.
 - **`usedAsDate: true`** — at most one field, which must be `date`. It becomes the sort key for `date_desc` / `date_asc` (items with a blank date sort last).
+- **`usedAsImage: true`** — at most one field, which must be `image`. On item pages it is the share image (`og:image` / `twitter:image`) when the item's own SEO image is empty.
 - **`required: true`** — the item fails validation until the field has a non-empty value.
 - **`table`** columns are `text`-only in v1; each column id must match `^[a-zA-Z][a-zA-Z0-9_]*$` and must not be `__proto__` / `constructor` / `prototype`.
 

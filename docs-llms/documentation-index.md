@@ -89,7 +89,7 @@ The [Widgetizer Theme skill](../skills/widgetizer-theme/SKILL.md) provides a tas
 - Understanding setting properties, CSS variable output, and i18n labels
 - Looking up the `file`/`video` setting types or richtext/link options
 
-**Key topics**: Setting types (color, text, range, select, date, gallery, table, icon, youtube, richtext, code, menu, link, `file`, `video` incl. MP4 uploads, etc.), common properties, CSS variable generation, i18n label resolution (tTheme: keys), collection field flags (`usedAsTitle`/`usedAsDate`), richtext `allow_headings`/`allow_images`/`min_height` + stable internal-link refs in richtext anchors (`data-page-uuid`/`data-collection-item-uuid`), structured link targets (`pageUuid`/`collectionType`/`collectionItemUuid`), icon `allow_patterns`, `rte_text`/`rte_blank`
+**Key topics**: Setting types (color, text, range, select, date, gallery, table, icon, youtube, richtext, code, menu, link, `file`, `video` incl. MP4 uploads, etc.), common properties, CSS variable generation, i18n label resolution (tTheme: keys), collection field flags (`usedAsTitle`/`usedAsDate`/`usedAsImage`), richtext `allow_headings`/`allow_images`/`min_height` + stable internal-link refs in richtext anchors (`data-page-uuid`/`data-collection-item-uuid`), structured link targets (`pageUuid`/`collectionType`/`collectionItemUuid`), icon `allow_patterns`, `rte_text`/`rte_blank`
 
 ---
 
