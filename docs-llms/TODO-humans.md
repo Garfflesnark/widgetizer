@@ -10,6 +10,7 @@ Two lists: what is in the current GitHub milestone, and what we have found but n
 | Issue | What | GitHub status | Who |
 | --- | --- | --- | --- |
 | [#115](https://github.com/tsiger/widgetizer/issues/115) | Multilingual sites | To Be Reviewed | anastis, tsiger |
+| [#162](https://github.com/tsiger/widgetizer/issues/162) | Desktop app: links that open a new window go to the browser | To Be Reviewed | tsiger |
 
 Closed in this milestone: 26 issues (the milestone's Closed tab).
 
@@ -36,7 +37,6 @@ Closed in this milestone: 26 issues (the milestone's Closed tab).
 - **PROJECT-DETAILS-STALE** — if you save Project details and switch to another project's details within a second, the old save can make the first project active again (sending you back to the Projects list) or show its messages on the new page.
 - **BACKUP-ZIP-NAME** — backups download as `project-export.zip` instead of the project's name (seen in the dev setup; the packaged app may be fine).
 - **PREVIEW-FORM-SUBMIT** — submitting a form in the preview shows a raw "Cannot POST" error; say forms work once published instead.
-- **DESKTOP-WINDOW-OPEN** — in the desktop app, any page (including an exported site or a theme script) can open new app windows and load any website in them. Allow only the app's own windows, send external links to the system browser, block the rest.
 
 ### Improvements
 

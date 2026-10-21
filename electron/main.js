@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { isSafePreviewPath } from "./previewPath.js";
+import { windowOpenTarget } from "./windowOpenPolicy.js";
 
 // Constants
 const DEFAULT_PORT = "3001";
@@ -345,6 +346,8 @@ function createWindow() {
     },
   });
 
+  applyWindowOpenPolicy(mainWindow);
+
   mainWindow.on("closed", () => {
     log("Main window closed");
     mainWindow = null;
@@ -444,6 +447,7 @@ function createPreviewWindow() {
   }
 
   previewWindow = new BrowserWindow(browserWindowOpts);
+  applyWindowOpenPolicy(previewWindow);
 
   previewWindow.on("closed", () => {
     log("Preview window closed");
@@ -756,6 +760,34 @@ function createAppMenu() {
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
+}
+
+function contentOrigins() {
+  return serverPort ? [`http://127.0.0.1:${serverPort}`, `http://localhost:${serverPort}`] : [];
+}
+
+// Pages shown in the app (the preview, an exported site, a theme's script) can call
+// window.open or use target="_blank". Without a handler each would become a new app
+// window that loads whatever it was given.
+function applyWindowOpenPolicy(window) {
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    const target = windowOpenTarget(url, contentOrigins());
+    if (target === "content") openContentWindow(url);
+    else if (target === "external") shell.openExternal(url);
+    return { action: "deny" };
+  });
+}
+
+// Exports and media files run site code, so they get a window without the preload bridge.
+function openContentWindow(url) {
+  const window = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    backgroundColor: "#ffffff",
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  applyWindowOpenPolicy(window);
+  window.loadURL(url).catch((err) => log(`Failed to open ${url}: ${err.message}`));
 }
 
 function setupIpcHandlers() {

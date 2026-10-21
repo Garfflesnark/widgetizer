@@ -31,6 +31,16 @@ Steps 0–24 and R1–R8 are built and both real-project walkthroughs passed. Th
 
 **Start:** [Multilingual rules](domain/multilingual.md), [user checklist](user-test-checklist.md). [GitHub #115](https://github.com/tsiger/widgetizer/issues/115)
 
+#### GH162 · Links that open a new window go to the browser in the desktop app
+
+**GitHub: To Be Reviewed · tsiger**
+
+Was DESKTOP-WINDOW-OPEN. `electron/main.js` set no `setWindowOpenHandler`, so any `window.open` or `target="_blank"` from a page (preview, exported site, theme script, pasted embed) created a new `BrowserWindow` that loaded whatever it was given. Fixed by porting the `mcp` branch's policy: `windowOpenTarget` (`electron/windowOpenPolicy.js`) sends the app server's own pages (exports, media files) to a plain sandboxed window without the preload, other `http(s)` addresses to `shell.openExternal`, and denies the rest (`file:`, `data:`, `javascript:`, `about:blank`); the handler is on the main, preview and every content window. Unit test of the decisions in `windowOpenPolicy.test.js`.
+
+**Done when:** in the desktop app, View site, the issues report and Media's file view open in an app window, an outside link in the preview opens the system browser, and nothing else opens a window.
+
+**Start:** [main.js](../electron/main.js), [windowOpenPolicy.js](../electron/windowOpenPolicy.js). [GitHub #162](https://github.com/tsiger/widgetizer/issues/162)
+
 ## Findings (not scheduled)
 
 Found in reviews and testing, not yet assigned to a milestone. Priorities are from the notes; Unrated means not chosen.
@@ -251,16 +261,6 @@ The Core Form posts to `/__widgetizer/forms/<key>`, which only a publishing host
 **Done when:** A submit in the preview stays on the page and says forms work once the site is published, with a test.
 
 **Start:** [core-form widget](../packages/core/src/widgets/core-form/widget.liquid), [previewRuntime.js](../packages/core/src/runtime/previewRuntime.js).
-
-#### DESKTOP-WINDOW-OPEN · The desktop app lets any page open new app windows
-
-**Open · Medium · OSS**
-
-`electron/main.js` sets no `setWindowOpenHandler` on the main window (~334) or the preview window (~446), so any `window.open` or `target="_blank"` from a page — including exported sites, theme scripts and pasted embeds shown in a viewer or preview — creates a new `BrowserWindow`. The child does not get the preload bridge (checked 2026-10-19) and, opened with `noopener`, cannot reach its opener; but a page can still open any number of app windows or load any remote site inside one. Electron's security checklist (item 14) is to limit window creation. Found by Codex reviewing VIEWER-OPENER (`ca9ee2b1`); not reproduced.
-
-**Done when:** a window-open handler allows only the app's own viewer and preview addresses as app windows, sends external `https:` links to the system browser (`shell.openExternal`, after validating the URL), and denies everything else; "View site", the issues report, Media files and external links still work in the desktop app; with a test of the handler's decisions.
-
-**Start:** [electron/main.js](../electron/main.js), [Electron core](core-electron.md).
 
 #### MULTILANG-ONLY-SETTINGS · Hide language-only settings on single-language sites
 
