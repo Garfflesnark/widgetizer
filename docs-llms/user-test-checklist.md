@@ -2147,7 +2147,7 @@ Run the web-app sections above in the desktop app too. This section covers only 
   Expected: The demo opens in the operating system's default browser, not inside the Electron app window.
 
 - [ ] ELEC-018 - Open a PDF or MP3 from the Media Library.
-  Expected: The file opens in the operating system's default browser/media handler, not inside the Electron app window or image lightbox.
+  Expected: The file opens in its own separate app window (no app controls in it), not inside the main app window or the image lightbox.
 
 - [ ] ELEC-019 - Open a file link from Site preview.
   Expected: Nothing opens: PDF/MP3/file links are disabled in Site preview like other non-page links, so the preview window stays on the same page and no browser or media handler opens.
