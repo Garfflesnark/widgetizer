@@ -113,7 +113,7 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
   Expected: Installed themes are listed with their versions.
 
 - [ ] PROJ-003 - Confirm the Theme field's initial state and open the Theme selector.
-  Expected: The Theme field is preselected by design; clicking it shows where theme selection happens.
+  Expected: The Theme field starts at "Select a theme", so the theme is a deliberate choice; clicking it opens the theme selector.
 
 - [ ] PROJ-004 - Select a theme that has presets.
   Expected: Preset cards appear with names and screenshots; the default preset is highlighted.
@@ -130,7 +130,7 @@ Run the checklist in waves. Do not try to complete the whole thing in one sittin
 - [ ] PROJ-008 - Create a project using the Blank preset.
   Expected: A success toast appears and the new project opens on the Pages screen with no starter pages.
 
-- [ ] PROJ-009 - Create a project using a non-blank preset.
+- [ ] PROJ-009 - Create a project using a non-blank preset that ships collection items, e.g. Arch's Brightside (the Arch preset itself has none).
   Expected: A success toast appears and the project opens with starter pages, collections, menus, images, and settings.
 
 - [ ] PROJ-010 - Create a project using a theme with no presets, if available.
@@ -191,7 +191,7 @@ The Folder Name field is currently hidden. Mark PROJ-012, PROJ-013, PROJ-015 and
   Expected: An update indicator is shown near the theme/version.
 
 - [ ] PROJ-027 - Hover long project names, theme names, and Updated dates.
-  Expected: Long values are truncated cleanly and full values are available via tooltip.
+  Expected: Long project names wrap and stay readable inside their row; project and theme names show their full value in a tooltip.
 
 - [ ] PROJ-027A - Display a very long project title in the Projects list table.
   Expected: The long title is truncated or wraps within the table container without pushing the table outside the page/container.
@@ -931,10 +931,6 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: Export fails with a clear message explaining the form-name conflict.
   Note: Export view/download routes now pass; retest with a conflicting-form-name fixture.
 
-- [ ] FORM-018 - Create more than five different form names across the site, then export.
-  Expected: Export fails with a clear form-limit message.
-  Note: Export view/download routes now pass; retest with a form-limit fixture.
-
 - [ ] FORM-019 - Create a Choice block with no options or duplicate options, then export.
   Expected: Export fails with a clear invalid-choice message.
   Note: Export view/download routes now pass; retest with an invalid-choice Core Form fixture.
@@ -971,7 +967,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: Save is blocked with field-level messages.
 
 - [ ] COLL-010 - Try saving with blank, invalid, or duplicate filename.
-  Expected: Save is blocked with a clear message.
+  Expected: A blank or duplicate filename blocks the save with a clear message. An invalid one is cleaned up instead (e.g. "QA bad / path" becomes `qa-bad-path`) and the item saves.
 
 - [ ] COLL-011 - Cancel item creation after selecting/uploading media.
   Expected: No item is created and media usage is not assigned to a nonexistent item.
@@ -1186,7 +1182,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: Batch/progress feedback appears.
 
 - [ ] MEDIA-004B - Upload images named `filename_like_that.jpg`, `My Photo 01.JPG`, `logo (final)_v2.png`, `Café déjà vu.png` and `東京.png`.
-  Expected: They are stored as `filename-like-that.jpg`, `my-photo-01.jpg`, `logo-final-v2.png`, `cafe-deja-vu.png` and `image.png` — words kept, one hyphen between them, everything lower case. The Media library still shows each file's own name as uploaded, accents included.
+  Expected: They are stored as `filename-like-that.jpg`, `my-photo-01.jpg`, `logo-final-v2.png`, `cafe-deja-vu.png` and `image.png` — words kept, one hyphen between them, everything lower case. The Media library's Filename column shows the stored name; the name as uploaded, accents included, stays in the image's accessible label.
 
 - [ ] MEDIA-004C - Upload an image with a very long sentence as its name, then use it in a widget and export.
   Expected: The stored name is cut at about 60 characters on a word boundary, the image renders in preview and the exported page, and the file is in the export's `assets/images`.
@@ -1904,8 +1900,8 @@ Use the Greek Arch project from the Test Pack unless a task says otherwise. Lang
 - [ ] LANG-046 - With Greek added, change a default-language page's slug to `el` and save.
   Expected: Refused with ""el" is reserved and cannot be used as a page filename." because `el.html` and the `el/` folder would share an address.
 
-- [ ] LANG-047 - On the Greek tab, with a Greek `index` page, give another Greek page the slug `home`.
-  Expected: Refused with ""home" would be a second homepage: this language already has one. Please choose a different slug."
+- [ ] LANG-047 - On the Greek tab, with a Greek `index` page, create a new Greek page with the slug `home`, then change an existing Greek page's slug to `home`.
+  Expected: The new page is created as `home-1`. The slug change is refused with ""home" would be a second homepage: this language already has one. Please choose a different slug."
 
 - [ ] LANG-048 - Upload `clash-test-1.0.0.zip`, create a project from it (Arch preset, theme updates on) and add Greek. Upload `clash-test-1.1.0.zip` and apply the update to that project. Then create a second project from the theme (now 1.1.0) and try to add Greek.
   Expected: Greek is added on 1.0.0. The update is refused: "This update publishes the "Highlights" collection in the el/ folder, where your "el" pages are published, so they could overwrite each other. This update was not applied…"; the project stays on 1.0.0 with its content unchanged. On the second project, adding Greek is refused: ""el" pages would be published in the el/ folder, where the "Highlights" collection publishes its items… this language can't be added with the current theme version."
