@@ -1046,7 +1046,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: The grid shows "Split into pages" just above "Main News page"; the other widget shows neither.
 
 - [ ] COLL-035 - On a grid with fewer items than the collection holds, tick "Split into pages".
-  Expected: Page links appear under the list in the editor and "Main News page" ticks itself. If items to show was 0, it becomes 12.
+  Expected: Page links appear under the list in the editor and "Main News page" stays as it was. If items to show was 0, it becomes 12.
 
 - [ ] COLL-036 - With "Split into pages" on, try to set items to show to 0.
   Expected: It becomes 1. With the split off, 0 is allowed again.
@@ -1054,11 +1054,11 @@ Test each control type wherever it appears: widget settings, collection forms, S
 - [ ] COLL-037 - Add a second grid to the same page and tick "Split into pages" on it.
   Expected: An error names the grid that is already split; the second grid stays unsplit.
 
-- [ ] COLL-038 - Split a grid on one page and save, then split a grid for the same collection on another page and save.
-  Expected: A message says the main page moved. Reopening the first page shows both checkboxes unticked.
+- [ ] COLL-038 - On one page, tick "Split into pages" and "Main News page" on a grid and save. On another page, tick "Main News page" on a grid for the same collection and save.
+  Expected: A message says the main page moved. Reopening the first page shows "Main News page" unticked and "Split into pages" still ticked.
 
-- [ ] COLL-039 - Duplicate a split grid, copy and paste it, and duplicate the whole page.
-  Expected: Every copy has "Split into pages" and "Main News page" off; the original keeps both.
+- [ ] COLL-039 - On a grid with both checkboxes ticked, duplicate the grid, copy and paste it, and duplicate the whole page.
+  Expected: The duplicated and pasted grids have both checkboxes off. The duplicated page keeps "Split into pages" but has "Main News page" off. The original keeps both.
 
 - [ ] COLL-040 - Open Site preview on the split page and click 2, Next and Previous, then a menu link and back.
   Expected: Each page shows the next items, the active menu item stays on the page, and with breadcrumbs on page 2 shows Home > News > Page 2, where News goes back to page 1.
