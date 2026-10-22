@@ -50,6 +50,8 @@ Form submissions work only with the upcoming **commercial version of Widgetizer*
 
 We'll document how submissions are collected here once the commercial version is available.
 
+In the preview, submitting a form doesn't send anything: it stays on the page and says *"This is a preview, so nothing was sent."*
+
 Of course, you can also embed a form from a third-party service like Google Forms or Typeform. Paste the service's embed code into an embed widget, and that service collects and delivers the responses for you, so it works on any static host today.
 
 # Tips

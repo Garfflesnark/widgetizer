@@ -195,7 +195,7 @@ The [Widgetizer Theme skill](../skills/widgetizer-theme/SKILL.md) provides a tas
 - Working with the project store/queries and active-project handling
 - Troubleshooting project state or the scope-first resolver
 
-**Key topics**: Project CRUD, admin-shell pages (`app/src/` ProjectsList/ProjectForm/ProjectImportModal), stores/queries in `packages/editor-ui/src/`, `apiFetch` + `X-Project-Id` from `getActiveProjectId()`, theme-copy + preset application + link enrichment on creation, scope-first resolver (`req.scope` via `req.adapters.scopeResolver`), ZIP import/export, `siteTitle`, site identity & business details (`site_identity`, `normalizeSiteIdentity`, `400 { error, fields }`, active-project logo picker, readiness line, `global:site-identity` media usage), validation before folder rename (folder name field hidden behind `SHOW_FOLDER_NAME`), site languages (default language + additional languages added/removed one at a time), `/api/projects` route table
+**Key topics**: Project CRUD, admin-shell pages (`app/src/` ProjectsList/ProjectForm/ProjectImportModal), stores/queries in `packages/editor-ui/src/`, `apiFetch` + `X-Project-Id` from `getActiveProjectId()`, theme-copy + preset application + link enrichment on creation, scope-first resolver (`req.scope` via `req.adapters.scopeResolver`), ZIP import/export, `siteTitle`, site identity & business details (`site_identity`, `normalizeSiteIdentity`, `400 { error, fields }`, active-project logo picker, readiness note, `global:site-identity` media usage), validation before folder rename (folder name field hidden behind `SHOW_FOLDER_NAME`), site languages (default language + additional languages added/removed one at a time), `/api/projects` route table
 
 ---
 

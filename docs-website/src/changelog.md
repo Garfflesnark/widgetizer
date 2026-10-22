@@ -12,6 +12,7 @@ All notable changes to Widgetizer are documented here.
 
 A site can now be written in several languages. Each language has its own pages, collection items, menus, header, and footer, while media, theme, and business details are shared. Nothing is translated automatically. See [Languages](languages.html).
 
+- Over 70 site languages to choose from, including Brazilian Portuguese and Traditional Chinese
 - Add and remove a site's languages in Project details; a new language starts with copies of the menus, header, and footer to translate
 - Create a page's or item's version in another language from the editor, with language tabs and translation chips in the Pages and collection lists
 - Link pickers reach every language and show the target's language
@@ -28,6 +29,7 @@ A site can now be written in several languages. Each language has its own pages,
 
 - **Site identity and Business details:** tell search engines who runs the site (organization, person, or local business), with logo, contact details, social profiles, address, and opening hours
 - **Structured data:** every page describes itself to search engines automatically, with site and business details on the homepage, breadcrumb trails, and article details for News items
+- **Search engine checklist:** a note beside the Project details form shows which details search engines can read, with a check for each one and **Add** to jump to a missing field
 - **Export notes:** after an export, the Export page says which details search engines look for are still missing
 - **Business details on the site:** Arch adds a Business details block to the footer and Contact Details, with an Additional details field for your own text, and social icons use the project's profiles when set
 - **Clean URLs:** a project setting for hosts that serve pages without `.html`; generated links, canonicals, and the sitemap drop the extension while the files stay `.html`
@@ -48,6 +50,7 @@ A site can now be written in several languages. Each language has its own pages,
 - **Undo back to saved:** undoing back to exactly what was saved leaves nothing to save
 - **Shortcut hints:** the widget menu shows the Delete shortcut
 - **Icon search:** the icon picker finds icons by synonyms (search "photo" to find camera) and ranks the best matches first
+- **Number limits:** number settings keep to the minimum and maximum the theme sets
 - **Safer Site settings:** theme settings save only what you changed, one save at a time, and never overwrite a theme update made in another tab; **Discard changes** discards the theme draft too
 
 ### Media
@@ -62,6 +65,7 @@ A site can now be written in several languages. Each language has its own pages,
 
 - **Widgetizer Desktop:** the desktop app is now called Widgetizer Desktop
 - **Desktop shortcut:** reinstalling on Windows brings back a deleted desktop shortcut
+- **Links open in your browser:** links that open a new window, and outside links inside an export or media window, open in your browser; exports and media files open in their own window
 - **Confirm dialogs:** on Windows, text fields accept typing again right after a confirmation dialog closes
 
 ### Added
@@ -104,6 +108,10 @@ A site can now be written in several languages. Each language has its own pages,
 - An edited widget keeps its heading level in the preview
 - Arch heroes make room for the breadcrumb trail under a transparent header
 - Project backup downloads no longer arrive as `.zip_` on Windows
+- A backup with damaged content, or one in a newer backup format, is refused instead of creating a half-imported project
+- **Ctrl+Shift+Z** (Cmd+Shift+Z) redoes in the page editor, and shortcuts work with Caps Lock on
+- **Cancel** in a menu's structure asks before discarding a change made just before it, and a quick **Save** keeps the latest text
+- Submitting a form in the preview no longer shows a server error page
 - The code editor's line numbers stay inside the box
 - Renaming a project folder can no longer lose the only complete copy
 

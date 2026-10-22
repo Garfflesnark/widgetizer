@@ -308,22 +308,22 @@ The Folder Name field is currently hidden. Mark PROJ-012, PROJ-013, PROJ-015 and
 ### Site Identity and Business Details
 
 - [ ] PROJ-058 - Open Project details for an existing project, then open the New project form.
-  Expected: Project details has General, Site and Identity tabs. With something missing, Identity starts with a line such as "Search engines can't see these details yet: …". The New project form has the same tabs, with the theme and presets under General, and its logo field lets you choose an image file.
+  Expected: Project details has General, Site and Identity tabs, with a yellow "Search Engines" note beside the form on every tab (above it in a narrow window). It lists each detail with a check or an empty circle and says how many are ready. The New project form has the same tabs, with the theme and presets under General (where the note is hidden to leave room for the presets), and its logo field lets you choose an image file.
 
-- [ ] PROJ-059 - With Site Address empty, click "site address" in that line.
-  Expected: The Site tab opens and the Site Address field is focused.
+- [ ] PROJ-059 - With Site Address empty, click "Add" next to Site Address in the note, from the Identity tab.
+  Expected: The Site tab opens, and the Site Address field is focused and briefly pulses.
 
 - [ ] PROJ-060 - Leave Public Name empty with a Site Title set.
-  Expected: The Site Title shows as the field's placeholder, and the line doesn't list the name.
+  Expected: The Site Title shows as the field's placeholder, and the note lists "Site Title" with a check. Type a Public Name: the note now shows "Public Name" with a check and "Used instead of the Site Title".
 
 - [ ] PROJ-061 - Under "What best describes you?", choose Person.
-  Expected: Logo is no longer listed in the line, and there is no Business Details tab.
+  Expected: Logo is no longer listed in the note, and there is no Business Details tab.
 
 - [ ] PROJ-062 - Choose Organization.
-  Expected: Logo is listed in the line; still no Business Details tab.
+  Expected: Logo is listed in the note; still no Business Details tab.
 
 - [ ] PROJ-063 - Choose Restaurant.
-  Expected: A Business Details tab appears with phone, price range, location name, address and opening hours, and the line now lists the address.
+  Expected: A Business Details tab appears with phone, price range, location name, address and opening hours, and the note now lists Address. Once every item has a check, the note's heading reads "Ready for search engines".
 
 - [ ] PROJ-064 - Fill in Business details, switch to Organization, save, reopen Project details and switch back to Restaurant.
   Expected: The save succeeds and the business details you entered are still there.
@@ -892,6 +892,9 @@ Test each control type wherever it appears: widget settings, collection forms, S
 
 - [ ] FORM-005 - Turn Required on for a field and preview the page.
   Expected: Submitting without that field is blocked or clearly marked invalid.
+
+- [ ] FORM-005B - Fill in every required field and click the submit button, in the editor preview and in Site preview.
+  Expected: The page stays put and "This is a preview, so nothing was sent." appears under the button; no error page.
 
 - [ ] FORM-006 - Add a Choice block with several options.
   Expected: A dropdown appears with those options.
@@ -2114,7 +2117,7 @@ Run the web-app sections above in the desktop app too. This section covers only 
   Expected: The link opens in the operating system's default browser.
 
 - [ ] ELEC-006 - View an export or export issues report.
-  Expected: It opens in the default browser.
+  Expected: It opens in its own separate app window (no app controls in it). A link to another website inside that window opens in the default browser instead of loading there.
 
 - [ ] ELEC-007 - Click an external link inside Site preview.
   Expected: Nothing opens: links to other sites are disabled in Site preview, so the preview window stays on the same page and no browser opens.
@@ -2126,7 +2129,7 @@ Run the web-app sections above in the desktop app too. This section covers only 
   Expected: Navigation happens inside the same preview window.
 
 - [ ] ELEC-010 - Make unsaved editor changes, then close the app window.
-  Expected: The app warns before closing.
+  Expected: The app closes without asking and the unsaved changes are lost (a known desktop limitation; navigation inside the app still warns). Record it if this changes.
 
 - [ ] ELEC-011 - Run an older desktop build and wait for update check, if provided.
   Expected: An update banner appears when a newer release is available.

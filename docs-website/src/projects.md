@@ -129,7 +129,7 @@ If a value can't be used (an email without `@`, a profile address without `https
 
 ### Showing Them on Your Site
 
-In the Arch theme, add a **Business Details** block to the footer or to a **Contact Details** widget. It shows your address, phone and email, and opening hours, each of which you can switch off. Day names and words like "Closed" follow the language of the page.
+In the Arch theme, add a **Business Details** block to the footer or to a **Contact Details** widget. It shows your address, phone and email, and opening hours, each of which you can switch off. Use its **Additional details** field for anything else, such as parking or appointment notes; it appears below the details. Day names and words like "Closed" follow the language of the page. A block with nothing to show keeps its title on the site, and in the preview it reminds you to add details.
 
 > **Tip:** Social profiles you add here replace the social links in your theme settings wherever the Arch theme shows social icons. If you add none, the theme settings are used as before.
 
@@ -177,6 +177,8 @@ Choose **"Download backup"** to save the project as a ZIP file, for safekeeping 
 ### Importing a Backup
 
 Click **"Import Backup"** at the top of the Projects screen and select a backup ZIP file. The imported project opens straight away as the active project.
+
+A backup is checked before anything is created. One whose files are damaged is refused with a message naming the problem, and one that uses a newer backup format asks you to update Widgetizer first. Either way, no project is created and your backup file is untouched.
 
 # Theme Updates for Projects
 

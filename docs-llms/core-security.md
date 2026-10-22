@@ -52,7 +52,7 @@ The image-path allowlists are strict allowlists (not blocklists) because the val
 
 ### 4. Cross-Origin Resource Sharing (CORS)
 
-- Local origins only (`applySharedMiddleware` in `createApp.js`): `cors` is given an origin predicate that allows `http:`/`https:` origins on `localhost`, `127.0.0.1` and `[::1]` (any port), plus requests with no `Origin` header. That keeps the dev split-origin flow (Vite :3000 → API :3001) working; same-origin consumers (Electron, the packaged web build serving the SPA) need no CORS at all. Any other origin gets no `Access-Control-Allow-Origin` header, so a foreign website open in the same browser cannot read the unauthenticated local API cross-origin. A configurable, environment-specific allowlist for embedding hosts is still [pending](#cors--csp-hardening).
+- Local origins only (`applySharedMiddleware` in `createApp.js`): `cors` is given an origin predicate that allows `http:`/`https:` origins on `localhost`, `127.0.0.1` and `[::1]` (any port), plus requests with no `Origin` header. That keeps the dev split-origin flow (Vite :3000 → API :3001) working; same-origin consumers (Electron, the packaged web build serving the SPA) need no CORS at all. Allowed origins may also read `Content-Disposition` (`exposedHeaders`), so the dev editor saves a backup under the server's timestamped file name. Any other origin gets no `Access-Control-Allow-Origin` header, so a foreign website open in the same browser cannot read the unauthenticated local API cross-origin. A configurable, environment-specific allowlist for embedding hosts is still [pending](#cors--csp-hardening).
 
 ### 5. Multi-layered SVG Sanitization
 
