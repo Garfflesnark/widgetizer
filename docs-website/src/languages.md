@@ -59,6 +59,10 @@ It does **not** copy your pages or collection items. You create those one at a t
 
 The copied menus and header and footer still contain your original wording, so translate their labels. Their links still point to your original pages until you change them (see [Links Between Languages](#links-between-languages)).
 
+### Choosing a Language
+
+The list has over 70 languages, including Brazilian Portuguese and Traditional Chinese as separate choices. If your theme's fonts don't include a language's letters (some Asian and African scripts, for example), the browser shows that text in a standard system font instead.
+
 ### Languages You Can't Add
 
 - **Right-to-left languages**, such as Arabic and Hebrew, are not supported yet and are not in the list.
