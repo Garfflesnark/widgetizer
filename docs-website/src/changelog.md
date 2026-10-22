@@ -56,7 +56,7 @@ A site can now be written in several languages. Each language has its own pages,
 ### Media
 
 - **MP4 video:** upload MP4 files and play them in Arch's Video widget; used videos are included in exports
-- **Captions in Arch:** the media library caption appears under the Image widget, item featured images, and project and service galleries, and fills in for Gallery and Masonry Gallery blocks without their own
+- **Captions in Arch:** the media library caption appears under the Image widget, item featured images, and project and service galleries, and fills in for Gallery blocks without their own and in the Masonry Gallery lightbox when a block has no title
 - **Readable file names:** uploaded file names keep their words (`logo (final)_v2.svg` becomes `logo-final-v2.svg`), and accented letters and other alphabets are converted to plain letters
 - **New uploads first:** freshly uploaded files appear at the top of the library
 - **Wider delete protection:** files used in collection items, social images, theme settings, the business logo, or any language can't be deleted, and deletion re-checks saved content first
