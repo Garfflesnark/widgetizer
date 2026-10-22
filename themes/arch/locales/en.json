@@ -813,6 +813,10 @@
             },
             "show_hours": {
               "label": "Show opening hours"
+            },
+            "text": {
+              "label": "Additional details",
+              "description": "Shown under the details from Project details."
             }
           }
         },

@@ -1623,13 +1623,16 @@ Use the structured-data project from the test pack, with a local-business catego
   Expected: The address, phone and email links, and opening hours appear. Consecutive days with the same hours are grouped (e.g. "Mon–Fri 09:00–17:00"), a closed day says "Closed", and a split shift shows both ranges.
 
 - [ ] SDATA-015 - Untick Show address, Show phone and email, and Show hours one at a time.
-  Expected: Only that part disappears. With all three off, the preview shows a hint and the export shows nothing.
+  Expected: Only that part disappears. With all three off, the preview shows the block's title and a hint, and the export shows only the title.
 
 - [ ] SDATA-016 - Add the Business Details block to a Contact Details widget.
   Expected: It shows the same details as the footer block.
 
 - [ ] SDATA-017 - In a project with no business details, preview a Business Details block, then export.
-  Expected: Preview shows "Add your business details in Project details"; the exported page shows nothing for it.
+  Expected: Preview shows the title and "Add your business details in Project details or in Additional details"; the exported page shows only the title.
+
+- [ ] SDATA-017B - In the same block, write something in Additional details, then tick the three Show boxes in a project that has business details.
+  Expected: The text appears under the title (the hint is gone) in the preview and the export; with details shown, it sits below them.
 
 - [ ] SDATA-018 - Set only Facebook in Theme Settings › Social Media and only Instagram in Project details, then preview the footer, Contact Details and Social Icons widgets.
   Expected: Every social icon set shows Instagram only.

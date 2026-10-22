@@ -24,7 +24,7 @@ Up to **4 blocks** can be added. Column sizing is controlled by the `layout` set
 | `text_block` | `title`, `text` (richtext) | General-purpose column. Title renders as an h3 heading. Richtext supports paragraphs, links, line breaks. Good for contact info, hours, addresses |
 | `menu_block` | `title`, `menu` (menu reference, default `footer-menu`) | Pulls a site menu by name. Submenus are hidden by design, keeping the footer flat and scannable |
 | `social_block` | `title` | Renders the project's social profiles (Project details) when any are set, otherwise the global `theme.social` config. No per-block icon selection; the icon set is site-wide |
-| `business_details` | `title`, `show_address`, `show_contact`, `show_hours` (checkboxes, all on by default) | Draws the address, phone, email and opening hours entered in Project details, so they stay in step with what search engines read. Consecutive days with the same hours collapse into one line ("Mon–Fri"). Renders nothing on the published site when no details are set |
+| `business_details` | `title`, `show_address`, `show_contact`, `show_hours` (checkboxes, all on by default), `text` (richtext, Additional details) | Draws the address, phone, email and opening hours entered in Project details, so they stay in step with what search engines read. Consecutive days with the same hours collapse into one line ("Mon–Fri"). Additional details are the owner's own text, shown below. With nothing to show, the published block keeps only its title |
 
 ---
 

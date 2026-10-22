@@ -29,7 +29,7 @@ A site can now be written in several languages. Each language has its own pages,
 - **Site identity and Business details:** tell search engines who runs the site (organization, person, or local business), with logo, contact details, social profiles, address, and opening hours
 - **Structured data:** every page describes itself to search engines automatically, with site and business details on the homepage, breadcrumb trails, and article details for News items
 - **Export notes:** after an export, the Export page says which details search engines look for are still missing
-- **Business details on the site:** Arch adds a Business details block to the footer and Contact Details, and social icons use the project's profiles when set
+- **Business details on the site:** Arch adds a Business details block to the footer and Contact Details, with an Additional details field for your own text, and social icons use the project's profiles when set
 - **Clean URLs:** a project setting for hosts that serve pages without `.html`; generated links, canonicals, and the sitemap drop the extension while the files stay `.html`
 - **Site Address in a subfolder:** a Site Address such as `https://example.com/site` now keeps its subfolder in every generated address
 - **Featured image as share image:** Arch News, Projects, and Services items use their featured image for social sharing when no social media image is set

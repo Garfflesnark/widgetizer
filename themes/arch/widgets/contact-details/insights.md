@@ -28,7 +28,7 @@ A structured footer/contact section that displays business information, hours, n
 | `text_block` | `title` (text), `text` (richtext) | General-purpose column. Richtext lets you list hours, directions, or any formatted snippet. Can be used more than once for separate topics (Hours, Location, etc.). |
 | `menu_block` | `title` (text), `menu` (menu reference, default `footer-menu`) | Renders a flat link list from a site menu. Submenu items are hidden by CSS, so keep the chosen menu one level deep. Good for legal links, service pages, or quick navigation. |
 | `social_block` | `title` (text) | Pulls the project's social profiles (Project details) when any are set, otherwise `theme.social` settings. No per-block URL config. Always left-aligned within the column. |
-| `business_details` | `title` (text), `show_address`, `show_contact`, `show_hours` (checkboxes) | Draws the address, phone, email and opening hours from Project details, with consecutive days sharing hours collapsed ("Mon–Fri"). Use it instead of typing the same details into a text_block, so the page and the structured data never disagree. Renders nothing on the published site when no details are set. |
+| `business_details` | `title` (text), `show_address`, `show_contact`, `show_hours` (checkboxes), `text` (richtext, Additional details) | Draws the address, phone, email and opening hours from Project details, with consecutive days sharing hours collapsed ("Mon–Fri"). Use it instead of typing the same details into a text_block, so the page and the structured data never disagree. Additional details are the owner's own text, shown below. With nothing to show, the published block keeps only its title. |
 
 ---
 

@@ -88,7 +88,7 @@ Each widget has its own controls. A gallery widget might control columns and ima
 Arch's header and footer have a few settings worth knowing about:
 
 - **Show language switcher** (header, under **Languages**): lets visitors move between a page's languages. It's on by default and stays hidden on a site with one language. See [Languages](languages.html). Projects created before Arch 0.9.10 get it after you apply the theme update.
-- **Business Details** block (footer, and the **Contact Details** widget): shows the address, phone and email, and opening hours you entered in [Project details](projects.html#site-identity-and-business-details). Use **Show address**, **Show phone and email** and **Show opening hours** to choose what appears.
+- **Business Details** block (footer, and the **Contact Details** widget): shows the address, phone and email, and opening hours you entered in [Project details](projects.html#site-identity-and-business-details). Use **Show address**, **Show phone and email** and **Show opening hours** to choose what appears, and **Additional details** for anything else you want to add, such as parking or appointment notes.
 
 ### Content and Media
 
