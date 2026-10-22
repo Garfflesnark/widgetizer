@@ -787,6 +787,17 @@ function openContentWindow(url) {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   applyWindowOpenPolicy(window);
+  // The open handler only sees new windows; a link or redirect inside this one gets the same rule.
+  const keepToAppContent = (event, legacyUrl, _isInPlace, legacyIsMainFrame) => {
+    // will-redirect also fires inside iframes; an embedded map or video must keep its own redirects.
+    if ((event.isMainFrame ?? legacyIsMainFrame) === false) return;
+    const target = windowOpenTarget(event.url ?? legacyUrl, contentOrigins());
+    if (target === "content") return;
+    event.preventDefault();
+    if (target === "external") shell.openExternal(event.url ?? legacyUrl);
+  };
+  window.webContents.on("will-navigate", keepToAppContent);
+  window.webContents.on("will-redirect", keepToAppContent);
   window.loadURL(url).catch((err) => log(`Failed to open ${url}: ${err.message}`));
 }
 
