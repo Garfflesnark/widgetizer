@@ -107,7 +107,7 @@ The **Identity** and **Business Details** tabs describe who is behind the site. 
 
 ### What Search Engines Can See
 
-While something is missing, the top of the **Identity** tab says so, for example *"Search engines can't see these details yet: site address, logo"*. Click a missing item to jump to the field that fixes it. Search engines need your **Site Address** before they can read any of it.
+A yellow note beside the form shows what search engines can read: each detail gets a check once it's filled in, and **Add** next to a missing one takes you to the field. When a **Public Name** is set, the note shows it instead of the Site Title, since that's the name used. Search engines need your **Site Address** before they can read any of it.
 
 ### Identity
 

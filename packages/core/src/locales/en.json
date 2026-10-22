@@ -259,12 +259,20 @@
       "receiveThemeUpdatesHelp": "Get notified when a new version of the theme is available.",
       "identity": {
         "help": "Who is behind this site. Search engines read these details, and your theme can show them on the site.",
-        "readinessLabel": "Search engines can't see these details yet:",
+        "readiness": {
+          "title": "Search Engines",
+          "progress": "{{done}} of {{total}} ready",
+          "allReady": "Ready for search engines",
+          "help": "Search engines read who is behind your site from these details once they are filled in.",
+          "add": "Add",
+          "publicNameNote": "Used instead of the Site Title"
+        },
         "readinessItems": {
-          "siteUrl": "site address",
-          "name": "name",
-          "logo": "logo",
-          "address": "address"
+          "siteUrl": "Site Address",
+          "name": "Site Title",
+          "publicName": "Public Name",
+          "logo": "Logo",
+          "address": "Address"
         },
         "categoryLabel": "What best describes you?",
         "categoryHelp": "Pick the closest match. A local business gets a Business Details tab for its address and opening hours.",
@@ -659,7 +667,7 @@
     "toasts": {
       "loadError": "Failed to load menus",
       "deleteSuccess": "Menu \"{{name}}\" was deleted successfully",
-    "deleteLinksIncomplete": "Menu \"{{name}}\" was deleted, but some sections that used it couldn't be updated. Check the pages that showed it.",
+      "deleteLinksIncomplete": "Menu \"{{name}}\" was deleted, but some sections that used it couldn't be updated. Check the pages that showed it.",
       "deleteError": "Failed to delete menu",
       "duplicateSuccess": "Menu duplicated successfully",
       "duplicateError": "Failed to duplicate menu"
