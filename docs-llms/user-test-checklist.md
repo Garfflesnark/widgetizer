@@ -1808,7 +1808,7 @@ These tests cover stable internal references, in structured `link` settings and 
 - [ ] LINK-037 - From the same export, open an item page from disk (e.g. `news/<item>.html`) and click the logo.
   Expected: It reaches the homepage.
 
-- [ ] LINK-038 - Repeat LINK-036 and LINK-037 on an export made with Clean URLs on.
+- [ ] LINK-038 - Repeat LINK-036 and LINK-037 on an export made with Clean URLs on, served by a local web server that maps `/about` to `about.html` (e.g. `npx serve` in the export folder), since clean links cannot work opened from disk.
   Expected: Same results.
 
 - [ ] LINK-039 - Turn breadcrumbs on (Site settings > General > Show breadcrumbs) and preview the homepage.
