@@ -394,6 +394,34 @@ describe("content a backup made by the app never holds", () => {
   });
 });
 
+describe("the backup format version", () => {
+  const withFormat = (fields) => rebuilt(sourceBackup, { "project-export.json": { ...manifest, ...fields } });
+
+  it("refuses a newer format, naming the version that made it", async () => {
+    for (const formatVersion of ["1.2", "2.0"]) {
+      const res = await importBuffer(withFormat({ formatVersion, widgetizerVersion: "1.4.0" }));
+      await assertRefused(res, /newer version of Widgetizer \(1\.4\.0\).*Update Widgetizer/);
+    }
+  });
+
+  it("refuses a version that is not a version number", async () => {
+    for (const formatVersion of ["999.0-invalid-qa", 1.1, "", null]) {
+      await assertRefused(await importBuffer(withFormat({ formatVersion })), /format version .* is not a version number/);
+    }
+  });
+
+  it("imports the formats it knows, and older backups that carry none", async () => {
+    for (const formatVersion of ["1.0", "1.1", undefined]) {
+      const res = await importBuffer(withFormat({ formatVersion }));
+      assert.equal(res._status, 201, `${formatVersion}: ${JSON.stringify(res._json)}`);
+    }
+  });
+
+  it("writes the format it reads", () => {
+    assert.equal(manifest.formatVersion, "1.1");
+  });
+});
+
 describe("project details a backup made by the app never holds", () => {
   const withProject = (changes) =>
     rebuilt(sourceBackup, { "project-export.json": { ...manifest, project: { ...manifest.project, ...changes } } });

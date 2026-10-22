@@ -270,6 +270,9 @@ The Folder Name field is currently hidden. Mark PROJ-012, PROJ-013, PROJ-015 and
 - [ ] PROJ-049C - Import the tampered backup ZIP from the test pack, if provided.
   Expected: The whole backup is refused with a message naming the problem. No project row appears, and importing the untampered backup afterwards still works.
 
+- [ ] PROJ-049E - Import a backup whose `project-export.json` says `"formatVersion": "1.2"`, then one that says `"999.0-invalid-qa"`.
+  Expected: The first is refused as made by a newer version of Widgetizer, asking you to update. The second is refused as a changed backup. Neither leaves a project behind.
+
 - [ ] PROJ-049D - Import a valid backup of a project with media, pages, collections, menus and site settings.
   Expected: Everything comes back, and the Media library shows the same files with their alt text and captions, not an empty or older library.
 
