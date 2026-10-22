@@ -196,6 +196,50 @@ describe("a backup made by the app", () => {
   });
 });
 
+describe("unreadable project content in a backup", () => {
+  const contentFiles = [
+    "pages/index.json",
+    "pages/el/index.json",
+    "pages/global/header.json",
+    "menus/el/main.json",
+    "collections/news/el/hello.json",
+    "collections/news/_order.json",
+    "theme.json",
+  ];
+
+  for (const file of contentFiles) {
+    it(`refuses malformed ${file} without changing projects or leaving files`, async () => {
+      const projects = projectRepo.readProjectsData();
+      const folders = await fs.readdir(path.join(DATA_DIR, "projects"));
+      const library = mediaRepo.getMediaFiles(source.id);
+      const upload = await toUpload(rebuilt(sourceBackup, { [file]: '{ "unfinished":' }));
+      const res = mockRes();
+
+      await importProject(mockReq({ file: upload }), res);
+
+      await assertRefused(res, /not valid JSON/);
+      assert.ok(res._json.error.includes(file), "the error names the damaged file");
+      assert.deepEqual(projectRepo.readProjectsData(), projects, "existing projects and active selection are unchanged");
+      assert.deepEqual(await fs.readdir(path.join(DATA_DIR, "projects")), folders, "no partial project folder remains");
+      assert.deepEqual(mediaRepo.getMediaFiles(source.id), library, "the existing media library is unchanged");
+      assert.equal(await fs.pathExists(upload.path), false, "the server's uploaded copy was removed");
+    });
+  }
+
+  it("refuses a page that starts with a byte-order mark, which the app cannot read", async () => {
+    const res = await importBuffer(rebuilt(sourceBackup, { "pages/index.json": '﻿{ "name": "Home" }' }));
+    await assertRefused(res, /pages\/index\.json is not valid JSON/);
+  });
+
+  it("can import the original backup after refusing a damaged copy", async () => {
+    await assertRefused(await importBuffer(rebuilt(sourceBackup, { "pages/index.json": "{" })), /pages\/index\.json/);
+    const res = await importBuffer(sourceBackup);
+    assert.equal(res._status, 201, JSON.stringify(res._json));
+    const page = await fs.readJson(path.join(getProjectDir(res._json.folderName), "pages", "index.json"));
+    assert.equal(page.name, "Home");
+  });
+});
+
 describe("a ZIP bomb", () => {
   it("is refused when the backup unpacks to more than 100 times its size", async () => {
     const res = await importBuffer(rebuilt(sourceBackup, { "pages/padding.json": Buffer.alloc(30 * 1024 * 1024) }));

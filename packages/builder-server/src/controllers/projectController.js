@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import { isSafePathSegment } from "../utils/pathSecurity.js";
 import { extractZipSafely, openZip, readZipEntry, UnsafeZipError } from "../utils/zipSafety.js";
-import { mediaLibraryProblem, collectionItemsProblem } from "../utils/backupContentChecks.js";
+import { mediaLibraryProblem, contentFilesProblem } from "../utils/backupContentChecks.js";
 import path from "path";
 import * as themeController from "./themeController.js";
 import archiver from "archiver";
@@ -1437,7 +1437,7 @@ function importManifestProblem(project) {
 
 /**
  * Why an unpacked backup's content cannot be imported, or null: its media
- * library's paths and translation languages, and its collection item slugs.
+ * library's paths and translation languages, readable content JSON, and item slugs.
  * @param {string} dir - the unpacked backup
  * @param {string[]} languages - the project's languages other than the default
  */
@@ -1453,7 +1453,7 @@ async function backupContentProblem(dir, languages) {
     const problem = mediaLibraryProblem(mediaData, languages);
     if (problem) return problem;
   }
-  return collectionItemsProblem(dir);
+  return contentFilesProblem(dir);
 }
 
 /**
