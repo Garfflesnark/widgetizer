@@ -5,6 +5,7 @@ import * as themeController from "../controllers/themeController.js";
 import { processTemplatesRecursive } from "./templateHelpers.js";
 import { isSafePathSegment } from "./pathSecurity.js";
 import { enrichNewProjectReferences } from "./linkEnrichment.js";
+import { applyPresetSettings } from "./presetSettings.js";
 
 /**
  * Scaffold a new project's on-disk content into an explicit directory.
@@ -117,18 +118,7 @@ export async function scaffoldProjectContent({ projectDir, theme, preset }) {
     try {
       const projectThemeJsonPath = path.join(projectDir, "theme.json");
       const themeJson = JSON.parse(await fs.readFile(projectThemeJsonPath, "utf8"));
-
-      if (themeJson.settings && themeJson.settings.global) {
-        for (const group of Object.values(themeJson.settings.global)) {
-          if (!Array.isArray(group)) continue;
-          for (const item of group) {
-            if (item.id && settingsOverrides[item.id] !== undefined) {
-              item.default = settingsOverrides[item.id];
-            }
-          }
-        }
-      }
-
+      applyPresetSettings(themeJson, settingsOverrides);
       await fs.writeFile(projectThemeJsonPath, JSON.stringify(themeJson, null, 2));
     } catch (error) {
       await fs.remove(projectDir);
