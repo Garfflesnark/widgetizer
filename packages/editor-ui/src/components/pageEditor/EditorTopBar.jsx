@@ -119,7 +119,7 @@ export default function EditorTopBar({
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         // Prevent multiple simultaneous saves if one is already in progress
         if (hasUnsavedChanges() && !isSaving) {
@@ -136,7 +136,7 @@ export default function EditorTopBar({
         (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
       if (isEditableTarget) return;
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         if (e.shiftKey) {
           e.preventDefault();
           safeRedo();
@@ -146,7 +146,7 @@ export default function EditorTopBar({
         }
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
         e.preventDefault();
         safeRedo();
       }
