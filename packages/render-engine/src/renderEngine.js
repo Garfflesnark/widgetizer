@@ -639,7 +639,12 @@ async function planPagination(deps, widgets, widgetsOrder, { pageSlug, currentPa
     if (!collectionType || typeof perPageSetting !== "string" || !Array.isArray(schema.settings)) continue;
 
     const declared = schema.settings.find((setting) => setting?.id === perPageSetting);
-    const perPage = Number(widget.settings[perPageSetting] ?? declared?.default);
+    // Clamped like the rendered setting is, or the pager would count pages the list never shows.
+    const stored = widget.settings[perPageSetting] ?? declared?.default;
+    if (stored === "") continue;
+    let perPage = Number(stored);
+    if (typeof declared?.min === "number") perPage = Math.max(perPage, declared.min);
+    if (typeof declared?.max === "number") perPage = Math.min(perPage, declared.max);
     if (!Number.isInteger(perPage) || perPage < 1) continue;
 
     const totalItems = await deps.countCollectionItems(collectionType, language);

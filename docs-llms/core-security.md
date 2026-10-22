@@ -33,6 +33,7 @@ All incoming data is validated and sanitized before reaching controllers.
 - **`date`** — `sanitizeDateValue`: coerces to a valid `YYYY-MM-DD` calendar date or `""` (rejects impossible dates like `2026-02-30`).
 - **`code`** — intentionally not sanitized or transformed (embeds, custom CSS/JS). Normal `{{ value }}` Liquid output still autoescapes; code only becomes executable/markup when a template emits it through an explicit raw sink such as `| raw` or the custom CSS/head/footer script tags.
 - Theme-setting scalars (`color`, `number`/`range`, `checkbox`, `select`/`radio`, `font_picker`) are type-validated and fall back to the schema default when invalid.
+- **`number` / `range`** in widget, block and collection-item settings are clamped to the schema's `min`/`max` before render, so a value stored out of range renders inside it; `""` (a cleared number) and non-numeric values are left as they are. The editor's number input clamps on blur too, and `planPagination` clamps the per-page value the same way so the pager counts the pages the list renders.
 
 The image-path allowlists are strict allowlists (not blocklists) because the value can reach an unescaped `<img src>` sink — see §12.
 

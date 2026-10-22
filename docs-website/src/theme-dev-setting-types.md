@@ -40,7 +40,7 @@ For how settings map into templates and CSS variables, see [Theme Manifest & Set
 }
 ```
 
-**`number`:** Single-line input restricted to numeric values.
+**`number`:** Single-line input restricted to numeric values. Optional `min`, `max` and `step`: a value typed outside `min`/`max` snaps to the nearest limit when the owner leaves the field, and a stored value outside them renders at the limit. A cleared field stores `""`.
 
 ```json
 {
