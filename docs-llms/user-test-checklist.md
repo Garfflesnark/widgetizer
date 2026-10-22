@@ -1285,7 +1285,7 @@ Test each control type wherever it appears: widget settings, collection forms, S
   Expected: Each plays the right video. A link such as `https://example.com/?youtube.com/embed/abc` builds a YouTube player address (`https://www.youtube.com/embed/abc`) and never loads example.com. A link with nothing after the marker (`https://www.youtube.com/embed/`) or an ID containing `..` (`https://www.youtube.com/embed/..`) shows no player.
 
 - [ ] MEDIA-035 - Give an image a caption in the Media library, then use it in an Image widget, as a News/Project/Service featured image, in a Project or Service gallery, in a Gallery block with no caption, and in a Masonry Gallery block with no title.
-  Expected: The caption appears under each, and in the Masonry Gallery lightbox. A Gallery block's own caption (or Masonry block's title) wins over the media caption. On a Greek page the Greek caption is used, or the default one if Greek is empty.
+  Expected: The caption appears under each, except the Masonry Gallery, where it appears only in the lightbox and never on the card. A Gallery block's own caption (or Masonry block's title) wins over the media caption. On a Greek page the Greek caption is used, or the default one if Greek is empty.
 
 ---
 
