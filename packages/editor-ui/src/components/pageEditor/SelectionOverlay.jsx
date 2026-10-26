@@ -1,3 +1,4 @@
+import { handleImageResizeMessage, supportedImageWidgetIds } from "../../lib/imageResizeBridge";
 import { useEffect, useCallback } from "react";
 import useWidgetStore from "../../stores/widgetStore";
 import usePageStore from "../../stores/pageStore";
@@ -37,6 +38,18 @@ export default function SelectionOverlay({
   const sidebarHoveredBlockId = useWidgetStore((state) => state.hoveredBlockId);
   const reorderWidgets = useWidgetStore((state) => state.reorderWidgets);
   const page = usePageStore((state) => state.page);
+  const schemas = useWidgetStore((state) => state.schemas);
+
+  useEffect(() => {
+    const iframe = iframeRef?.current;
+    if (!iframe) return;
+    const sync = () => iframe.contentWindow?.postMessage({
+      type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds: supportedImageWidgetIds(page, schemas) },
+    }, getPreviewTargetOrigin());
+    sync();
+    iframe.addEventListener("load", sync);
+    return () => iframe.removeEventListener("load", sync);
+  }, [iframeRef, page, schemas, previewReadyKey]);
 
   const effectiveWidgetId = selectedWidgetId || selectedGlobalWidgetId;
 
@@ -75,6 +88,10 @@ export default function SelectionOverlay({
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.data?.type === "IMAGE_RESIZE_COMMIT") {
+        handleImageResizeMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        return;
+      }
       const { type, payload } = event.data || {};
 
       switch (type) {

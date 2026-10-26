@@ -222,6 +222,9 @@ const usePageStore = create(
         }
       },
 
+      // A discrete gesture must not coalesce with a previous sidebar edit or drag.
+      beginHistoryStep: () => { lastEdit = null; },
+
       setPage: (page) => {
         set({ page });
       },

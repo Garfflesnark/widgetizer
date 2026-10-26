@@ -1,3 +1,4 @@
+import { IMAGE_WIDTH_SETTING, isImageWidth, supportsImageResize } from "@widgetizer/core/imageResize";
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 import { getProjectWidgets } from "../queries/previewManager";
@@ -299,6 +300,8 @@ const useWidgetStore = create((set, get) => ({
     const pageStore = usePageStore.getState();
     const { page } = pageStore;
     if (!page || !widgetId || !page.widgets?.[widgetId]) return;
+    if (supportsImageResize(page.widgets[widgetId], get().schemas[page.widgets[widgetId].type]) &&
+        Object.hasOwn(values, IMAGE_WIDTH_SETTING) && !isImageWidth(values[IMAGE_WIDTH_SETTING])) return;
 
     pageStore.setPage({
       ...page,

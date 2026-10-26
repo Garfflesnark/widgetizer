@@ -1,8 +1,10 @@
+{% assign image_width = widget.settings.image_width_percent | default: 100 | plus: 0 | at_least: 10 | at_most: 100 | round %}
 <section
   id="{{ widget.id }}"
   class="widget widget-image widget-{{ widget.id }}{% if widget.settings.top_spacing != 'auto' %} spacing-top-{{ widget.settings.top_spacing }}{% endif %}{% if widget.settings.bottom_spacing != 'auto' %} spacing-bottom-{{ widget.settings.bottom_spacing }}{% endif %}"
   data-widget-id="{{ widget.id }}"
   data-widget-type="image"
+  data-image-width="{{ image_width }}"
   {% if widget.index != null %}data-widget-index="{{ widget.index }}"{% endif %}
 >
   <style>
@@ -54,6 +56,16 @@
         }
       }
 
+      & .image-resize-target {
+        width: {{ image_width }}%;
+        margin-inline: auto;
+
+        & img {
+          max-width: 100%;
+          height: auto;
+        }
+      }
+
       & .image-figure {
         margin: 0;
       }
@@ -71,6 +83,7 @@
   {% endunless %}
   <div class="widget-container">
     <div class="widget-content">
+      <div class="image-resize-target" data-image-resize-target>
       {% if widget.settings.image != blank %}
         {% assign caption = widget.settings.image | media_meta: 'caption' %}
         <figure class="image-figure">
@@ -99,6 +112,7 @@
           {% placeholder_image %}
         </div>
       {% endif %}
+      </div>
     </div>
   </div>
 </section>

@@ -38,6 +38,16 @@
       "description": "tTheme:image.settings.fullwidth.description"
     },
     {
+      "type": "range",
+      "id": "image_width_percent",
+      "label": "tTheme:global.widgets.blocks.image.settings.width.label",
+      "min": 10,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100
+    },
+    {
       "type": "header",
       "id": "appearance_header",
       "label": "tTheme:global.widgets.settings.appearance_header.label"

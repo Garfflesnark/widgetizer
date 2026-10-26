@@ -11,6 +11,7 @@ and cross-origin contentDocument access issues.
 // Served raw as an ES module from the /runtime static mount; resolves to
 // /runtime/standalonePreviewTarget.js (same dir). Single source of truth for the
 // in-preview href → preview-route mapping (unit-tested separately).
+import { createImageResizeController } from "./imageResize.js";
 import { getStandalonePreviewTarget } from "./standalonePreviewTarget.js";
 
 // ── PostMessage ─────────────────────────────────────────────────────────────
@@ -333,6 +334,7 @@ function setupScrollBoundsReporting() {
 // ── Selection Update ────────────────────────────────────────────────────────
 
 function updateSelection(widgetId, blockId) {
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId) imageResizeController?.cancel();
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
 
@@ -677,6 +679,7 @@ const CHEVRON_UP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" heigh
 const CHEVRON_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
 let overlayContainer = null;
+let imageResizeController = null;
 
 function createOverlayContainer() {
   if (PREVIEW_MODE === "standalone") return null;
@@ -791,6 +794,10 @@ function renderOverlay() {
   }
 
   overlayContainer.innerHTML = html;
+  const selected = Array.from(document.querySelectorAll("[data-widget-id]")).find(
+    (element) => element.dataset.widgetId === currentSelectedWidgetId,
+  );
+  imageResizeController?.renderHandle(overlayContainer, selected, currentSelectedBlockId);
 }
 
 function escapeHtml(str) {
@@ -817,6 +824,14 @@ function setupOverlayClickHandler() {
 // ── Message Handler ─────────────────────────────────────────────────────────
 
 function handleMessage(event) {
+  if (event.data?.type === "SET_IMAGE_RESIZE_SUPPORT") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const ids = event.data.payload?.widgetIds;
+    if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) return;
+    imageResizeController?.setSupported(ids);
+    renderOverlay();
+    return;
+  }
   // Only obey commands from the editor that framed us. Without this, any window
   // able to reach this iframe could post UPDATE_CUSTOM_SCRIPTS / MORPH_WIDGET and
   // run code/inject HTML in the preview's origin. Enforced only when the editor
@@ -997,6 +1012,7 @@ function trackWidgetObserver(widgetId, observer) {
 }
 
 function morphWidget(widgetId, newHtml) {
+  if (widgetId === currentSelectedWidgetId) imageResizeController?.cancel();
   const existingElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
   if (!existingElement) {
     console.warn(`[PreviewRuntime] Widget ${widgetId} not found for morphing`);
@@ -1145,6 +1161,11 @@ function ensureHeaderScrollListener() {
 
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
+  if (PREVIEW_MODE === "editor") {
+    imageResizeController = createImageResizeController({
+      document, onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload }), onPreview: renderOverlay,
+    });
+  }
   setupInteractionHandler();
   setupHoverHandler();
   setupScrollBoundsReporting();
