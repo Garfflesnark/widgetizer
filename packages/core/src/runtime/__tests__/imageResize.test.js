@@ -156,3 +156,18 @@ it("keeps committed sidebar styling until morph and rejects invalid drafts", () 
   expect(target.style.height).toBe("300px");
   expect(commit).not.toHaveBeenCalled();
 });
+
+it("reconciles a quick Undo before any server morph, and keeps active drafts when canonical values are unchanged", () => {
+  stretch();
+  controller.setSizes({ w1: { width: 100, height: 0 } });
+  controller.preview({ widgetId: "w1", width: 60, height: 300, phase: "preview" });
+  controller.setSizes({ w1: { width: 100, height: 0 } });
+  expect(target.style.width).toBe("60%");
+  expect(target.style.height).toBe("300px");
+  controller.preview({ widgetId: "w1", width: 60, height: 300, phase: "commit" });
+  controller.setSizes({ w1: { width: 60, height: 300 } });
+  controller.setSizes({ w1: { width: 100, height: 0 } });
+  expect(target.style.width).toBe("100%");
+  expect(target.style.height).toBe("auto");
+  expect(commit).not.toHaveBeenCalled();
+});

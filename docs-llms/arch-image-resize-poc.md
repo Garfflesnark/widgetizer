@@ -1,5 +1,7 @@
 # Arch image resizing experiment (PR #1)
 
+Development delivery update: use the [targeted automated synchronization command](dev-theme-sync.md), not the historical manual-copy procedure below. That guide records the authorized RESIZE LAB installation, browser verification and quick-Undo reconciliation fix. Original implementation test counts below are historical; current results are in the sync guide.
+
 Experimental, requires human review. No freeform positioning, layers, dependency additions or global/project migrations.
 
 ## Root causes verified in source
@@ -43,7 +45,7 @@ An isolated regression test demonstrates that changing an already seeded source 
 
 ## Existing-project opt-in and compatibility
 
-No user project, including TEST or the local experimental project, was changed by this task. No automatic migration occurs. Saved full-width flags and percentages remain intact on load. Missing width means 100%; missing height means Auto. The Full Width default remains false. Old installed/project files continue rendering as before.
+The initial image implementation did not migrate user projects. The subsequent authorized development sync updated only RESIZE LAB's approved image schema/template; TEST/PIZZA and unrelated project content remain unchanged. No automatic migration occurs. Saved full-width flags and percentages remain intact on load. Missing width means 100%; missing height means Auto. The Full Width default remains false. Old installed/project files continue rendering as before.
 
 To opt an explicitly chosen project in after review:
 

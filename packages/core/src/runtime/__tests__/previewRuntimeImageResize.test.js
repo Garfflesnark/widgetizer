@@ -95,3 +95,20 @@ it("previews sidebar dimensions via trusted messages without sending a commit", 
   expect(document.querySelector(".wz-image-selection")).toBeNull();
   expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(0);
 });
+
+it("updates image dimensions on quick Undo without needing a server render", () => {
+  message("UPDATE_SELECTION", { widgetId: "w1", blockId: null });
+  const support = (width, height) =>
+    message("SET_IMAGE_RESIZE_SUPPORT", {
+      widgetIds: ["w1"],
+      stretchWidgetIds: ["w1"],
+      sizes: { w1: { width, height } },
+    });
+  support(73, 0);
+  message("IMAGE_SIZE_PREVIEW", { widgetId: "w1", width: 58, height: 370, phase: "commit" });
+  support(58, 370);
+  support(73, 0);
+  const target = document.querySelector("[data-image-resize-target]");
+  expect(target.style.width).toBe("73%");
+  expect(target.querySelector("img").style.height).toBe("auto");
+});

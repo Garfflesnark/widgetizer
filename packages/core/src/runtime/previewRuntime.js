@@ -841,6 +841,8 @@ function handleMessage(event) {
     const stretchIds = event.data.payload?.stretchWidgetIds || [];
     if (!Array.isArray(stretchIds) || !stretchIds.every((id) => typeof id === "string" && ids.includes(id))) return;
     imageResizeController?.setSupported(ids, stretchIds);
+    const sizes = event.data.payload?.sizes;
+    if (sizes && typeof sizes === "object" && !Array.isArray(sizes)) imageResizeController?.setSizes(sizes);
     renderOverlay();
     return;
   }

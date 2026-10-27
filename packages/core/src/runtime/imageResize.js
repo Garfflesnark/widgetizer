@@ -62,6 +62,7 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
   let draft = null;
   let supported = new Set();
   let stretch = new Set();
+  const canonicalSizes = new Map();
   const find = (id) =>
     Array.from(document.querySelectorAll("[data-widget-id]")).find((el) => el.dataset.widgetId === id);
   function parts(widget) {
@@ -179,6 +180,24 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
       stretch = new Set(stretchIds);
       if (gesture && !supported.has(gesture.widgetId)) finish(false);
       if (draft && !supported.has(draft.widgetId)) cancelDraft();
+      for (const id of canonicalSizes.keys()) if (!supported.has(id)) canonicalSizes.delete(id);
+    },
+    setSizes(sizes = {}) {
+      // Undo can return to the last server-rendered state before its debounce
+      // fires. Reconcile from store values even when no morph will be requested.
+      for (const [widgetId, size] of Object.entries(sizes)) {
+        const widget = find(widgetId);
+        if (!size || !eligible(widget, null) || !isImageWidth(size.width)) continue;
+        const twoAxes = stretch.has(widgetId) && widget.hasAttribute("data-image-height");
+        if (twoAxes && !isImageHeight(size.height)) continue;
+        const key = `${size.width}:${twoAxes ? size.height : "auto"}`;
+        if (canonicalSizes.get(widgetId) === key) continue;
+        if (gesture?.widgetId === widgetId) finish(false);
+        if (draft?.widgetId === widgetId) cancelDraft();
+        apply(snapshot(widget), size.width, twoAxes ? size.height : undefined);
+        canonicalSizes.set(widgetId, key);
+      }
+      onPreview();
     },
     preview({ widgetId, width, height, phase }) {
       if (phase === "cancel") {

@@ -1,4 +1,4 @@
-import { supportsImageStretch } from "@widgetizer/core/imageResize";
+import { supportsImageStretch, imageWidth, imageHeight } from "@widgetizer/core/imageResize";
 import { handleImageResizeMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
 import { useEffect, useCallback } from "react";
 import useWidgetStore from "../../stores/widgetStore";
@@ -49,8 +49,12 @@ export default function SelectionOverlay({
       const stretchWidgetIds = widgetIds.filter((id) =>
         supportsImageStretch(page.widgets[id], schemas[page.widgets[id].type]),
       );
+      const sizes = Object.fromEntries(widgetIds.map((id) => [id, {
+        width: imageWidth(page.widgets[id].settings?.image_width_percent),
+        height: imageHeight(page.widgets[id].settings?.image_height_px),
+      }]));
       iframe.contentWindow?.postMessage({
-        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds },
+        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, sizes },
       }, getPreviewTargetOrigin());
     };
     const preview = (event) => iframe.contentWindow?.postMessage(
