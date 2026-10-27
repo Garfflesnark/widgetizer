@@ -1,3 +1,8 @@
+import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
+import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
+import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
+import { supportsImageStretch, imageWidth, imageHeight } from "@widgetizer/core/imageResize";
+import { handleImageResizeMessage, handleImageGeometryMessage, handleImageAlignmentMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
 import { useEffect, useCallback } from "react";
 import useWidgetStore from "../../stores/widgetStore";
 import usePageStore from "../../stores/pageStore";
@@ -37,6 +42,46 @@ export default function SelectionOverlay({
   const sidebarHoveredBlockId = useWidgetStore((state) => state.hoveredBlockId);
   const reorderWidgets = useWidgetStore((state) => state.reorderWidgets);
   const page = usePageStore((state) => state.page);
+  const schemas = useWidgetStore((state) => state.schemas);
+
+  useEffect(() => {
+    const iframe = iframeRef?.current;
+    if (!iframe) return;
+    const sync = () => {
+      const widgetIds = supportedImageWidgetIds(page, schemas);
+      const stretchWidgetIds = widgetIds.filter((id) =>
+        supportsImageStretch(page.widgets[id], schemas[page.widgets[id].type]),
+      );
+      const sizes = Object.fromEntries(widgetIds.map((id) => [id, {
+        width: imageWidth(page.widgets[id].settings?.image_width_percent),
+        height: imageHeight(page.widgets[id].settings?.image_height_px),
+        transform: isImageTransform(page.widgets[id].settings?.image_transform) ? page.widgets[id].settings.image_transform : null,
+        ...(supportsImageSpacing(page.widgets[id], schemas[page.widgets[id].type]) ? { spacing: imageSpacing(page.widgets[id].settings) } : {}),
+      }]));
+      iframe.contentWindow?.postMessage({
+        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes },
+      }, getPreviewTargetOrigin());
+    };
+    const preview = (event) => iframe.contentWindow?.postMessage(
+      { type: "IMAGE_SIZE_PREVIEW", payload: event.detail }, getPreviewTargetOrigin(),
+    );
+    window.addEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
+    sync();
+    iframe.addEventListener("load", sync);
+    return () => {
+      iframe.removeEventListener("load", sync);
+      window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
+    };
+  }, [iframeRef, page, schemas, previewReadyKey]);
+
+  useEffect(() => {
+    const iframe = iframeRef?.current;
+    if (!iframe) return;
+    const sync = () => iframe.contentWindow?.postMessage({ type: "EDITOR_HISTORY_STATE", payload: editorHistoryState() }, getPreviewTargetOrigin());
+    const unsubscribe = usePageStore.temporal.subscribe(sync);
+    sync(); iframe.addEventListener("load", sync);
+    return () => { unsubscribe(); iframe.removeEventListener("load", sync); };
+  }, [iframeRef, previewReadyKey]);
 
   const effectiveWidgetId = selectedWidgetId || selectedGlobalWidgetId;
 
@@ -75,6 +120,24 @@ export default function SelectionOverlay({
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.data?.type === "IMAGE_ALIGN") {
+        handleImageAlignmentMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        return;
+      }
+      if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
+        handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        return;
+      }
+      if (event.data?.type === "EDITOR_HISTORY_SHORTCUT") {
+        if (event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin() && event.origin !== "null") {
+          performEditorHistory(event.data.payload?.command);
+        }
+        return;
+      }
+      if (event.data?.type === "IMAGE_RESIZE_COMMIT") {
+        handleImageResizeMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        return;
+      }
       const { type, payload } = event.data || {};
 
       switch (type) {

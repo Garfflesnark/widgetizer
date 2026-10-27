@@ -1,5 +1,6 @@
 {
   "type": "image",
+  "imageTransformVersion": 2,
   "displayName": "tTheme:image.name",
   "aliases": [
     "photo",
@@ -38,6 +39,46 @@
       "description": "tTheme:image.settings.fullwidth.description"
     },
     {
+      "type": "range",
+      "id": "image_width_percent",
+      "label": "tTheme:global.widgets.blocks.image.settings.width.label",
+      "min": 10,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "image_height_px",
+      "label": "Height",
+      "min": 0,
+      "max": 2000,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "image_scale_width",
+      "label": "Width",
+      "min": 0,
+      "max": 400,
+      "step": 1,
+      "unit": "%",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "image_scale_height",
+      "label": "Height",
+      "min": 0,
+      "max": 400,
+      "step": 1,
+      "unit": "%",
+      "default": 0
+    },
+    {
       "type": "header",
       "id": "appearance_header",
       "label": "tTheme:global.widgets.settings.appearance_header.label"
@@ -59,8 +100,22 @@
         {
           "value": "none",
           "label": "tTheme:global.widgets.settings.top_spacing.options.none"
+        },
+        {
+          "value": "px",
+          "label": "Pixels"
         }
       ]
+    },
+    {
+      "type": "range",
+      "id": "top_spacing_px",
+      "label": "Top Spacing (px)",
+      "min": 0,
+      "max": 2000,
+      "step": 1,
+      "unit": "px",
+      "default": 0
     },
     {
       "type": "select",
@@ -79,8 +134,23 @@
         {
           "value": "none",
           "label": "tTheme:global.widgets.settings.bottom_spacing.options.none"
+        },
+        {
+          "value": "px",
+          "label": "Pixels"
         }
       ]
+    },
+    {
+      "type": "range",
+      "id": "bottom_spacing_px",
+      "label": "Bottom Spacing (px)",
+      "min": 0,
+      "max": 2000,
+      "step": 1,
+      "unit": "px",
+      "default": 0
     }
-  ]
+  ],
+  "imageSpacingVersion": 1
 }

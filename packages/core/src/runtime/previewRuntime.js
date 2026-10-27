@@ -1,3 +1,4 @@
+import { getEditorHistoryShortcut } from "./editorHistoryShortcut.js";
 /*
 This is the runtime script that is injected into the preview iframe.
 It handles CSS variable updates, font loading, real-time settings updates,
@@ -11,6 +12,7 @@ and cross-origin contentDocument access issues.
 // Served raw as an ES module from the /runtime static mount; resolves to
 // /runtime/standalonePreviewTarget.js (same dir). Single source of truth for the
 // in-preview href → preview-route mapping (unit-tested separately).
+import { createImageResizeController } from "./imageResize.js";
 import { getStandalonePreviewTarget } from "./standalonePreviewTarget.js";
 
 // ── PostMessage ─────────────────────────────────────────────────────────────
@@ -333,6 +335,7 @@ function setupScrollBoundsReporting() {
 // ── Selection Update ────────────────────────────────────────────────────────
 
 function updateSelection(widgetId, blockId) {
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId) imageResizeController?.cancel();
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
 
@@ -677,6 +680,8 @@ const CHEVRON_UP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" heigh
 const CHEVRON_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
 let overlayContainer = null;
+let imageResizeController = null;
+let imageAlignmentMenuFor = null;
 
 function createOverlayContainer() {
   if (PREVIEW_MODE === "standalone") return null;
@@ -695,6 +700,11 @@ function createOverlayContainer() {
     .wz-reorder-btn[disabled] { opacity: 0.3; cursor: not-allowed; }
     .wz-reorder-btn[disabled]:hover { background: white; border-color: #e2e8f0; }
     .wz-controls { position: absolute; transform: translateX(-50%); left: 50%; display: flex; align-items: center; gap: 4px; pointer-events: auto; }
+    button.wz-widget-label { border: 0; cursor: pointer; pointer-events: auto; }
+    button.wz-widget-label:focus-visible { outline: 2px solid #e0006d; outline-offset: 2px; }
+    .wz-image-menu { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); min-width: 132px; padding: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 12px #0002; pointer-events: auto; }
+    .wz-image-menu button { display: block; width: 100%; text-align: left; color: #334155; font: 12px/20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 4px 8px; border: 0; border-radius: 4px; background: white; cursor: pointer; }
+    .wz-image-menu button:hover, .wz-image-menu button:focus-visible { background: #fff0f8; color: #e0006d; }
   `;
   document.head.appendChild(style);
 
@@ -749,7 +759,9 @@ function renderOverlay() {
   if (currentSelectedWidgetId) {
     const selEl = document.querySelector(`[data-widget-id="${currentSelectedWidgetId}"]`);
     if (selEl) {
-      const rect = selEl.getBoundingClientRect();
+      const imageRect = imageResizeController?.selectionRect(selEl, currentSelectedBlockId);
+      const rect = imageRect || selEl.getBoundingClientRect();
+      const controlsRect = selEl.getBoundingClientRect();
       const displayName = widgetMetadata[currentSelectedWidgetId] || "";
       const isPageWidget = widgetOrder.includes(currentSelectedWidgetId);
       const widgetIndex = widgetOrder.indexOf(currentSelectedWidgetId);
@@ -757,16 +769,16 @@ function renderOverlay() {
       const canMoveDown = isPageWidget && widgetIndex < widgetOrder.length - 1;
       const showReorder = isPageWidget && widgetOrder.length > 1;
 
-      html += `<div class="wz-selection-box" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;">`;
+      html += `<div class="wz-selection-box${imageRect ? " wz-image-selection" : ""}" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;${imageRect ? "border:2px dashed #e0006d;box-shadow:none;" : ""}">`;
 
       // Controls bar above the selection box
-      html += `<div class="wz-controls" style="top:-24px;">`;
+      html += `<div class="wz-controls" style="top:${controlsRect.top - rect.top - 24}px;">`;
 
       if (showReorder) {
         html += `<button class="wz-reorder-btn" data-reorder="up" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveUp ? "disabled" : ""}>${CHEVRON_UP_SVG}</button>`;
       }
 
-      if (displayName) {
+      if (displayName && !imageRect) {
         html += `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
       }
 
@@ -775,6 +787,19 @@ function renderOverlay() {
       }
 
       html += `</div>`; // .wz-controls
+      if (imageRect && displayName) {
+        const units = selEl.dataset.imageUnits === "2";
+        html += `<div class="wz-controls wz-image-controls" style="top:-30px;">`;
+        html += units ? `<button type="button" class="wz-widget-label" data-image-align-menu="${escapeHtml(currentSelectedWidgetId)}" aria-haspopup="menu" aria-expanded="${imageAlignmentMenuFor === currentSelectedWidgetId}">${escapeHtml(displayName)}</button>` :
+          `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
+        if (units && imageAlignmentMenuFor === currentSelectedWidgetId) {
+          html += `<div class="wz-image-menu" role="menu" aria-label="Image alignment">`;
+          for (const [alignment, label] of [["left", "Align Left"], ["center", "Align Center"], ["right", "Align Right"]])
+            html += `<button type="button" role="menuitem" data-image-align="${alignment}">${label}</button>`;
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
       html += `</div>`; // .wz-selection-box
     }
   }
@@ -791,6 +816,10 @@ function renderOverlay() {
   }
 
   overlayContainer.innerHTML = html;
+  const selected = Array.from(document.querySelectorAll("[data-widget-id]")).find(
+    (element) => element.dataset.widgetId === currentSelectedWidgetId,
+  );
+  imageResizeController?.renderHandle(overlayContainer, selected, currentSelectedBlockId);
 }
 
 function escapeHtml(str) {
@@ -804,6 +833,21 @@ function setupOverlayClickHandler() {
   if (!overlayContainer) return;
 
   overlayContainer.addEventListener("click", (event) => {
+    const menuButton = event.target.closest("[data-image-align-menu]");
+    if (menuButton) {
+      imageAlignmentMenuFor = imageAlignmentMenuFor === currentSelectedWidgetId ? null : currentSelectedWidgetId;
+      renderOverlay();
+      (overlayContainer.querySelector('[role="menuitem"]') || overlayContainer.querySelector('[data-image-align-menu]'))?.focus();
+      return;
+    }
+    const alignment = event.target.closest("[data-image-align]")?.dataset.imageAlign;
+    if (alignment && imageAlignmentMenuFor === currentSelectedWidgetId) {
+      postToParent({ type: "IMAGE_ALIGN", payload: { widgetId: currentSelectedWidgetId, alignment } });
+      imageAlignmentMenuFor = null;
+      renderOverlay();
+      overlayContainer.querySelector('[data-image-align-menu]')?.focus();
+      return;
+    }
     const btn = event.target.closest("[data-widget-reorder]");
     if (!btn || btn.disabled) return;
 
@@ -812,11 +856,49 @@ function setupOverlayClickHandler() {
 
     postToParent({ type: "REORDER_WIDGET", payload: { widgetId, direction } });
   });
+  document.addEventListener("pointerdown", (event) => {
+    if (imageAlignmentMenuFor && !event.target.closest(".wz-image-controls")) { imageAlignmentMenuFor = null; renderOverlay(); }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && imageAlignmentMenuFor) {
+      event.preventDefault(); imageAlignmentMenuFor = null; renderOverlay();
+      overlayContainer.querySelector('[data-image-align-menu]')?.focus();
+    }
+  });
 }
 
 // ── Message Handler ─────────────────────────────────────────────────────────
 
+let editorHistoryState = { canUndo: false, canRedo: false };
 function handleMessage(event) {
+  if (event.data?.type === "EDITOR_HISTORY_STATE") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const state = event.data.payload;
+    if (typeof state?.canUndo === "boolean" && typeof state?.canRedo === "boolean") editorHistoryState = state;
+    return;
+  }
+  if (event.data?.type === "IMAGE_SIZE_PREVIEW") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const payload = event.data.payload;
+    if (!payload || payload.widgetId !== currentSelectedWidgetId || currentSelectedBlockId ||
+        !["preview", "commit", "cancel"].includes(payload.phase)) return;
+    imageResizeController?.preview(payload);
+    return;
+  }
+  if (event.data?.type === "SET_IMAGE_RESIZE_SUPPORT") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const ids = event.data.payload?.widgetIds;
+    if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) return;
+    const stretchIds = event.data.payload?.stretchWidgetIds || [];
+    if (!Array.isArray(stretchIds) || !stretchIds.every((id) => typeof id === "string" && ids.includes(id))) return;
+    const transformIds = event.data.payload?.transformWidgetIds || [];
+    if (!Array.isArray(transformIds) || !transformIds.every((id) => typeof id === "string" && stretchIds.includes(id))) return;
+    imageResizeController?.setSupported(ids, stretchIds, transformIds);
+    const sizes = event.data.payload?.sizes;
+    if (sizes && typeof sizes === "object" && !Array.isArray(sizes)) imageResizeController?.setSizes(sizes);
+    renderOverlay();
+    return;
+  }
   // Only obey commands from the editor that framed us. Without this, any window
   // able to reach this iframe could post UPDATE_CUSTOM_SCRIPTS / MORPH_WIDGET and
   // run code/inject HTML in the preview's origin. Enforced only when the editor
@@ -997,6 +1079,7 @@ function trackWidgetObserver(widgetId, observer) {
 }
 
 function morphWidget(widgetId, newHtml) {
+  if (widgetId === currentSelectedWidgetId) imageResizeController?.cancel();
   const existingElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
   if (!existingElement) {
     console.warn(`[PreviewRuntime] Widget ${widgetId} not found for morphing`);
@@ -1145,6 +1228,17 @@ function ensureHeaderScrollListener() {
 
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
+  if (PREVIEW_MODE === "editor") {
+    imageResizeController = createImageResizeController({
+      document, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload }), onPreview: renderOverlay,
+    });
+  }
+  if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
+    const command = getEditorHistoryShortcut(event);
+    if (!command || !editorHistoryState[command === "undo" ? "canUndo" : "canRedo"]) return;
+    event.preventDefault();
+    postToParent({ type: "EDITOR_HISTORY_SHORTCUT", payload: { command } });
+  });
   setupInteractionHandler();
   setupHoverHandler();
   setupScrollBoundsReporting();
@@ -1152,7 +1246,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => renderOverlay());
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

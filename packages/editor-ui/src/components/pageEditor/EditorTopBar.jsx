@@ -1,3 +1,5 @@
+import { getEditorHistoryShortcut } from "@widgetizer/core/editorHistoryShortcut";
+import { performEditorHistory } from "../../lib/editorHistory";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Save, ChevronDown, Monitor, Smartphone, Eye, ArrowLeft, Undo2, Redo2, CirclePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -80,24 +82,8 @@ export default function EditorTopBar({
   const canUndo = pastStates.length > 0 && pastStates[pastStates.length - 1]?.page;
   const canRedo = futureStates.length > 0;
 
-  // Safe undo - only undo if the previous state has a valid page
-  const safeUndo = useCallback(() => {
-    const { pastStates, undo } = usePageStore.temporal.getState();
-    if (pastStates.length > 0 && pastStates[pastStates.length - 1]?.page) {
-      undo();
-      // Push the restored theme snapshot back to themeStore (canonical owner)
-      usePageStore.getState().syncThemeStoreFromSnapshot();
-      useAutoSave.getState().reconcileModifiedWidgets();
-    }
-  }, []);
-
-  const safeRedo = useCallback(() => {
-    const { redo } = usePageStore.temporal.getState();
-    redo();
-    // Push the restored theme snapshot back to themeStore (canonical owner)
-    usePageStore.getState().syncThemeStoreFromSnapshot();
-    useAutoSave.getState().reconcileModifiedWidgets();
-  }, []);
+  const safeUndo = useCallback(() => performEditorHistory("undo"), []);
+  const safeRedo = useCallback(() => performEditorHistory("redo"), []);
 
   useEffect(() => {
     const loadPages = async () => {
@@ -119,6 +105,7 @@ export default function EditorTopBar({
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.defaultPrevented || e.isComposing) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         // Prevent multiple simultaneous saves if one is already in progress
@@ -127,29 +114,8 @@ export default function EditorTopBar({
         }
       }
 
-      // Don't hijack undo/redo while the user is editing a text field — let the
-      // browser's native input undo handle it (page-level history would otherwise
-      // run instead and leave the field value stale). Ctrl/Cmd+S above still works.
-      const el = e.target;
-      const isEditableTarget =
-        !!el &&
-        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
-      if (isEditableTarget) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
-        if (e.shiftKey) {
-          e.preventDefault();
-          safeRedo();
-        } else {
-          e.preventDefault();
-          safeUndo();
-        }
-      }
-
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
-        e.preventDefault();
-        safeRedo();
-      }
+      const command = getEditorHistoryShortcut(e);
+      if (command && performEditorHistory(command)) e.preventDefault();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -330,7 +296,7 @@ export default function EditorTopBar({
           <button
             onClick={safeRedo}
             disabled={!canRedo}
-            title={`${t("pageEditor.toolbar.redo")} (Ctrl+Shift+Z)`}
+            title={`${t("pageEditor.toolbar.redo")} (Ctrl+Y / Ctrl+Shift+Z)`}
             className={`p-1.5 rounded ${
               canRedo ? "text-slate-600 hover:bg-white hover:text-slate-800" : "text-slate-400 cursor-not-allowed"
             }`}
