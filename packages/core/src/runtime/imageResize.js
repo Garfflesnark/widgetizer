@@ -1,5 +1,5 @@
 import { resizeAnchoredRect } from "./anchoredResize.js";
-import { imageReference, isImageTransform, rectTransform, transformRect } from "./imageTransform.js";
+import { imageReference, isImageTransform, rectTransform, transformRect, imageTransformV2 } from "./imageTransform.js";
 export const IMAGE_WIDTH_SETTING = "image_width_percent";
 export const MIN_IMAGE_WIDTH = 10;
 export const MAX_IMAGE_WIDTH = 100;
@@ -112,6 +112,9 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   }
   function currentTransform(widget) {
     if (canonicalValues.has(widget.dataset.widgetId)) return canonicalValues.get(widget.dataset.widgetId).transform || null;
+    if (widget.dataset.imageTransformVersion === "2") {
+      try { const value = JSON.parse(widget.dataset.imageTransform); return isImageTransform(value) ? value : null; } catch { return null; }
+    }
     if (widget.dataset.imageTransformVersion !== "1") return null;
     const nullable = (v) => v === "" || v === undefined ? null : Number(v);
     const value = { version: 1, reference: "intrinsic-fit", scale: {
@@ -170,10 +173,12 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     if (gesture.modern) {
       const rect = resizeAnchoredRect(gesture.rect, gesture.direction, dx, dy, {
         left: 0, top: 0, right: gesture.basis.containerWidth, maxTop: gesture.basis.height * 4,
-        minWidth: gesture.basis.width / 100, minHeight: gesture.basis.height / 100,
-        maxWidth: gesture.basis.width * 4, maxHeight: gesture.basis.height * 4,
+        minWidth: gesture.model?.dimensions.width.unit === "px" ? 1 : gesture.basis.width / 100,
+        minHeight: gesture.model?.dimensions.height.unit === "px" ? 1 : gesture.basis.height / 100,
+        maxWidth: gesture.model?.dimensions.width.unit === "px" ? 10000 : gesture.basis.width * 4,
+        maxHeight: gesture.model?.dimensions.height.unit === "px" ? 10000 : gesture.basis.height * 4,
       });
-      gesture.transform = rectTransform(rect, gesture.basis);
+      gesture.transform = rectTransform(rect, gesture.basis, gesture.model, gesture.direction);
       gesture.moved = Math.abs(rect.left - gesture.rect.left) + Math.abs(rect.top - gesture.rect.top) +
         Math.abs(rect.width - gesture.rect.width) + Math.abs(rect.height - gesture.rect.height) > 0.01;
       applyTransform(gesture, gesture.transform, gesture.basis);
@@ -358,6 +363,9 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
             const bounds = image.getBoundingClientRect();
             Object.assign(gesture, { modern: true, basis: reference(widget), startTransform: currentTransform(widget), moved: false,
               rect: { left: bounds.left - container.left, top: bounds.top - container.top, width: bounds.width, height: bounds.height } });
+            if (widget.dataset.imageUnits === "2") gesture.model = imageTransformV2({ settings: {
+              image_transform: currentTransform(widget), image_width_percent: Number(widget.dataset.imageWidth), image_height_px: Number(widget.dataset.imageHeight),
+            } }, gesture.basis);
           }
           overlay.setPointerCapture?.(event.pointerId);
           event.preventDefault();

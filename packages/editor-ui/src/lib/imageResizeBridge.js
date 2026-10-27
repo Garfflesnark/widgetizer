@@ -1,4 +1,4 @@
-import { SCALE_WIDTH, SCALE_HEIGHT, isImageTransform, supportsImageTransform, legacyImageTransform } from "@widgetizer/core/imageTransform";
+import { SCALE_WIDTH, SCALE_HEIGHT, isImageTransform, supportsImageTransform, supportsImageUnits, imageTransformV2, switchImageUnit, legacyImageTransform } from "@widgetizer/core/imageTransform";
 import {
   IMAGE_WIDTH_SETTING,
   IMAGE_HEIGHT_SETTING,
@@ -41,6 +41,7 @@ export function handleImageResizeMessage(event, iframeWindow, origin) {
   if (Object.hasOwn(payload, "transform")) {
     const previous = isImageTransform(selected.settings?.image_transform) ? selected.settings.image_transform : null;
     if (!supportsImageTransform(selected, store.schemas[selected.type]) || !isImageTransform(payload.transform) ||
+        (payload.transform.version === 2 && !supportsImageUnits(selected, store.schemas[selected.type])) ||
         JSON.stringify(previous) !== JSON.stringify(payload.startTransform) || JSON.stringify(previous) === JSON.stringify(payload.transform)) return false;
     usePageStore.getState().beginHistoryStep();
     store.updateWidgetSettingValues(widgetId, { image_transform: payload.transform });
@@ -108,13 +109,52 @@ export function editedImageTransform(widgetId, settingId, value) {
   const widget = usePageStore.getState().page?.widgets?.[widgetId];
   const reference = store.imageGeometry[widgetId];
   if (!widget || !reference || reference.imageSource !== (widget.settings?.image || "") ||
-      !supportsImageTransform(widget, store.schemas[widget.type]) || !Number.isFinite(value) || value < 0 || value > 400) return null;
+      !supportsImageTransform(widget, store.schemas[widget.type]) || !Number.isFinite(value)) return null;
+  if (supportsImageUnits(widget, store.schemas[widget.type])) {
+    const transform = imageTransformV2(widget, reference);
+    const d = transform.dimensions[settingId === SCALE_WIDTH ? "width" : "height"];
+    if (value < 1 || value > (d.unit === "px" ? 10000 : 400)) return null;
+    d.value = d.unit === "px" ? Math.round(value) : value;
+    return isImageTransform(transform) ? transform : null;
+  }
+  if (value < 0 || value > 400) return null;
   const transform = legacyImageTransform(widget, reference);
   transform.scale[settingId === SCALE_WIDTH ? "width" : "height"] = value === 0 ? null : value;
   const availableScale = 100 * reference.containerWidth * (1 - transform.flowInset.inlinePercent / 100) / reference.width;
   if (transform.scale.width !== null) transform.scale.width = Math.min(transform.scale.width, availableScale);
   else if (transform.scale.height !== null) transform.scale.height = Math.min(transform.scale.height, availableScale);
   return isImageTransform(transform) ? transform : null;
+}
+
+export function changeImageUnit(widgetId, axis, unit) {
+  const store = useWidgetStore.getState();
+  const widget = usePageStore.getState().page?.widgets?.[widgetId];
+  const ref = store.imageGeometry[widgetId];
+  if (!widget || !ref || ref.imageSource !== (widget.settings?.image || "") || !supportsImageUnits(widget, store.schemas[widget.type])) return false;
+  const transform = switchImageUnit(imageTransformV2(widget, ref), axis, unit, ref);
+  if (!transform) return false;
+  if (JSON.stringify(widget.settings?.image_transform) === JSON.stringify(transform)) return true;
+  store.updateWidgetSettingValues(widgetId, { image_transform: transform });
+  useAutoSave.getState().markWidgetModified(widgetId);
+  return true;
+}
+
+export function handleImageAlignmentMessage(event, iframeWindow, origin) {
+  if (!iframeWindow || origin === "*" || event.source !== iframeWindow || event.origin !== origin) return false;
+  const p = event.data?.payload;
+  const store = useWidgetStore.getState();
+  const widget = usePageStore.getState().page?.widgets?.[p?.widgetId];
+  const ref = store.imageGeometry[p?.widgetId];
+  if (event.data?.type !== "IMAGE_ALIGN" || !p || !["left", "center", "right"].includes(p.alignment) ||
+    store.selectedWidgetId !== p.widgetId || store.selectedBlockId || !supportedImageWidgetIds(usePageStore.getState().page, store.schemas).includes(p.widgetId) ||
+    !supportsImageUnits(widget, store.schemas[widget?.type]) || !ref || ref.imageSource !== (widget.settings?.image || "")) return false;
+  const transform = imageTransformV2(widget, ref);
+  transform.alignment = p.alignment;
+  transform.flowInset.inlinePercent = 0;
+  if (JSON.stringify(widget.settings?.image_transform) === JSON.stringify(transform)) return true;
+  store.updateWidgetSettingValues(p.widgetId, { image_transform: transform });
+  useAutoSave.getState().markWidgetModified(p.widgetId);
+  return true;
 }
 export function handleImageGeometryMessage(event, iframeWindow, origin) {
   if (!iframeWindow || origin === "*" || event.source !== iframeWindow || event.origin !== origin) return false;

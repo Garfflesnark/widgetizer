@@ -1,7 +1,7 @@
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
 import { supportsImageStretch, imageWidth, imageHeight } from "@widgetizer/core/imageResize";
-import { handleImageResizeMessage, handleImageGeometryMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
+import { handleImageResizeMessage, handleImageGeometryMessage, handleImageAlignmentMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
 import { useEffect, useCallback } from "react";
 import useWidgetStore from "../../stores/widgetStore";
 import usePageStore from "../../stores/pageStore";
@@ -118,6 +118,10 @@ export default function SelectionOverlay({
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.data?.type === "IMAGE_ALIGN") {
+        handleImageAlignmentMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        return;
+      }
       if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
         handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;

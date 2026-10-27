@@ -681,6 +681,7 @@ const CHEVRON_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" hei
 
 let overlayContainer = null;
 let imageResizeController = null;
+let imageAlignmentMenuFor = null;
 
 function createOverlayContainer() {
   if (PREVIEW_MODE === "standalone") return null;
@@ -699,6 +700,11 @@ function createOverlayContainer() {
     .wz-reorder-btn[disabled] { opacity: 0.3; cursor: not-allowed; }
     .wz-reorder-btn[disabled]:hover { background: white; border-color: #e2e8f0; }
     .wz-controls { position: absolute; transform: translateX(-50%); left: 50%; display: flex; align-items: center; gap: 4px; pointer-events: auto; }
+    button.wz-widget-label { border: 0; cursor: pointer; pointer-events: auto; }
+    button.wz-widget-label:focus-visible { outline: 2px solid #e0006d; outline-offset: 2px; }
+    .wz-image-menu { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); min-width: 132px; padding: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 12px #0002; pointer-events: auto; }
+    .wz-image-menu button { display: block; width: 100%; text-align: left; color: #334155; font: 12px/20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 4px 8px; border: 0; border-radius: 4px; background: white; cursor: pointer; }
+    .wz-image-menu button:hover, .wz-image-menu button:focus-visible { background: #fff0f8; color: #e0006d; }
   `;
   document.head.appendChild(style);
 
@@ -772,7 +778,7 @@ function renderOverlay() {
         html += `<button class="wz-reorder-btn" data-reorder="up" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveUp ? "disabled" : ""}>${CHEVRON_UP_SVG}</button>`;
       }
 
-      if (displayName) {
+      if (displayName && !imageRect) {
         html += `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
       }
 
@@ -781,6 +787,19 @@ function renderOverlay() {
       }
 
       html += `</div>`; // .wz-controls
+      if (imageRect && displayName) {
+        const units = selEl.dataset.imageUnits === "2";
+        html += `<div class="wz-controls wz-image-controls" style="top:-30px;">`;
+        html += units ? `<button type="button" class="wz-widget-label" data-image-align-menu="${escapeHtml(currentSelectedWidgetId)}" aria-haspopup="menu" aria-expanded="${imageAlignmentMenuFor === currentSelectedWidgetId}">${escapeHtml(displayName)}</button>` :
+          `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
+        if (units && imageAlignmentMenuFor === currentSelectedWidgetId) {
+          html += `<div class="wz-image-menu" role="menu" aria-label="Image alignment">`;
+          for (const [alignment, label] of [["left", "Align Left"], ["center", "Align Center"], ["right", "Align Right"]])
+            html += `<button type="button" role="menuitem" data-image-align="${alignment}">${label}</button>`;
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
       html += `</div>`; // .wz-selection-box
     }
   }
@@ -814,6 +833,21 @@ function setupOverlayClickHandler() {
   if (!overlayContainer) return;
 
   overlayContainer.addEventListener("click", (event) => {
+    const menuButton = event.target.closest("[data-image-align-menu]");
+    if (menuButton) {
+      imageAlignmentMenuFor = imageAlignmentMenuFor === currentSelectedWidgetId ? null : currentSelectedWidgetId;
+      renderOverlay();
+      (overlayContainer.querySelector('[role="menuitem"]') || overlayContainer.querySelector('[data-image-align-menu]'))?.focus();
+      return;
+    }
+    const alignment = event.target.closest("[data-image-align]")?.dataset.imageAlign;
+    if (alignment && imageAlignmentMenuFor === currentSelectedWidgetId) {
+      postToParent({ type: "IMAGE_ALIGN", payload: { widgetId: currentSelectedWidgetId, alignment } });
+      imageAlignmentMenuFor = null;
+      renderOverlay();
+      overlayContainer.querySelector('[data-image-align-menu]')?.focus();
+      return;
+    }
     const btn = event.target.closest("[data-widget-reorder]");
     if (!btn || btn.disabled) return;
 
@@ -821,6 +855,15 @@ function setupOverlayClickHandler() {
     const direction = btn.getAttribute("data-reorder");
 
     postToParent({ type: "REORDER_WIDGET", payload: { widgetId, direction } });
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (imageAlignmentMenuFor && !event.target.closest(".wz-image-controls")) { imageAlignmentMenuFor = null; renderOverlay(); }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && imageAlignmentMenuFor) {
+      event.preventDefault(); imageAlignmentMenuFor = null; renderOverlay();
+      overlayContainer.querySelector('[data-image-align-menu]')?.focus();
+    }
   });
 }
 

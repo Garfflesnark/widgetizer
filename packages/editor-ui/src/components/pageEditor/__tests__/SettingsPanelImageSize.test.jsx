@@ -55,7 +55,7 @@ it("uses percentage controls for both axes and replaces Full Width with Default 
   panel();
   expect(dimensions.map((props) => props.setting.id)).toEqual(["image_scale_width", "image_scale_height"]);
   expect(dimensions.map((props) => props.value)).toEqual([45, 58.33]);
-  expect(screen.getByRole("button", { name: "Default Scale" })).toBeTruthy();
+  expect(screen.getByRole("switch", { name: "Default Scale" })).toBeTruthy();
   expect(settings.some((props) => props.setting.id === "image_width_percent")).toBe(false);
 });
 it("leaves unrelated widget range inputs on the shared renderer", () => {
@@ -66,10 +66,10 @@ it("leaves unrelated widget range inputs on the shared renderer", () => {
 });
 it("resets both axes and flow spacing in one atomic Default Scale operation", () => {
   panel();
-  act(() => fireEvent.click(screen.getByRole("button", { name: "Default Scale" })));
+  act(() => fireEvent.click(screen.getByRole("switch", { name: "Default Scale" })));
   expect(pageStore.getState().page.widgets.w1.settings).toEqual({
     fullwidth: false,
-    image_transform: { version: 1, reference: "intrinsic-fit", scale: { width: null, height: null }, flowInset: { inlinePercent: 0, blockPercent: 0 } },
+    image_transform: { version: 2, reference: "intrinsic-fit", alignment: "center", dimensions: { width: { unit: "%", value: null }, height: { unit: "%", value: null } }, flowInset: { inlinePercent: 0, blockPercent: 0 } },
     image_width_percent: 45,
     image_height_px: 350,
   });

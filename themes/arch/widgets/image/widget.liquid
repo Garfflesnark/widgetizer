@@ -21,9 +21,14 @@
   data-image-width="{{ image_width }}"
   data-image-height="{{ image_height }}"
   data-image-transform-capable="true"
+  data-image-units="2"
   data-image-source="{{ widget.settings.image }}"
   data-image-natural-width="{{ natural_width }}"
   data-image-natural-height="{{ natural_height }}"
+  {% if transform.version == 2 %}
+  data-image-transform-version="2"
+  data-image-transform="{{ transform | json }}"
+  {% endif %}
   {% if transformed %}
   data-image-transform-width="{{ transform.scale.width }}"
   data-image-transform-height="{{ transform.scale.height }}"
@@ -114,6 +119,49 @@
           height: calc(var(--image-visible-width) * {{ natural_height }} / {{ natural_width }});
           {% else %}
           height: calc(var(--image-reference-height) * {{ height_scale }});
+          {% endif %}
+          object-fit: fill;
+        }
+      }
+      {% endif %}
+
+      {% if transform.version == 2 %}
+      & .widget-content { container-type: inline-size; }
+      & .image-resize-target {
+        --image-reference-width: min(100cqw, {{ natural_width }}px);
+        --image-reference-height: calc(var(--image-reference-width) * {{ natural_height }} / {{ natural_width }});
+        {% if transform.dimensions.width.unit == 'px' %}
+        --image-requested-width: {{ transform.dimensions.width.value | default: 1 }}px;
+        {% else %}
+        --image-requested-width: calc(var(--image-reference-width) * {{ transform.dimensions.width.value | default: 100 | divided_by: 100.0 }});
+        {% endif %}
+        {% if transform.dimensions.height.unit == 'px' %}
+        --image-requested-height: {{ transform.dimensions.height.value | default: 1 }}px;
+        {% else %}
+        --image-requested-height: calc(var(--image-reference-height) * {{ transform.dimensions.height.value | default: 100 | divided_by: 100.0 }});
+        {% endif %}
+        {% if transform.dimensions.width.value == nil %}
+          {% if transform.dimensions.height.value == nil %}
+        --image-visible-width: min(100cqw, var(--image-reference-width));
+          {% else %}
+        --image-visible-width: max(1px, min(100cqw, calc(var(--image-requested-height) * {{ natural_width }} / {{ natural_height }})));
+          {% endif %}
+        {% else %}
+        --image-visible-width: max(1px, min(100cqw, var(--image-requested-width)));
+        {% endif %}
+        {% assign align_factor = 0 %}
+        {% if transform.alignment == 'center' %}{% assign align_factor = 0.5 %}{% elsif transform.alignment == 'right' %}{% assign align_factor = 1 %}{% endif %}
+        --image-inline-offset: max(0px, min(calc(100cqw - var(--image-visible-width)), calc((100cqw - var(--image-visible-width)) * {{ align_factor }} + {{ transform.flowInset.inlinePercent }}cqw)));
+        width: var(--image-visible-width);
+        margin-inline-start: var(--image-inline-offset);
+        margin-inline-end: 0;
+        padding-block-start: calc(var(--image-reference-height) * {{ transform.flowInset.blockPercent | divided_by: 100.0 }});
+        & img {
+          width: 100%;
+          {% if transform.dimensions.width.value == nil or transform.dimensions.height.value == nil %}
+          height: calc(var(--image-visible-width) * {{ natural_height }} / {{ natural_width }});
+          {% else %}
+          height: var(--image-requested-height);
           {% endif %}
           object-fit: fill;
         }

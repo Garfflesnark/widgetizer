@@ -1,5 +1,6 @@
 {
   "type": "image",
+  "imageTransformVersion": 2,
   "displayName": "tTheme:image.name",
   "aliases": [
     "photo",

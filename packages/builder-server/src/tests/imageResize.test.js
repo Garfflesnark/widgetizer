@@ -198,6 +198,33 @@ it("uses proportional dimensions for either Auto axis and rejects malformed tran
   }
 });
 
+it("saves mixed-unit v2 dimensions and alignment exactly and exports the preview CSS for all four combinations", async () => {
+  for (const [w, h] of [["%", "%"], ["%", "px"], ["px", "%"], ["px", "px"]]) {
+    const image_transform = { version: 2, reference: "intrinsic-fit", alignment: "right", dimensions: {
+      width: { unit: w, value: w === "px" ? 317 : 50 }, height: { unit: h, value: h === "px" ? 243 : 50 },
+    }, flowInset: { inlinePercent: -5, blockPercent: 10 } };
+    const page = { id: "index", slug: "index", name: "Home", widgetsOrder: ["w1"], widgets: {
+      w1: { type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform } },
+    } };
+    const saved = response(); await savePageContent(request(page), saved); assert.equal(saved.code, 200);
+    const loaded = response(); await getPage(request(), loaded);
+    assert.deepEqual(loaded.data.widgets.w1.settings.image_transform, image_transform);
+    const preview = response(); await generatePreview(request({ pageData: loaded.data, themeSettings, previewMode: "editor" }), preview);
+    assert.equal(preview.code, 200);
+    const exported = await harness.runExport(); assert.equal(exported._status, 200);
+    const html = await fs.readFile(path.join(harness.latestExportDir(), "index.html"), "utf8");
+    const css = (text) => text.match(/--image-reference-width:[\s\S]+?object-fit: fill;/)?.[0].replace(/\s+/g, "");
+    assert.ok(css(html)); assert.equal(css(html), css(preview.html));
+    assert.match(html, /data-image-transform-version="2"/);
+    const encoded = html.match(/data-image-transform=(["'])([\s\S]*?)\1/)[2];
+    assert.deepEqual(JSON.parse(encoded.replaceAll("&quot;", '"').replaceAll("&#34;", '"')), image_transform);
+    assert.match(html, /data-image-units="2"/);
+    if (w === "px") assert.match(html, /--image-requested-width: 317px;/);
+    if (h === "px") assert.match(html, /--image-requested-height: 243px;/);
+    assert.doesNotMatch(html, /wz-image-menu|wz-image-resize-handle/);
+  }
+});
+
 it("keeps the existing container-constrained default and renders saved Full Width percentages unchanged", async () => {
   const imageSchema = await fs.readJson(path.join(source, "schema.json"));
   assert.equal(imageSchema.settings.find((setting) => setting.id === "fullwidth").default, false);

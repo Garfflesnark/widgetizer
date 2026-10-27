@@ -1,4 +1,4 @@
-import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform } from "@widgetizer/core/imageTransform";
+import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform, supportsImageUnits, defaultImageTransform } from "@widgetizer/core/imageTransform";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, isImageWidth, isImageHeight, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
@@ -310,6 +310,7 @@ const useWidgetStore = create((set, get) => ({
     const widget = page.widgets[widgetId];
     if (Object.hasOwn(values, "image_transform")) {
       if (!supportsImageTransform(widget, get().schemas[widget.type]) || !isImageTransform(values.image_transform)) return;
+      if (values.image_transform.version === 2 && !supportsImageUnits(widget, get().schemas[widget.type])) return;
       if (Object.entries(values).every(([key, value]) => JSON.stringify(widget.settings?.[key]) === JSON.stringify(value))) return;
       pageStore.beginHistoryStep();
     }
@@ -341,7 +342,10 @@ const useWidgetStore = create((set, get) => ({
   resetImageScale: (widgetId) => {
     const widget = usePageStore.getState().page?.widgets?.[widgetId];
     if (!widget || !supportsImageResize(widget, get().schemas[widget.type])) return;
-    const values = supportsImageTransform(widget, get().schemas[widget.type])
+    const values = supportsImageUnits(widget, get().schemas[widget.type])
+      ? { image_transform: defaultImageTransform(widget.settings?.image_transform?.version === 2 ? widget.settings.image_transform.alignment :
+        widget.settings?.image_transform?.version === 1 ? "left" : "center"), fullwidth: false }
+      : supportsImageTransform(widget, get().schemas[widget.type])
       ? { image_transform: structuredClone(DEFAULT_IMAGE_TRANSFORM), fullwidth: false }
       : { image_width_percent: 100, image_height_px: 0, fullwidth: false };
     if (Object.entries(values).every(([key, value]) => JSON.stringify(widget.settings?.[key]) === JSON.stringify(value))) return;

@@ -32,6 +32,7 @@ const { default: saveStore } = await import("../../stores/saveStore");
 const { savePageContent } = await import("../../queries/pageManager");
 const { handleImageResizeMessage, supportedImageWidgetIds } = await import("../imageResizeBridge");
 const { handleImageGeometryMessage, editedImageTransform } = await import("../imageResizeBridge");
+const { changeImageUnit, handleImageAlignmentMessage } = await import("../imageResizeBridge");
 const { DEFAULT_IMAGE_TRANSFORM } = await import("@widgetizer/core/imageTransform");
 const iframe = {};
 const origin = "https://preview.example";
@@ -57,7 +58,7 @@ beforeEach(() => {
     originalGlobalWidgets: {},
   });
   pageStore.temporal.getState().clear();
-  widgetStore.setState({ schemas: { image: schema }, selectedWidgetId: "w1", selectedBlockId: null, imageGeometry: {} });
+  widgetStore.setState({ schemas: { image: { ...schema, imageTransformVersion: undefined } }, selectedWidgetId: "w1", selectedBlockId: null, imageGeometry: {} });
   saveStore.setState({
     modifiedWidgets: new Set(),
     structureModified: false,
@@ -66,6 +67,34 @@ beforeEach(() => {
   });
 });
 afterEach(() => saveStore.getState().stopAutoSave());
+
+it("persists independent unit changes, alignment and Default Scale with undo/redo and save/reload", async () => {
+  widgetStore.setState({ schemas: { image: schema }, imageGeometry: { w1: { containerWidth: 1000, width: 800, height: 600, imageSource: "" } } });
+  widgetStore.getState().resetImageScale("w1");
+  const align = (alignment) => ({ source: iframe, origin, data: { type: "IMAGE_ALIGN", payload: { widgetId: "w1", alignment } } });
+  expect(handleImageAlignmentMessage({ ...align("right"), origin: "https://evil.example" }, iframe, origin)).toBe(false);
+  expect(handleImageAlignmentMessage(align("bad"), iframe, origin)).toBe(false);
+  expect(handleImageAlignmentMessage(align("right"), iframe, origin)).toBe(true);
+  expect(changeImageUnit("w1", "width", "px")).toBe(true);
+  let transform = editedImageTransform("w1", "image_scale_width", 317);
+  widgetStore.getState().updateWidgetSettingValues("w1", { image_transform: transform });
+  expect(changeImageUnit("w1", "height", "px")).toBe(true);
+  transform = editedImageTransform("w1", "image_scale_height", 243);
+  widgetStore.getState().updateWidgetSettingValues("w1", { image_transform: transform });
+  expect(transform.dimensions).toEqual({ width: { unit: "px", value: 317 }, height: { unit: "px", value: 243 } });
+  const count = pageStore.temporal.getState().pastStates.length;
+  widgetStore.getState().resetImageScale("w1");
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(count + 1);
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform.alignment).toBe("right");
+  pageStore.temporal.getState().undo();
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform).toEqual(transform);
+  pageStore.temporal.getState().redo();
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform.dimensions.width.value).toBeNull();
+  pageStore.temporal.getState().undo();
+  expect((await saveStore.getState().save()).status).toBe("success");
+  await pageStore.getState().loadPage("index");
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform).toEqual(transform);
+});
 
 it("validates reference messages and makes both percentages comparable with independent Auto", () => {
   const context = { source: iframe, origin, data: { type: "IMAGE_GEOMETRY_CONTEXT", payload: {

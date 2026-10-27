@@ -67,6 +67,21 @@ it("cancels a modern corner gesture without leaving flow insets or committing", 
   expect(commit).not.toHaveBeenCalled();
 });
 
+it.each(["n", "ne", "e", "se", "s", "sw", "w", "nw"])("keeps mixed px/percent units and one commit through the actual %s handle", (direction) => {
+  modernFixture();
+  widget.dataset.imageUnits = "2";
+  const transform = { version: 2, reference: "intrinsic-fit", alignment: "left", dimensions: { width: { unit: "px", value: 1000 }, height: { unit: "%", value: 100 } }, flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  controller.setSizes({ w1: { width: 100, height: 0, transform } });
+  render();
+  pointer(overlay.querySelector(`[data-resize-direction="${direction}"]`), "pointerdown", 0, 1, 0);
+  pointer(document, "pointermove", direction.includes("e") ? -20 : 20, 1, direction.includes("s") ? -20 : 20);
+  pointer(document, "pointerup", direction.includes("e") ? -20 : 20, 1, direction.includes("s") ? -20 : 20);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(commit.mock.calls[0][0].transform.dimensions.width.unit).toBe("px");
+  expect(commit.mock.calls[0][0].transform.dimensions.height.unit).toBe("%");
+  expect(commit.mock.calls[0][0].startTransform).toEqual(transform);
+});
+
 describe("image width values", () => {
   it.each([NaN, Infinity, -Infinity, "50", null, undefined, {}, 0, 9, 101, 50.5])("rejects %s", (value) => {
     expect(isImageWidth(value)).toBe(false);

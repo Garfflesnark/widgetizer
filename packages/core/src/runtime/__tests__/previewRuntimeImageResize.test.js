@@ -104,6 +104,23 @@ it("outlines actual image bounds with a matching dashed border and keeps widget 
   expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(8);
   expect(document.querySelector("[data-reorder]")).not.toBeNull();
   expect(document.querySelector(".wz-controls").style.top).toBe("-44px");
+  expect(document.querySelector(".wz-image-controls").style.top).toBe("-30px");
+});
+
+it("opens a compact image alignment menu and sends only an explicit action", () => {
+  const widget = document.querySelector('[data-widget-id="w1"]');
+  widget.dataset.imageUnits = "2";
+  message("UPDATE_SELECTION", { widgetId: "w1", blockId: null });
+  sent.length = 0;
+  document.querySelector('[data-image-align-menu]').click();
+  expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
+  expect(sent).toEqual([]);
+  document.querySelector('[data-image-align="right"]').click();
+  expect(sent).toEqual([{ type: "IMAGE_ALIGN", payload: { widgetId: "w1", alignment: "right" } }]);
+  expect(document.querySelector('[role="menu"]')).toBeNull();
+  document.querySelector('[data-image-align-menu]').click();
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  expect(document.querySelector('[role="menu"]')).toBeNull();
 });
 it("previews sidebar dimensions via trusted messages without sending a commit", () => {
   sent.length = 0;

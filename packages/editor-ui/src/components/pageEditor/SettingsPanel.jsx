@@ -1,5 +1,6 @@
-import { SCALE_WIDTH, SCALE_HEIGHT, supportsImageTransform, legacyImageTransform } from "@widgetizer/core/imageTransform";
-import { editedImageTransform } from "../../lib/imageResizeBridge";
+import { SCALE_WIDTH, SCALE_HEIGHT, supportsImageTransform, legacyImageTransform, supportsImageUnits, imageTransformV2, imageDimensionValue, isDefaultImageScale } from "@widgetizer/core/imageTransform";
+import { editedImageTransform, changeImageUnit } from "../../lib/imageResizeBridge";
+import CheckboxInput from "../settings/inputs/CheckboxInput";
 import ImageDimensionInput from "./ImageDimensionInput";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { ArrowLeft } from "lucide-react";
@@ -235,6 +236,15 @@ export default function SettingsPanel({
             if (modernImage && [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id)) {
               const geometry = imageGeometry[selectedWidgetId];
               const ready = geometry?.imageSource === (currentWidget.settings?.image || "");
+              if (supportsImageUnits(currentWidget, currentWidgetSchema)) {
+                const transform = ready ? imageTransformV2(currentWidget, geometry) : null;
+                const axis = setting.id === SCALE_WIDTH ? "width" : "height";
+                const unit = transform?.dimensions[axis].unit || "%";
+                return <ImageDimensionInput key={`${contextKey}-${setting.id}-${unit}`} widgetId={selectedWidgetId}
+                  setting={{ ...setting, min: 1, max: unit === "px" ? 10000 : 400, unit }} value={transform ? imageDimensionValue(transform, axis, geometry) : 100}
+                  label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready} naturalScale={transform?.dimensions[axis].value === null}
+                  onUnitChange={(next) => { if (!changeImageUnit(selectedWidgetId, axis, next)) showToast(`Cannot preserve this size within ${next === "%" ? "1–400%" : "1–10,000px"}. Resize this dimension first.`, "error"); }} />;
+              }
               const transform = ready ? legacyImageTransform(currentWidget, geometry) : null;
               const value = transform?.scale[setting.id === SCALE_WIDTH ? "width" : "height"];
               return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
@@ -249,8 +259,10 @@ export default function SettingsPanel({
             }
             if (imageSettings && setting.id === "fullwidth") {
               return <div key={`${contextKey}-default-scale`}>
-                <button type="button" className="form-button w-full" onClick={() => resetImageScale(selectedWidgetId)}>Default Scale</button>
-                <p className="text-xs text-slate-500 mt-1">{modernImage ? "Restore Auto width and height, fitted intrinsic size, and zero flow insets." : "Restore container width and automatic height."} Uses the normal page container.</p>
+                <div className="flex items-center justify-between gap-3"><label htmlFor={`${selectedWidgetId}-default-scale`} className="text-sm font-medium text-slate-700">Default Scale</label>
+                  <CheckboxInput id={`${selectedWidgetId}-default-scale`} value={isDefaultImageScale(currentWidget, imageGeometry[selectedWidgetId])}
+                    onChange={() => resetImageScale(selectedWidgetId)} /></div>
+                <p className="text-xs text-slate-500 mt-1">Restore natural proportions and fitted intrinsic dimensions. Alignment is preserved. Edit a dimension to leave Default Scale.</p>
                 {modernImage && !currentWidget.settings?.image_transform && <p className="text-xs text-slate-500 mt-1">Legacy appearance is preserved until you edit a scale or use Default Scale.</p>}
               </div>;
             }
