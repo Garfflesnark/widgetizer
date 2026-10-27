@@ -1,4 +1,5 @@
-import { handleImageResizeMessage, supportedImageWidgetIds } from "../../lib/imageResizeBridge";
+import { supportsImageStretch } from "@widgetizer/core/imageResize";
+import { handleImageResizeMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
 import { useEffect, useCallback } from "react";
 import useWidgetStore from "../../stores/widgetStore";
 import usePageStore from "../../stores/pageStore";
@@ -43,12 +44,25 @@ export default function SelectionOverlay({
   useEffect(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
-    const sync = () => iframe.contentWindow?.postMessage({
-      type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds: supportedImageWidgetIds(page, schemas) },
-    }, getPreviewTargetOrigin());
+    const sync = () => {
+      const widgetIds = supportedImageWidgetIds(page, schemas);
+      const stretchWidgetIds = widgetIds.filter((id) =>
+        supportsImageStretch(page.widgets[id], schemas[page.widgets[id].type]),
+      );
+      iframe.contentWindow?.postMessage({
+        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds },
+      }, getPreviewTargetOrigin());
+    };
+    const preview = (event) => iframe.contentWindow?.postMessage(
+      { type: "IMAGE_SIZE_PREVIEW", payload: event.detail }, getPreviewTargetOrigin(),
+    );
+    window.addEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
     sync();
     iframe.addEventListener("load", sync);
-    return () => iframe.removeEventListener("load", sync);
+    return () => {
+      iframe.removeEventListener("load", sync);
+      window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
+    };
   }, [iframeRef, page, schemas, previewReadyKey]);
 
   const effectiveWidgetId = selectedWidgetId || selectedGlobalWidgetId;

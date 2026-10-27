@@ -1,10 +1,12 @@
 {% assign image_width = widget.settings.image_width_percent | default: 100 | plus: 0 | at_least: 10 | at_most: 100 | round %}
+{% assign image_height = widget.settings.image_height_px | default: 0 | plus: 0 | at_least: 0 | at_most: 2000 | round %}
 <section
   id="{{ widget.id }}"
   class="widget widget-image widget-{{ widget.id }}{% if widget.settings.top_spacing != 'auto' %} spacing-top-{{ widget.settings.top_spacing }}{% endif %}{% if widget.settings.bottom_spacing != 'auto' %} spacing-bottom-{{ widget.settings.bottom_spacing }}{% endif %}"
   data-widget-id="{{ widget.id }}"
   data-widget-type="image"
   data-image-width="{{ image_width }}"
+  data-image-height="{{ image_height }}"
   {% if widget.index != null %}data-widget-index="{{ widget.index }}"{% endif %}
 >
   <style>
@@ -61,8 +63,14 @@
         margin-inline: auto;
 
         & img {
+          width: 100%;
           max-width: 100%;
+          {% if image_height > 0 %}
+          height: {{ image_height }}px;
+          object-fit: fill;
+          {% else %}
           height: auto;
+          {% endif %}
         }
       }
 

@@ -1,4 +1,4 @@
-import { IMAGE_WIDTH_SETTING, isImageWidth, supportsImageResize } from "@widgetizer/core/imageResize";
+import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, isImageWidth, isImageHeight, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 import { getProjectWidgets } from "../queries/previewManager";
@@ -303,6 +303,17 @@ const useWidgetStore = create((set, get) => ({
     if (supportsImageResize(page.widgets[widgetId], get().schemas[page.widgets[widgetId].type]) &&
         Object.hasOwn(values, IMAGE_WIDTH_SETTING) && !isImageWidth(values[IMAGE_WIDTH_SETTING])) return;
 
+    const widget = page.widgets[widgetId];
+    const imageSupported = supportsImageResize(widget, get().schemas[widget.type]);
+    if (supportsImageStretch(widget, get().schemas[widget.type]) && Object.hasOwn(values, IMAGE_HEIGHT_SETTING) &&
+        !isImageHeight(values[IMAGE_HEIGHT_SETTING])) return;
+    const enablesFullWidth = imageSupported && values.fullwidth === true && widget.settings?.fullwidth !== true;
+    if (enablesFullWidth) values = { ...values, [IMAGE_WIDTH_SETTING]: 100 };
+    if (imageSupported && (Object.hasOwn(values, IMAGE_WIDTH_SETTING) || Object.hasOwn(values, IMAGE_HEIGHT_SETTING) || enablesFullWidth)) {
+      if (Object.entries(values).every(([key, value]) => (widget.settings?.[key] ??
+          (key === IMAGE_WIDTH_SETTING ? 100 : key === IMAGE_HEIGHT_SETTING ? 0 : undefined)) === value)) return;
+      pageStore.beginHistoryStep();
+    }
     pageStore.setPage({
       ...page,
       widgets: {

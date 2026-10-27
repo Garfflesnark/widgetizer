@@ -1,3 +1,5 @@
+import ImageDimensionInput from "./ImageDimensionInput";
+import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { ArrowLeft } from "lucide-react";
 import { SettingsRenderer } from "../settings";
 import usePageStore from "../../stores/pageStore";
@@ -219,6 +221,25 @@ export default function SettingsPanel({
                 : isGlobalWidget
                   ? `global-${selectedGlobalWidgetId}`
                   : `widget-${selectedWidgetId}`;
+            const imageSettings = !isGlobalWidget && !selectedBlockId && !isThemeSettings &&
+              supportsImageResize(currentWidget, currentWidgetSchema);
+            if (imageSettings && (setting.id === IMAGE_WIDTH_SETTING ||
+                (setting.id === IMAGE_HEIGHT_SETTING && supportsImageStretch(currentWidget, currentWidgetSchema)))) {
+              return (
+                <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
+                  value={currentValues?.[setting.id]} label={tTheme(setting.label)} onChange={handleSettingChange} />
+              );
+            }
+            if (imageSettings && setting.id === "fullwidth") {
+              return (
+                <div key={`${contextKey}-${setting.id}`}>
+                  <SettingsRenderer setting={setting} value={currentValues?.[setting.id]} onChange={handleSettingChange} />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Enabling Full Width resets Width to 100%. You can resize it again afterwards; Height is unchanged.
+                  </p>
+                </div>
+              );
+            }
             return (
               <SettingsRenderer
                 key={`${contextKey}-${setting.id}`}

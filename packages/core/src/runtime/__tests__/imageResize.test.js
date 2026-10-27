@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createImageResizeController, imageWidth, isImageWidth } from "../imageResize.js";
 
 let controller, commit, preview, overlay, widget, target;
-function pointer(element, type, x, pointerId = 1) {
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, button: 0 });
+function pointer(element, type, x, pointerId = 1, y = 0) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
   Object.defineProperty(event, "pointerId", { value: pointerId });
   element.dispatchEvent(event);
 }
@@ -94,4 +94,65 @@ it.each(["legacy", "different-type", "global", "block"])("hides handles for %s",
   overlay.replaceChildren();
   controller.renderHandle(overlay, widget, kind === "block" ? "block-1" : null);
   expect(overlay.querySelector("button")).toBeNull();
+});
+
+function stretch() {
+  widget.dataset.imageHeight = "0";
+  target.getBoundingClientRect = () => ({ left: 0, right: 1000, top: 0, bottom: 500, width: 1000, height: 500 });
+  controller.setSupported(["w1"], ["w1"]);
+  render();
+}
+it("provides eight handles only for schemas and templates supporting height", () => {
+  stretch();
+  expect(overlay.querySelectorAll("button")).toHaveLength(8);
+  widget.removeAttribute("data-image-height");
+  render();
+  expect(overlay.querySelectorAll("button")).toHaveLength(1);
+});
+it.each(["nw", "n", "ne", "e", "se", "s", "sw", "w"])("stretches the correct axes with the %s handle", (direction) => {
+  stretch();
+  const handle = overlay.querySelector(`[data-resize-direction="${direction}"]`);
+  pointer(handle, "pointerdown", 500, 1, 200);
+  const x = direction.includes("w") ? 600 : 400;
+  const y = direction.includes("n") ? 150 : 250;
+  pointer(document, "pointermove", x, 1, y);
+  expect(commit).not.toHaveBeenCalled();
+  pointer(document, "pointerup", x, 1, y);
+  expect(commit).toHaveBeenCalledExactlyOnceWith({
+    widgetId: "w1",
+    startWidth: 100,
+    startHeight: 0,
+    width: /[ew]/.test(direction) ? 80 : 100,
+    height: /[ns]/.test(direction) ? 550 : 0,
+  });
+});
+it("restores both dimensions and Auto height after cancelling a corner gesture", () => {
+  stretch();
+  pointer(overlay.querySelector('[data-resize-direction="se"]'), "pointerdown", 500, 1, 200);
+  pointer(document, "pointermove", 400, 1, 350);
+  expect(target.style.height).toBe("650px");
+  controller.cancel();
+  expect(target.style.width).toBe("");
+  expect(target.style.height).toBe("");
+  expect(commit).not.toHaveBeenCalled();
+});
+it("previews sidebar dimensions without committing and restores both on cancellation", () => {
+  stretch();
+  controller.preview({ widgetId: "w1", width: 40, height: 250, phase: "preview" });
+  controller.preview({ widgetId: "w1", width: 35, height: 300, phase: "preview" });
+  expect(target.style.width).toBe("35%");
+  expect(target.style.height).toBe("300px");
+  expect(commit).not.toHaveBeenCalled();
+  controller.preview({ widgetId: "w1", phase: "cancel" });
+  expect(target.style.width).toBe("");
+  expect(target.style.height).toBe("");
+});
+it("keeps committed sidebar styling until morph and rejects invalid drafts", () => {
+  stretch();
+  controller.preview({ widgetId: "w1", width: 50, height: 300, phase: "commit" });
+  controller.preview({ widgetId: "w1", width: 1, height: 300, phase: "preview" });
+  controller.preview({ widgetId: "w1", width: 50, height: Infinity, phase: "preview" });
+  expect(target.style.width).toBe("50%");
+  expect(target.style.height).toBe("300px");
+  expect(commit).not.toHaveBeenCalled();
 });

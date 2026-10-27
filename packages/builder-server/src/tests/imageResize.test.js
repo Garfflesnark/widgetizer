@@ -59,10 +59,19 @@ function request(body = {}) {
 }
 before(async () => {
   await harness.seedProjectScaffold();
-  await writeMediaFile("resize-project", { files: [{
-    filename: "photo.jpg", path: "/uploads/images/photo.jpg", type: "image/jpeg",
-    width: 800, height: 600, sizes: {}, usedIn: [],
-  }] });
+  await writeMediaFile("resize-project", {
+    files: [
+      {
+        filename: "photo.jpg",
+        path: "/uploads/images/photo.jpg",
+        type: "image/jpeg",
+        width: 800,
+        height: 600,
+        sizes: {},
+        usedIn: [],
+      },
+    ],
+  });
   // Only isolated fixture templates are updated. Never touch a real project.
   await fs.copy(source, path.join(harness.getProjectDir("resize-project"), "widgets", "image"));
 });
@@ -71,11 +80,20 @@ after(() => harness.cleanup());
 it("keeps real linked and unlinked images proportional inside either container mode", async () => {
   for (const fullwidth of [false, true]) {
     for (const link of [null, { href: "https://example.com" }]) {
-      const html = await renderWidget("resize-project", "w1", {
-        type: "image", settings: { image: "/uploads/images/photo.jpg", image_width_percent: 55, fullwidth, link },
-      }, themeSettings);
+      const html = await renderWidget(
+        "resize-project",
+        "w1",
+        {
+          type: "image",
+          settings: { image: "/uploads/images/photo.jpg", image_width_percent: 55, fullwidth, link },
+        },
+        themeSettings,
+      );
       assert.match(html, /<img[^>]+width="800"[^>]+height="600"/);
-      assert.match(html, /& \.image-resize-target\s*\{\s*width: 55%;\s*margin-inline: auto;\s*& img\s*\{\s*max-width: 100%;\s*height: auto;/);
+      assert.match(
+        html,
+        /& \.image-resize-target\s*\{\s*width: 55%;\s*margin-inline: auto;\s*& img\s*\{\s*width: 100%;\s*max-width: 100%;\s*height: auto;/,
+      );
       assert.match(html, link ? /class="image-link/ : /class="image-wrapper/);
     }
   }
@@ -113,7 +131,7 @@ it("saves and reloads width through real storage and exports the same CSS as pre
     slug: "index",
     name: "Home",
     widgetsOrder: ["w1"],
-    widgets: { w1: { type: "image", settings: { image_width_percent: 55 } } },
+    widgets: { w1: { type: "image", settings: { image_width_percent: 55, image_height_px: 347 } } },
   };
   const saved = response();
   await savePageContent(request(page), saved);
@@ -122,6 +140,7 @@ it("saves and reloads width through real storage and exports the same CSS as pre
   await getPage(request(), loaded);
   assert.equal(loaded.code, 200);
   assert.equal(loaded.data.widgets.w1.settings.image_width_percent, 55);
+  assert.equal(loaded.data.widgets.w1.settings.image_height_px, 347);
 
   const preview = response();
   await generatePreview(request({ pageData: loaded.data, themeSettings, previewMode: "editor" }), preview);
@@ -132,6 +151,71 @@ it("saves and reloads width through real storage and exports the same CSS as pre
   const resizeCss = (content) => content.match(/& \.image-resize-target\s*\{([^&}]+)/)?.[1].replace(/\s+/g, "");
   assert.equal(resizeCss(preview.html), "width:55%;margin-inline:auto;");
   assert.equal(resizeCss(html), resizeCss(preview.html));
+  assert.match(preview.html, /height:\s*347px;/);
+  assert.match(html, /height:\s*347px;/);
+  assert.match(html, /object-fit:\s*fill;/);
   assert.match(html, /height:\s*auto;/);
   assert.doesNotMatch(html, /wz-image-resize-handle|previewRuntime\.js/);
+});
+
+it("keeps the existing container-constrained default and renders saved Full Width percentages unchanged", async () => {
+  const imageSchema = await fs.readJson(path.join(source, "schema.json"));
+  assert.equal(imageSchema.settings.find((setting) => setting.id === "fullwidth").default, false);
+  const render = (settings) => renderWidget("resize-project", "w1", { type: "image", settings }, themeSettings);
+  const legacy = await render({});
+  assert.match(legacy, /max-width: var\(--container-max-width\)/);
+  assert.equal(legacy, await render({ fullwidth: false, image_width_percent: 100, image_height_px: 0 }));
+  const full = await render({ fullwidth: true, image_width_percent: 45 });
+  assert.match(full, /data-image-width="45"/);
+  assert.match(full, /max-width: none/);
+});
+
+it("bounds pixel height and retains Auto height for missing values", async () => {
+  for (const [height, expected] of [
+    [-1, 0],
+    [3000, 2000],
+    [347, 347],
+    ["1;bad:css", 0],
+  ]) {
+    const html = await renderWidget(
+      "resize-project",
+      "w1",
+      { type: "image", settings: { image_height_px: height } },
+      themeSettings,
+    );
+    assert.match(html, new RegExp(`data-image-height="${expected}"`));
+    assert.doesNotMatch(html, /bad:css/);
+    if (expected) assert.match(html, new RegExp(`height: ${expected}px;`));
+  }
+});
+
+it("project copies use installed themes and versioned latest snapshots rather than edited seed files", async () => {
+  const { THEMES_SEED_DIR, getThemeDir } = await import("../config.js");
+  const { ensureThemesDirectory, copyThemeToProject, buildLatestSnapshot } =
+    await import("../controllers/themeController.js");
+  const theme = "resize-seeding";
+  const seed = path.join(THEMES_SEED_DIR, theme);
+  const baseSchema = { type: "image", settings: [{ id: "fullwidth", type: "checkbox", default: false }] };
+  await fs.outputJson(path.join(seed, "theme.json"), { name: "Resize seed", version: "1.0.0" });
+  await fs.outputJson(path.join(seed, "widgets/image/schema.json"), baseSchema);
+  await fs.outputFile(path.join(seed, "widgets/image/widget.liquid"), "old image template");
+  await ensureThemesDirectory();
+  // Editing the shipped source does not replace the already-installed copy.
+  await fs.copy(source, path.join(seed, "widgets/image"));
+  const project = path.join(harness.getProjectDir("resize-project"), "isolated-old-copy");
+  await copyThemeToProject(theme, project);
+  assert.deepEqual(await fs.readJson(path.join(project, "widgets/image/schema.json")), baseSchema);
+  assert.deepEqual(await fs.readJson(path.join(getThemeDir(theme), "widgets/image/schema.json")), baseSchema);
+  // A real versioned delta builds latest/ for subsequent project creation.
+  const delta = path.join(seed, "updates/1.1.0");
+  await fs.outputJson(path.join(delta, "theme.json"), { name: "Resize seed", version: "1.1.0" });
+  await fs.copy(source, path.join(delta, "widgets/image"));
+  await buildLatestSnapshot(theme);
+  const nextProject = path.join(harness.getProjectDir("resize-project"), "isolated-new-copy");
+  assert.equal(await copyThemeToProject(theme, nextProject), "1.1.0");
+  assert.deepEqual(
+    await fs.readJson(path.join(nextProject, "widgets/image/schema.json")),
+    await fs.readJson(path.join(source, "schema.json")),
+  );
+  assert.deepEqual(await fs.readJson(path.join(project, "widgets/image/schema.json")), baseSchema);
 });

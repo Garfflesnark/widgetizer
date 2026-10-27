@@ -115,3 +115,58 @@ it("advertises only schema-supported page images", () => {
   expect(supportedImageWidgetIds(page, { image: schema })).toEqual(["supported"]);
   expect(supportedImageWidgetIds(page, { image: { ...schema, settings: [] } })).toEqual([]);
 });
+
+it("commits width and height atomically with one undo step and persistence", async () => {
+  const event = message(60);
+  Object.assign(event.data.payload, { height: 350, startHeight: 0 });
+  expect(handleImageResizeMessage(event, iframe, origin)).toBe(true);
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual({ image_width_percent: 60, image_height_px: 350 });
+  pageStore.temporal.getState().undo();
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual({});
+  pageStore.temporal.getState().redo();
+  await saveStore.getState().save();
+  await pageStore.getState().loadPage("index");
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual({ image_width_percent: 60, image_height_px: 350 });
+});
+it.each([NaN, Infinity, "300", null, -1, 2001, 300.5])("rejects invalid height %s from mouse and sidebar", (height) => {
+  const event = message();
+  Object.assign(event.data.payload, { height, startHeight: 0 });
+  expect(handleImageResizeMessage(event, iframe, origin)).toBe(false);
+  widgetStore.getState().updateWidgetSettingValues("w1", { image_height_px: height });
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(0);
+});
+it("rejects stale height and height changes for a width-only schema", () => {
+  const event = message();
+  Object.assign(event.data.payload, { height: 300, startHeight: 200 });
+  expect(handleImageResizeMessage(event, iframe, origin)).toBe(false);
+  event.data.payload.startHeight = 0;
+  widgetStore.setState({
+    schemas: { image: { ...schema, settings: schema.settings.filter((s) => s.id !== "image_height_px") } },
+  });
+  expect(handleImageResizeMessage(event, iframe, origin)).toBe(false);
+});
+it("enabling Full Width resets width once without changing height; undo restores both settings", () => {
+  const initial = { image_width_percent: 45, image_height_px: 350, fullwidth: false };
+  pageStore.getState().page.widgets.w1.settings = initial;
+  pageStore.temporal.getState().clear();
+  widgetStore.getState().updateWidgetSettingValues("w1", { fullwidth: true });
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual({
+    ...initial,
+    fullwidth: true,
+    image_width_percent: 100,
+  });
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(1);
+  pageStore.temporal.getState().undo();
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual(initial);
+});
+it("preserves already-saved full-width percentages and allows resizing after enabling Full Width", () => {
+  pageStore.getState().page.widgets.w1.settings = { fullwidth: true, image_width_percent: 45 };
+  widgetStore.getState().updateWidgetSettingValues("w1", { fullwidth: true });
+  expect(pageStore.getState().page.widgets.w1.settings.image_width_percent).toBe(45);
+  widgetStore.getState().updateWidgetSettingValues("w1", { image_width_percent: 65 });
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual({ fullwidth: true, image_width_percent: 65 });
+  widgetStore.getState().updateWidgetSettingValues("w1", { fullwidth: false });
+  expect(pageStore.getState().page.widgets.w1.settings.image_width_percent).toBe(65);
+  expect(schema.settings.find((s) => s.id === "fullwidth").default).toBe(false);
+});

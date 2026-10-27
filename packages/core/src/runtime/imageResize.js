@@ -33,126 +33,250 @@ export function supportsImageResize(widget, schema) {
   );
 }
 
-// Only temporary DOM styling happens during a gesture. The parent receives one
-// completed value; cancelled gestures never enter the store or save pipeline.
+export const IMAGE_HEIGHT_SETTING = "image_height_px";
+export const MAX_IMAGE_HEIGHT = 2000;
+export function isImageHeight(value) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_IMAGE_HEIGHT;
+}
+export function imageHeight(value) {
+  return isImageHeight(value) ? value : 0;
+}
+export function supportsImageStretch(widget, schema) {
+  return (
+    supportsImageResize(widget, schema) &&
+    schema.settings.some(
+      (setting) =>
+        setting.id === IMAGE_HEIGHT_SETTING &&
+        setting.type === "range" &&
+        setting.min === 0 &&
+        setting.max === MAX_IMAGE_HEIGHT &&
+        setting.step === 1 &&
+        setting.default === 0,
+    )
+  );
+}
+
+// Gestures and sidebar drafts affect only DOM styles until a single store commit.
 export function createImageResizeController({ document, onCommit, onPreview }) {
   let gesture = null;
+  let draft = null;
   let supported = new Set();
-
+  let stretch = new Set();
+  const find = (id) =>
+    Array.from(document.querySelectorAll("[data-widget-id]")).find((el) => el.dataset.widgetId === id);
+  function parts(widget) {
+    const target = widget?.querySelector("[data-image-resize-target]");
+    return { target, image: target?.querySelector("img") || target };
+  }
+  function eligible(widget, blockId) {
+    return (
+      !blockId &&
+      supported.has(widget?.dataset.widgetId) &&
+      widget?.dataset.widgetType === "image" &&
+      !["header", "footer"].includes(widget?.dataset.widgetId) &&
+      parts(widget).target
+    );
+  }
+  function snapshot(widget) {
+    const { target, image } = parts(widget);
+    return {
+      widgetId: widget.dataset.widgetId,
+      target,
+      image,
+      originalWidth: target.style.width,
+      originalHeight: image.style.height,
+      originalFit: image.style.objectFit,
+    };
+  }
+  function restore(state) {
+    state.target.style.width = state.originalWidth;
+    state.image.style.height = state.originalHeight;
+    state.image.style.objectFit = state.originalFit;
+  }
+  function apply(state, width, height) {
+    state.target.style.width = `${width}%`;
+    if (height !== undefined) {
+      state.image.style.height = height ? `${height}px` : "auto";
+      state.image.style.objectFit = height ? "fill" : "";
+    }
+  }
+  function cancelDraft() {
+    if (draft) {
+      restore(draft);
+      draft = null;
+    }
+  }
   function finish(commit) {
     if (!gesture) return;
     const current = gesture;
     gesture = null;
-    if (!commit || current.width === current.startWidth) {
-      current.target.style.width = current.originalStyle;
-    }
+    const changed = current.width !== current.startWidth || current.height !== current.startHeight;
+    if (!commit || !changed) restore(current);
     if (current.capture.hasPointerCapture?.(current.pointerId))
       current.capture.releasePointerCapture(current.pointerId);
-    if (commit && current.width !== current.startWidth) {
-      onCommit({ widgetId: current.widgetId, width: current.width, startWidth: current.startWidth });
+    if (commit && changed) {
+      onCommit({
+        widgetId: current.widgetId,
+        width: current.width,
+        startWidth: current.startWidth,
+        ...(current.twoAxes ? { height: current.height, startHeight: current.startHeight } : {}),
+      });
     }
     onPreview();
   }
-
+  const cancel = () => {
+    finish(false);
+    cancelDraft();
+    onPreview();
+  };
   const move = (event) => {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
-    // The figure is centered: moving its right edge changes both half-widths.
-    const width = Math.round(gesture.startWidth + (200 * (event.clientX - gesture.startX)) / gesture.containerWidth);
-    gesture.width = Math.max(MIN_IMAGE_WIDTH, Math.min(MAX_IMAGE_WIDTH, width));
-    gesture.target.style.width = `${gesture.width}%`;
+    const dx = event.clientX - gesture.startX;
+    const dy = event.clientY - gesture.startY;
+    const xSign = gesture.direction.includes("w") ? -1 : 1;
+    const ySign = gesture.direction.includes("n") ? -1 : 1;
+    if (/[ew]/.test(gesture.direction)) {
+      gesture.width = Math.max(
+        MIN_IMAGE_WIDTH,
+        Math.min(MAX_IMAGE_WIDTH, Math.round(gesture.startWidth + (xSign * 200 * dx) / gesture.containerWidth)),
+      );
+    }
+    if (gesture.twoAxes && /[ns]/.test(gesture.direction)) {
+      gesture.height =
+        dy === 0
+          ? gesture.startHeight
+          : Math.max(1, Math.min(MAX_IMAGE_HEIGHT, Math.round(gesture.pixelHeight + ySign * dy)));
+    }
+    apply(gesture, gesture.width, gesture.twoAxes ? gesture.height : undefined);
     event.preventDefault();
     onPreview();
   };
   const up = (event) => {
-    if (!gesture || event.pointerId !== gesture.pointerId) return;
-    move(event);
-    finish(true);
+    if (gesture && event.pointerId === gesture.pointerId) {
+      move(event);
+      finish(true);
+    }
   };
   const cancelPointer = (event) => {
     if (gesture && event.pointerId === gesture.pointerId) finish(false);
   };
   const key = (event) => {
-    if (event.key === "Escape" && gesture) {
+    if (event.key === "Escape" && (gesture || draft)) {
       event.preventDefault();
-      finish(false);
+      cancel();
     }
   };
-  const blur = () => finish(false);
   document.addEventListener("pointermove", move);
   document.addEventListener("pointerup", up);
   document.addEventListener("pointercancel", cancelPointer);
   document.addEventListener("lostpointercapture", cancelPointer);
   document.addEventListener("keydown", key);
-  document.defaultView.addEventListener("blur", blur);
-
+  document.defaultView.addEventListener("blur", cancel);
   return {
-    cancel: () => finish(false),
-    setSupported(ids) {
-      const next = new Set(ids);
-      if (gesture && !next.has(gesture.widgetId)) finish(false);
-      supported = next;
+    cancel,
+    setSupported(ids, stretchIds = []) {
+      supported = new Set(ids);
+      stretch = new Set(stretchIds);
+      if (gesture && !supported.has(gesture.widgetId)) finish(false);
+      if (draft && !supported.has(draft.widgetId)) cancelDraft();
     },
-    renderHandle(overlay, widget, blockId) {
-      const widgetId = widget?.dataset.widgetId;
-      const target = widget?.querySelector("[data-image-resize-target]");
+    preview({ widgetId, width, height, phase }) {
+      if (phase === "cancel") {
+        cancel();
+        return;
+      }
+      const widget = find(widgetId);
       if (
-        !supported.has(widgetId) ||
-        blockId ||
-        !target ||
-        widget.dataset.widgetType !== "image" ||
-        widgetId === "header" ||
-        widgetId === "footer"
+        !eligible(widget, null) ||
+        !isImageWidth(width) ||
+        (height !== undefined && (!stretch.has(widgetId) || !isImageHeight(height)))
       )
         return;
-      const rect = target.getBoundingClientRect();
-      const handle = document.createElement("button");
-      handle.type = "button";
-      handle.className = "wz-image-resize-handle";
-      handle.setAttribute("aria-label", "Resize image width (or use Width in the sidebar)");
-      handle.title = "Drag to resize image width; Escape cancels";
-      Object.assign(handle.style, {
-        position: "absolute",
-        left: `${rect.right - 7}px`,
-        top: `${rect.top + rect.height / 2 - 16}px`,
-        width: "14px",
-        height: "32px",
-        border: "2px solid white",
-        borderRadius: "4px",
-        background: "#e0006d",
-        cursor: "ew-resize",
-        pointerEvents: "auto",
-        touchAction: "none",
-      });
-      handle.addEventListener("pointerdown", (event) => {
-        if (event.button !== 0 || gesture) return;
-        const containerWidth = target.parentElement.getBoundingClientRect().width;
-        if (!(containerWidth > 0)) return;
-        const startWidth = imageWidth(Number.parseFloat(target.style.width || widget.dataset.imageWidth));
-        gesture = {
-          target,
-          widgetId,
-          pointerId: event.pointerId,
-          capture: overlay,
-          containerWidth,
-          startX: event.clientX,
-          startWidth,
-          width: startWidth,
-          originalStyle: target.style.width,
-        };
-        overlay.setPointerCapture?.(event.pointerId);
-        event.preventDefault();
-        event.stopPropagation();
-      });
-      overlay.appendChild(handle);
+      finish(false);
+      if (draft?.widgetId !== widgetId) {
+        cancelDraft();
+        draft = snapshot(widget);
+      }
+      apply(draft, width, height);
+      if (phase === "commit") draft = null;
+      onPreview();
+    },
+    selectionRect(widget, blockId) {
+      return eligible(widget, blockId) ? parts(widget).image.getBoundingClientRect() : null;
+    },
+    renderHandle(overlay, widget, blockId) {
+      if (!eligible(widget, blockId)) return;
+      const { target, image } = parts(widget);
+      const widgetId = widget.dataset.widgetId;
+      const rect = image.getBoundingClientRect();
+      const twoAxes = stretch.has(widgetId) && widget.hasAttribute("data-image-height");
+      for (const direction of twoAxes ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["e"]) {
+        const handle = document.createElement("button");
+        handle.type = "button";
+        handle.className = "wz-image-resize-handle";
+        handle.dataset.resizeDirection = direction;
+        handle.setAttribute("aria-label", `Resize image ${direction} (or use Width and Height in the sidebar)`);
+        handle.title = "Drag to stretch image; Escape cancels";
+        const x = direction.includes("w")
+          ? rect.left
+          : direction.includes("e")
+            ? rect.right
+            : rect.left + rect.width / 2;
+        const y = direction.includes("n")
+          ? rect.top
+          : direction.includes("s")
+            ? rect.bottom
+            : rect.top + rect.height / 2;
+        Object.assign(handle.style, {
+          position: "absolute",
+          left: `${x - 6}px`,
+          top: `${y - 6}px`,
+          width: "12px",
+          height: "12px",
+          border: "2px solid white",
+          borderRadius: "2px",
+          background: "#e0006d",
+          cursor: `${direction}-resize`,
+          pointerEvents: "auto",
+          touchAction: "none",
+        });
+        handle.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0 || gesture) return;
+          cancelDraft();
+          const containerWidth = target.parentElement.getBoundingClientRect().width;
+          if (!(containerWidth > 0)) return;
+          const startWidth = imageWidth(Number.parseFloat(target.style.width || widget.dataset.imageWidth));
+          const startHeight = imageHeight(Number.parseFloat(image.style.height || widget.dataset.imageHeight));
+          gesture = {
+            ...snapshot(widget),
+            pointerId: event.pointerId,
+            capture: overlay,
+            containerWidth,
+            startX: event.clientX,
+            startY: event.clientY,
+            startWidth,
+            startHeight,
+            width: startWidth,
+            height: startHeight,
+            pixelHeight: image.getBoundingClientRect().height,
+            twoAxes,
+            direction,
+          };
+          overlay.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+          event.stopPropagation();
+        });
+        overlay.appendChild(handle);
+      }
     },
     destroy() {
-      finish(false);
+      cancel();
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
       document.removeEventListener("pointercancel", cancelPointer);
       document.removeEventListener("lostpointercapture", cancelPointer);
       document.removeEventListener("keydown", key);
-      document.defaultView.removeEventListener("blur", blur);
+      document.defaultView.removeEventListener("blur", cancel);
     },
   };
 }

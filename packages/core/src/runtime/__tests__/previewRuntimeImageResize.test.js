@@ -58,3 +58,40 @@ it("cancels an active gesture when the actual runtime selection changes", () => 
   expect(document.querySelector(".wz-image-resize-handle")).toBeNull();
   expect(document.querySelector("[data-image-resize-target]").style.width).toBe("60%");
 });
+
+it("outlines actual image bounds with a matching dashed border and keeps widget controls", () => {
+  const widget = document.querySelector('[data-widget-id="w1"]');
+  widget.dataset.imageHeight = "0";
+  widget.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 600 });
+  const target = widget.querySelector("[data-image-resize-target]");
+  const img = document.createElement("img");
+  target.appendChild(img);
+  img.getBoundingClientRect = () => ({ left: 200, right: 800, top: 20, bottom: 320, width: 600, height: 300 });
+  message("SET_WIDGET_METADATA", { metadata: { w1: "Image", w2: "Other" }, widgetOrder: ["w1", "w2"] });
+  message("UPDATE_SELECTION", { widgetId: "w1", blockId: null });
+  message("SET_IMAGE_RESIZE_SUPPORT", { widgetIds: ["w1"], stretchWidgetIds: ["w1"] });
+  const outline = document.querySelector(".wz-image-selection");
+  expect(outline.style.width).toBe("600px");
+  expect(outline.style.height).toBe("300px");
+  expect(outline.style.borderStyle).toBe("dashed");
+  expect(outline.style.borderColor).toBe(document.querySelector(".wz-image-resize-handle").style.backgroundColor);
+  expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(8);
+  expect(document.querySelector("[data-reorder]")).not.toBeNull();
+  expect(document.querySelector(".wz-controls").style.top).toBe("-44px");
+});
+it("previews sidebar dimensions via trusted messages without sending a commit", () => {
+  sent.length = 0;
+  message("IMAGE_SIZE_PREVIEW", { widgetId: "w1", width: 40, height: 250, phase: "preview" });
+  const target = document.querySelector("[data-image-resize-target]");
+  expect(target.style.width).toBe("40%");
+  expect(target.querySelector("img").style.height).toBe("250px");
+  message("IMAGE_SIZE_PREVIEW", { widgetId: "w1", width: 20, height: 700, phase: "preview" }, null);
+  expect(target.style.width).toBe("40%");
+  expect(sent).toEqual([]);
+  message("IMAGE_SIZE_PREVIEW", { widgetId: "w1", phase: "cancel" });
+  expect(target.style.width).toBe("60%");
+  expect(target.querySelector("img").style.height).toBe("");
+  message("UPDATE_SELECTION", { widgetId: "w2", blockId: null });
+  expect(document.querySelector(".wz-image-selection")).toBeNull();
+  expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(0);
+});

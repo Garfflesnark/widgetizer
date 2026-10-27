@@ -752,7 +752,9 @@ function renderOverlay() {
   if (currentSelectedWidgetId) {
     const selEl = document.querySelector(`[data-widget-id="${currentSelectedWidgetId}"]`);
     if (selEl) {
-      const rect = selEl.getBoundingClientRect();
+      const imageRect = imageResizeController?.selectionRect(selEl, currentSelectedBlockId);
+      const rect = imageRect || selEl.getBoundingClientRect();
+      const controlsRect = selEl.getBoundingClientRect();
       const displayName = widgetMetadata[currentSelectedWidgetId] || "";
       const isPageWidget = widgetOrder.includes(currentSelectedWidgetId);
       const widgetIndex = widgetOrder.indexOf(currentSelectedWidgetId);
@@ -760,10 +762,10 @@ function renderOverlay() {
       const canMoveDown = isPageWidget && widgetIndex < widgetOrder.length - 1;
       const showReorder = isPageWidget && widgetOrder.length > 1;
 
-      html += `<div class="wz-selection-box" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;">`;
+      html += `<div class="wz-selection-box${imageRect ? " wz-image-selection" : ""}" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;${imageRect ? "border:2px dashed #e0006d;box-shadow:none;" : ""}">`;
 
       // Controls bar above the selection box
-      html += `<div class="wz-controls" style="top:-24px;">`;
+      html += `<div class="wz-controls" style="top:${controlsRect.top - rect.top - 24}px;">`;
 
       if (showReorder) {
         html += `<button class="wz-reorder-btn" data-reorder="up" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveUp ? "disabled" : ""}>${CHEVRON_UP_SVG}</button>`;
@@ -824,11 +826,21 @@ function setupOverlayClickHandler() {
 // ── Message Handler ─────────────────────────────────────────────────────────
 
 function handleMessage(event) {
+  if (event.data?.type === "IMAGE_SIZE_PREVIEW") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const payload = event.data.payload;
+    if (!payload || payload.widgetId !== currentSelectedWidgetId || currentSelectedBlockId ||
+        !["preview", "commit", "cancel"].includes(payload.phase)) return;
+    imageResizeController?.preview(payload);
+    return;
+  }
   if (event.data?.type === "SET_IMAGE_RESIZE_SUPPORT") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     const ids = event.data.payload?.widgetIds;
     if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) return;
-    imageResizeController?.setSupported(ids);
+    const stretchIds = event.data.payload?.stretchWidgetIds || [];
+    if (!Array.isArray(stretchIds) || !stretchIds.every((id) => typeof id === "string" && ids.includes(id))) return;
+    imageResizeController?.setSupported(ids, stretchIds);
     renderOverlay();
     return;
   }

@@ -48,6 +48,16 @@
       "default": 100
     },
     {
+      "type": "range",
+      "id": "image_height_px",
+      "label": "Height",
+      "min": 0,
+      "max": 2000,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
       "type": "header",
       "id": "appearance_header",
       "label": "tTheme:global.widgets.settings.appearance_header.label"
