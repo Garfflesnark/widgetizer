@@ -22,6 +22,7 @@
   data-image-height="{{ image_height }}"
   data-image-transform-capable="true"
   data-image-units="2"
+  data-image-spacing="1"
   data-image-source="{{ widget.settings.image }}"
   data-image-natural-width="{{ natural_width }}"
   data-image-natural-height="{{ natural_height }}"
@@ -42,6 +43,27 @@
     .widget-{{ widget.id }} {
       /* Reset default widget spacing for full-bleed layouts */
       margin-block: 0;
+
+      {% if widget.settings.top_spacing == 'px' or widget.settings.top_spacing == 'none' %}
+      & .widget-container {
+        margin-block-start: 0;
+        {% if widget.settings.top_spacing == 'px' %}
+        padding-block-start: {{ widget.settings.top_spacing_px | default: 0 | plus: 0 | at_least: 0 | at_most: 2000 | round }}px;
+        {% else %}
+        padding-block-start: 0;
+        {% endif %}
+      }
+      {% endif %}
+      {% if widget.settings.bottom_spacing == 'px' or widget.settings.bottom_spacing == 'none' %}
+      & .widget-container {
+        margin-block-end: 0;
+        {% if widget.settings.bottom_spacing == 'px' %}
+        padding-block-end: {{ widget.settings.bottom_spacing_px | default: 0 | plus: 0 | at_least: 0 | at_most: 2000 | round }}px;
+        {% else %}
+        padding-block-end: 0;
+        {% endif %}
+      }
+      {% endif %}
 
       {% if widget.settings.fullwidth %}
         padding-inline: 0;

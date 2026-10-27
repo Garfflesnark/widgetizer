@@ -225,6 +225,29 @@ it("saves mixed-unit v2 dimensions and alignment exactly and exports the preview
   }
 });
 
+it("persists DragonFruit pins and exact image-owned spacing without overwriting resize flow insets", async () => {
+  const image_transform = { version: 2, reference: "intrinsic-fit", alignment: "center", anchors: ["nw", "n"],
+    dimensions: { width: { unit: "px", value: 317 }, height: { unit: "%", value: 80 } }, flowInset: { inlinePercent: 0, blockPercent: 10 } };
+  const settings = { image_transform, top_spacing: "px", top_spacing_px: 23, bottom_spacing: "none", bottom_spacing_px: 999 };
+  const page = { id: "index", slug: "index", name: "Home", widgetsOrder: ["w1"], widgets: { w1: { type: "image", settings } } };
+  const saved = response(); await savePageContent(request(page), saved); assert.equal(saved.code, 200);
+  const loaded = response(); await getPage(request(), loaded);
+  assert.deepEqual(loaded.data.widgets.w1.settings.image_transform, image_transform);
+  assert.equal(loaded.data.widgets.w1.settings.top_spacing_px, 23);
+  const preview = response(); await generatePreview(request({ pageData: loaded.data, themeSettings, previewMode: "editor" }), preview);
+  const exported = await harness.runExport(); assert.equal(exported._status, 200);
+  const html = await fs.readFile(path.join(harness.latestExportDir(), "index.html"), "utf8");
+  for (const content of [html, preview.html]) {
+    assert.match(content, /padding-block-start: 23px;/);
+    assert.match(content, /margin-block-end: 0;/);
+    assert.match(content, /padding-block-end: 0;/);
+    assert.match(content, /padding-block-start: calc\(var\(--image-reference-height\) \* 0.1\)/);
+  }
+  const marker = html.match(/data-image-transform=(["'])([\s\S]*?)\1/)[2];
+  assert.deepEqual(JSON.parse(marker.replaceAll("&quot;", '"').replaceAll("&#34;", '"')).anchors, ["nw", "n"]);
+  assert.doesNotMatch(html, /wz-image-resize-handle/);
+});
+
 it("keeps the existing container-constrained default and renders saved Full Width percentages unchanged", async () => {
   const imageSchema = await fs.readJson(path.join(source, "schema.json"));
   assert.equal(imageSchema.settings.find((setting) => setting.id === "fullwidth").default, false);

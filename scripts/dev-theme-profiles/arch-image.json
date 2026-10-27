@@ -1,6 +1,9 @@
 {
   "theme": "arch",
-  "files": ["widgets/image/schema.json", "widgets/image/widget.liquid"],
+  "files": [
+    "widgets/image/schema.json",
+    "widgets/image/widget.liquid"
+  ],
   "trustedBaselines": {
     "widgets/image/schema.json": [
       {
@@ -18,6 +21,10 @@
       {
         "revision": "8adb896c0cb30c6927a3789525845f59d4fe97bb",
         "sha256": "8da3b1d96437404e62edf4bb5e4ec58dcacbf29c929877ab06a0eee9a649d0bc"
+      },
+      {
+        "revision": "927616b3d61d0d721f85f005fd5d72592575873e",
+        "sha256": "b5db90f3a8b6bd7f307bc3f3cbeadb432fb630d8cf072f95720c731c465f0da0"
       }
     ],
     "widgets/image/widget.liquid": [
@@ -36,6 +43,10 @@
       {
         "revision": "8adb896c0cb30c6927a3789525845f59d4fe97bb",
         "sha256": "c3153d286f9ac32f2b28e176941b0cc06646fd9ad398a26d9302ecc86fa4adf9"
+      },
+      {
+        "revision": "927616b3d61d0d721f85f005fd5d72592575873e",
+        "sha256": "6c15b56e1feec9fc1ea6e6c86ae4f03cee8aa2c27760498f48500010b12fc097"
       }
     ]
   }

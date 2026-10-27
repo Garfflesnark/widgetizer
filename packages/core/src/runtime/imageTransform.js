@@ -1,10 +1,12 @@
+import { RESIZE_NODES } from "./anchoredResize.js";
 export const SCALE_WIDTH = "image_scale_width";
 export const SCALE_HEIGHT = "image_scale_height";
 export const DEFAULT_IMAGE_TRANSFORM = { version: 1, reference: "intrinsic-fit", scale: { width: null, height: null }, flowInset: { inlinePercent: 0, blockPercent: 0 } };
 const finite = (v, min, max) => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
 const scale = (v) => v === null || finite(v, 1, 400);
 export function isImageTransform(value) {
-  if (value?.version === 2) return value.reference === "intrinsic-fit" &&
+  if (value?.version === 2) return (value.anchors === undefined || (Array.isArray(value.anchors) && value.anchors.length <= 8 &&
+    new Set(value.anchors).size === value.anchors.length && value.anchors.every((node) => RESIZE_NODES.includes(node)))) && value.reference === "intrinsic-fit" &&
     ["width", "height"].every((axis) => {
       const d = value.dimensions?.[axis];
       return ["%", "px"].includes(d?.unit) && (d.value === null || (finite(d.value, 1, d.unit === "px" ? 10000 : 400) && (d.unit !== "px" || Number.isInteger(d.value))));

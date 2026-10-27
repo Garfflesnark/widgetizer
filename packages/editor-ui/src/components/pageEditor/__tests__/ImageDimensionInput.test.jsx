@@ -16,6 +16,17 @@ const width = { id: "image_width_percent", default: 100, min: 10, max: 100, step
 const height = { id: "image_height_px", default: 0, min: 0, max: 2000, step: 1, unit: "px" };
 beforeEach(() => vi.clearAllMocks());
 
+it.each([["px", 2000, 10000, 3500], ["%", 111, 400, 250]])("keeps out-of-slider %s values exact until explicitly edited", (unit, sliderMax, max, value) => {
+  const onChange = vi.fn();
+  render(<ImageDimensionInput widgetId="w1" setting={{ ...width, min: 1, max, unit, sliderMax }} value={value} label="Width" onChange={onChange} />);
+  expect(slider.max).toBe(sliderMax); expect(slider.value).toBe(sliderMax);
+  expect(screen.getByRole("spinbutton").value).toBe(String(value));
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: String(value + 1) } });
+  fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "Enter" });
+  expect(onChange).toHaveBeenCalledExactlyOnceWith(width.id, value + 1);
+});
+
 function pointerEvent(target, type, x = 50, buttons = 1) {
   const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, button: 0, buttons });
   Object.defineProperty(event, "pointerId", { value: 7 });

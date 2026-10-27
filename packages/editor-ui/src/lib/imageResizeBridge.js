@@ -9,6 +9,7 @@ import {
   supportsImageResize,
   supportsImageStretch,
 } from "@widgetizer/core/imageResize";
+import { SPACING_FIELDS, isImageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import useWidgetStore from "../stores/widgetStore";
 import usePageStore from "../stores/pageStore";
 import useAutoSave from "../stores/saveStore";
@@ -83,6 +84,11 @@ export function imageSizePreview(widgetId, settingId, value, phase = "preview") 
     !supportsImageResize(widget, store.schemas[widget.type])
   )
     return;
+  if (Object.hasOwn(SPACING_FIELDS, settingId)) {
+    if (!supportsImageSpacing(widget, store.schemas[widget.type]) || !isImageSpacing(value)) return;
+    window.dispatchEvent(new CustomEvent(IMAGE_SIZE_PREVIEW_EVENT, { detail: { widgetId, spacing: { [SPACING_FIELDS[settingId]]: value }, phase } }));
+    return;
+  }
   if ([SCALE_WIDTH, SCALE_HEIGHT].includes(settingId)) {
     const transform = editedImageTransform(widgetId, settingId, value);
     if (!transform) return;
@@ -115,6 +121,7 @@ export function editedImageTransform(widgetId, settingId, value) {
     const d = transform.dimensions[settingId === SCALE_WIDTH ? "width" : "height"];
     if (value < 1 || value > (d.unit === "px" ? 10000 : 400)) return null;
     d.value = d.unit === "px" ? Math.round(value) : value;
+    if (transform.anchors?.length) transform.anchors = [];
     return isImageTransform(transform) ? transform : null;
   }
   if (value < 0 || value > 400) return null;

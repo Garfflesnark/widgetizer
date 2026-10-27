@@ -1,6 +1,7 @@
 import { SCALE_WIDTH, SCALE_HEIGHT, supportsImageTransform, legacyImageTransform, supportsImageUnits, imageTransformV2, imageDimensionValue, isDefaultImageScale } from "@widgetizer/core/imageTransform";
 import { editedImageTransform, changeImageUnit } from "../../lib/imageResizeBridge";
 import CheckboxInput from "../settings/inputs/CheckboxInput";
+import { SPACING_FIELDS, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import ImageDimensionInput from "./ImageDimensionInput";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { ArrowLeft } from "lucide-react";
@@ -232,6 +233,12 @@ export default function SettingsPanel({
             const imageSettings = !isGlobalWidget && !selectedBlockId && !isThemeSettings &&
               supportsImageResize(currentWidget, currentWidgetSchema);
             const modernImage = imageSettings && supportsImageTransform(currentWidget, currentWidgetSchema);
+            if (imageSettings && Object.hasOwn(SPACING_FIELDS, setting.id) && supportsImageSpacing(currentWidget, currentWidgetSchema)) {
+              const side = SPACING_FIELDS[setting.id];
+              if (currentValues?.[`${side}_spacing`] !== "px") return null;
+              return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
+                value={currentValues?.[setting.id] ?? 0} label={`${side === "top" ? "Top" : "Bottom"} Spacing (px)`} onChange={handleSettingChange} />;
+            }
             if (modernImage && [IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING].includes(setting.id)) return null;
             if (modernImage && [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id)) {
               const geometry = imageGeometry[selectedWidgetId];
@@ -241,7 +248,7 @@ export default function SettingsPanel({
                 const axis = setting.id === SCALE_WIDTH ? "width" : "height";
                 const unit = transform?.dimensions[axis].unit || "%";
                 return <ImageDimensionInput key={`${contextKey}-${setting.id}-${unit}`} widgetId={selectedWidgetId}
-                  setting={{ ...setting, min: 1, max: unit === "px" ? 10000 : 400, unit }} value={transform ? imageDimensionValue(transform, axis, geometry) : 100}
+                  setting={{ ...setting, min: 1, max: unit === "px" ? 10000 : 400, sliderMax: unit === "px" ? 2000 : 111, unit }} value={transform ? imageDimensionValue(transform, axis, geometry) : 100}
                   label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready} naturalScale={transform?.dimensions[axis].value === null}
                   onUnitChange={(next) => { if (!changeImageUnit(selectedWidgetId, axis, next)) showToast(`Cannot preserve this size within ${next === "%" ? "1–400%" : "1–10,000px"}. Resize this dimension first.`, "error"); }} />;
               }
@@ -263,6 +270,7 @@ export default function SettingsPanel({
                   <CheckboxInput id={`${selectedWidgetId}-default-scale`} value={isDefaultImageScale(currentWidget, imageGeometry[selectedWidgetId])}
                     onChange={() => resetImageScale(selectedWidgetId)} /></div>
                 <p className="text-xs text-slate-500 mt-1">Restore natural proportions and fitted intrinsic dimensions. Alignment is preserved. Edit a dimension to leave Default Scale.</p>
+                {modernImage && <p className="text-xs text-slate-500 mt-1">DragonFruit: Shift scales proportionally. Double-click a resize node to pin/unpin it (green). Pins can lock resizing; editing a dimension clears them.</p>}
                 {modernImage && !currentWidget.settings?.image_transform && <p className="text-xs text-slate-500 mt-1">Legacy appearance is preserved until you edit a scale or use Default Scale.</p>}
               </div>;
             }

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createImageResizeController, imageWidth, isImageWidth } from "../imageResize.js";
 
 let controller, commit, preview, overlay, widget, target;
-function pointer(element, type, x, pointerId = 1, y = 0) {
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+function pointer(element, type, x, pointerId = 1, y = 0, shiftKey = false) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, shiftKey });
   Object.defineProperty(event, "pointerId", { value: pointerId });
   element.dispatchEvent(event);
 }
@@ -43,6 +43,75 @@ function modernFixture() {
   controller.setSupported(["w1"], ["w1"], ["w1"]);
   render();
 }
+function pinnedFixture(anchors = []) {
+  modernFixture(); widget.dataset.imageUnits = "2";
+  const transform = { version: 2, reference: "intrinsic-fit", alignment: "left", anchors,
+    dimensions: { width: { unit: "px", value: 1000 }, height: { unit: "%", value: 100 } }, flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  controller.setSizes({ w1: { width: 100, height: 0, transform } }); render();
+  return transform;
+}
+it("rebases mid-drag Shift changes without jumping and commits the whole interaction once", () => {
+  pinnedFixture();
+  pointer(overlay.querySelector('[data-resize-direction="se"]'), "pointerdown", 1000, 1, 500);
+  pointer(document, "pointermove", 900, 1, 480);
+  const before = [target.style.width, target.querySelector("img").style.height];
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+  expect([target.style.width, target.querySelector("img").style.height]).toEqual(before);
+  pointer(document, "pointermove", 850, 1, 460, true);
+  const constrained = [target.style.width, target.querySelector("img").style.height];
+  document.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+  expect([target.style.width, target.querySelector("img").style.height]).toEqual(constrained);
+  pointer(document, "pointerup", 850, 1, 460);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(commit.mock.calls[0][0].transform.dimensions.width.unit).toBe("px");
+});
+it("toggles a pin with one commit, displays green and keeps it through resize", () => {
+  const model = pinnedFixture();
+  overlay.querySelector('[data-resize-direction="nw"]').dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  expect(commit).toHaveBeenCalledTimes(1);
+  const pinned = commit.mock.calls[0][0].transform;
+  expect(pinned.anchors).toEqual(["nw"]);
+  expect(commit.mock.calls[0][0].startTransform).toEqual(model);
+  controller.setSizes({ w1: { width: 100, height: 0, transform: pinned } }); render();
+  expect(overlay.querySelector('[data-resize-direction="nw"]').getAttribute("aria-pressed")).toBe("true");
+  expect(overlay.querySelector('[data-resize-direction="nw"]').style.background).toBe("rgb(0, 230, 118)");
+  commit.mockClear();
+  pointer(overlay.querySelector('[data-resize-direction="se"]'), "pointerdown", 1000, 1, 500, true);
+  pointer(document, "pointerup", 900, 1, 450, true);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(commit.mock.calls[0][0].transform.anchors).toEqual(["nw"]);
+});
+it("recognizes a double-click across overlay redraws without double committing", () => {
+  pinnedFixture();
+  for (let click = 0; click < 2; click++) {
+    pointer(overlay.querySelector('[data-resize-direction="nw"]'), "pointerdown", 0);
+    pointer(document, "pointerup", 0);
+    render();
+  }
+  expect(commit).toHaveBeenCalledTimes(1);
+  overlay.querySelector('[data-resize-direction="nw"]').dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  expect(commit).toHaveBeenCalledTimes(1);
+  commit.mockClear();
+  pinnedFixture(["nw", "se"]);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    pointer(overlay.querySelector('[data-resize-direction="nw"]'), "pointerdown", 0);
+    pointer(document, "pointerup", 20, 1, 20);
+  }
+  expect(commit).not.toHaveBeenCalled();
+});
+it("previews exact spacing separately from image flow insets and cancels cleanly", () => {
+  pinnedFixture(); widget.dataset.imageSpacing = "1";
+  target.parentElement.className = "widget-container";
+  const container = target.parentElement;
+  const inset = target.style.paddingBlockStart;
+  controller.preview({ widgetId: "w1", spacing: { top: 23, bottom: 0 }, phase: "preview" });
+  expect(container.style.paddingBlockStart).toBe("23px");
+  expect(container.style.paddingBlockEnd).toBe("0px");
+  expect(target.style.paddingBlockStart).toBe(inset);
+  controller.preview({ widgetId: "w1", phase: "cancel" });
+  expect(container.style.paddingBlockStart).toBe("");
+  expect(commit).not.toHaveBeenCalled();
+});
 it("moves the modern top edge down with its bottom anchored and commits once", () => {
   modernFixture();
   pointer(overlay.querySelector('[data-resize-direction="n"]'), "pointerdown", 500, 1, 0);

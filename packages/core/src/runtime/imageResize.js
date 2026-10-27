@@ -1,5 +1,6 @@
-import { resizeAnchoredRect } from "./anchoredResize.js";
+import { resizeAnchoredRect, resizePinnedRect } from "./anchoredResize.js";
 import { imageReference, isImageTransform, rectTransform, transformRect, imageTransformV2 } from "./imageTransform.js";
+import { isImageSpacing } from "./imageSpacing.js";
 export const IMAGE_WIDTH_SETTING = "image_width_percent";
 export const MIN_IMAGE_WIDTH = 10;
 export const MAX_IMAGE_WIDTH = 100;
@@ -62,6 +63,9 @@ export function supportsImageStretch(widget, schema) {
 export function createImageResizeController({ document, onCommit, onPreview, onContext }) {
   let gesture = null;
   let draft = null;
+  let spacingDraft = null;
+  let lastNodeClick = null;
+  let pairedToggle = null;
   let supported = new Set();
   let stretch = new Set();
   const canonicalSizes = new Map();
@@ -140,9 +144,23 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     }
   }
   function cancelDraft() {
+    if (spacingDraft) {
+      Object.assign(spacingDraft.container.style, spacingDraft.original);
+      spacingDraft = null;
+    }
     if (draft) {
       restore(draft);
       draft = null;
+    }
+  }
+  function applySpacing(widget, spacing) {
+    const container = widget.querySelector(".widget-container");
+    if (!container || widget.dataset.imageSpacing !== "1" || !spacing) return;
+    for (const [side, value] of Object.entries(spacing)) {
+      if (!["top", "bottom"].includes(side) || (value !== null && !isImageSpacing(value))) continue;
+      const axis = side === "top" ? "Start" : "End";
+      container.style[`marginBlock${axis}`] = value === null ? "" : "0px";
+      container.style[`paddingBlock${axis}`] = value === null ? "" : `${value}px`;
     }
   }
   function finish(commit) {
@@ -159,7 +177,28 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         ...(current.twoAxes ? { height: current.height, startHeight: current.startHeight } : {}),
       });
     }
-    onPreview();
+    // A stationary click must retain the same node for native double-click detection.
+    if (changed || !commit) onPreview();
+    if (commit && (changed || current.dragged)) lastNodeClick = null;
+    if (commit && !changed && !current.dragged && current.model?.version === 2) {
+      const key = `${current.widgetId}:${current.direction}`, now = Date.now();
+      if (lastNodeClick?.key === key && now - lastNodeClick.time <= 500) {
+        lastNodeClick = null;
+        pairedToggle = { key, time: now };
+        toggleAnchor(find(current.widgetId), current.direction);
+      } else lastNodeClick = { key, time: now };
+    }
+  }
+  function toggleAnchor(widget, direction) {
+    if (!widget) return;
+    cancel();
+    const previous = currentTransform(widget);
+    const next = imageTransformV2({ settings: { image_transform: previous,
+      image_width_percent: Number(widget.dataset.imageWidth), image_height_px: Number(widget.dataset.imageHeight) } }, reference(widget));
+    const anchors = new Set(next.anchors || []);
+    if (anchors.has(direction)) anchors.delete(direction); else anchors.add(direction);
+    next.anchors = [...anchors].sort();
+    onCommit({ widgetId: widget.dataset.widgetId, transform: next, startTransform: previous });
   }
   const cancel = () => {
     finish(false);
@@ -168,19 +207,28 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   };
   const move = (event) => {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
+    gesture.dragged ||= Math.hypot(event.clientX - gesture.originX, event.clientY - gesture.originY) > 3;
+    if (gesture.modern && gesture.shift !== !!event.shiftKey) rebaseShift(!!event.shiftKey);
+    gesture.lastX = event.clientX; gesture.lastY = event.clientY;
     const dx = event.clientX - gesture.startX;
     const dy = event.clientY - gesture.startY;
+    if (dx === 0 && dy === 0 && !gesture.moved && (gesture.modern ||
+      (gesture.width === gesture.startWidth && gesture.height === gesture.startHeight))) { event.preventDefault(); return; }
     if (gesture.modern) {
-      const rect = resizeAnchoredRect(gesture.rect, gesture.direction, dx, dy, {
+      const bounds = {
         left: 0, top: 0, right: gesture.basis.containerWidth, maxTop: gesture.basis.height * 4,
         minWidth: gesture.model?.dimensions.width.unit === "px" ? 1 : gesture.basis.width / 100,
         minHeight: gesture.model?.dimensions.height.unit === "px" ? 1 : gesture.basis.height / 100,
         maxWidth: gesture.model?.dimensions.width.unit === "px" ? 10000 : gesture.basis.width * 4,
         maxHeight: gesture.model?.dimensions.height.unit === "px" ? 10000 : gesture.basis.height * 4,
-      });
-      gesture.transform = rectTransform(rect, gesture.basis, gesture.model, gesture.direction);
-      gesture.moved = Math.abs(rect.left - gesture.rect.left) + Math.abs(rect.top - gesture.rect.top) +
-        Math.abs(rect.width - gesture.rect.width) + Math.abs(rect.height - gesture.rect.height) > 0.01;
+      };
+      const rect = gesture.model ? resizePinnedRect(gesture.rect, gesture.direction, dx, dy, bounds,
+        { proportional: gesture.shift, pins: gesture.model.anchors || [] }) : resizeAnchoredRect(gesture.rect, gesture.direction, dx, dy, bounds);
+      gesture.transform = rectTransform(rect, gesture.basis, gesture.model, gesture.everProportional ? "nsew" : gesture.direction);
+      gesture.lastRect = transformRect(gesture.transform, gesture.basis);
+      const start = gesture.initialRect || gesture.rect;
+      gesture.moved = Math.abs(gesture.lastRect.left - start.left) + Math.abs(gesture.lastRect.top - start.top) +
+        Math.abs(gesture.lastRect.width - start.width) + Math.abs(gesture.lastRect.height - start.height) > 0.01;
       applyTransform(gesture, gesture.transform, gesture.basis);
       event.preventDefault(); onPreview(); return;
     }
@@ -202,6 +250,13 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     event.preventDefault();
     onPreview();
   };
+  function rebaseShift(enabled) {
+    if (!gesture?.modern || gesture.shift === enabled) return;
+    gesture.rect = { ...gesture.lastRect };
+    gesture.startX = gesture.lastX; gesture.startY = gesture.lastY;
+    gesture.shift = enabled;
+    gesture.everProportional ||= enabled;
+  }
   const up = (event) => {
     if (gesture && event.pointerId === gesture.pointerId) {
       move(event);
@@ -212,16 +267,19 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     if (gesture && event.pointerId === gesture.pointerId) finish(false);
   };
   const key = (event) => {
+    if (event.key === "Shift") rebaseShift(true);
     if (event.key === "Escape" && (gesture || draft)) {
       event.preventDefault();
       cancel();
     }
   };
+  const keyUp = (event) => { if (event.key === "Shift") rebaseShift(false); };
   document.addEventListener("pointermove", move);
   document.addEventListener("pointerup", up);
   document.addEventListener("pointercancel", cancelPointer);
   document.addEventListener("lostpointercapture", cancelPointer);
   document.addEventListener("keydown", key);
+  document.addEventListener("keyup", keyUp);
   document.defaultView.addEventListener("blur", cancel);
   return {
     cancel,
@@ -231,6 +289,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       stretch = new Set(stretchIds);
       if (gesture && !supported.has(gesture.widgetId)) finish(false);
       if (draft && !supported.has(draft.widgetId)) cancelDraft();
+      if (spacingDraft && !supported.has(spacingDraft.widgetId)) cancelDraft();
       for (const id of canonicalSizes.keys()) if (!supported.has(id)) {
         canonicalSizes.delete(id);
         canonicalValues.delete(id);
@@ -247,26 +306,42 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         if (twoAxes && !isImageHeight(size.height)) continue;
         if (size.transform !== undefined && size.transform !== null && (!transforms.has(widgetId) || !isImageTransform(size.transform))) continue;
         canonicalValues.set(widgetId, size);
-        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null]);
+        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing]);
         if (canonicalSizes.get(widgetId) === key) continue;
         if (gesture?.widgetId === widgetId) finish(false);
-        if (draft?.widgetId === widgetId) cancelDraft();
+        if (draft?.widgetId === widgetId || spacingDraft?.widgetId === widgetId) cancelDraft();
+        applySpacing(widget, size.spacing);
         if (isImageTransform(size.transform)) applyTransform(snapshot(widget), size.transform, reference(widget));
         else apply(snapshot(widget), size.width, twoAxes ? size.height : undefined);
         canonicalSizes.set(widgetId, key);
       }
       onPreview();
     },
-    preview({ widgetId, width, height, transform, phase }) {
+    preview({ widgetId, width, height, transform, spacing, phase }) {
       if (phase === "cancel") {
         cancel();
         return;
       }
       const widget = find(widgetId);
+      if (spacing !== undefined) {
+        if (!eligible(widget, null) || widget.dataset.imageSpacing !== "1" || !spacing ||
+          !Object.entries(spacing).every(([side, value]) => ["top", "bottom"].includes(side) && isImageSpacing(value))) return;
+        const container = widget.querySelector(".widget-container");
+        if (!container) return;
+        finish(false);
+        if (spacingDraft?.widgetId !== widgetId) {
+          cancelDraft();
+          spacingDraft = { widgetId, container, original: Object.fromEntries(["marginBlockStart", "marginBlockEnd", "paddingBlockStart", "paddingBlockEnd"].map((key) => [key, container.style[key]])) };
+        }
+        applySpacing(widget, spacing);
+        if (phase === "commit") spacingDraft = null;
+        onPreview(); return;
+      }
       if (transform !== undefined) {
         if (!eligible(widget, null) || !transforms.has(widgetId) || !isImageTransform(transform)) return;
         finish(false);
         if (draft?.widgetId !== widgetId) { cancelDraft(); draft = snapshot(widget); }
+        draft.transform = transform;
         applyTransform(draft, transform, reference(widget));
         if (phase === "commit") draft = null;
         onPreview(); return;
@@ -306,13 +381,17 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       }
       const rect = image.getBoundingClientRect();
       const twoAxes = stretch.has(widgetId) && widget.hasAttribute("data-image-height");
+      const visibleTransform = gesture?.widgetId === widgetId ? gesture.transform || gesture.model :
+        draft?.widgetId === widgetId ? draft.transform : currentTransform(widget);
       for (const direction of twoAxes ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["e"]) {
         const handle = document.createElement("button");
         handle.type = "button";
         handle.className = "wz-image-resize-handle";
         handle.dataset.resizeDirection = direction;
         handle.setAttribute("aria-label", `Resize image ${direction} (or use Width and Height in the sidebar)`);
-        handle.title = "Drag to stretch image; Escape cancels";
+        const pinned = visibleTransform?.anchors?.includes(direction);
+        handle.title = `${pinned ? "Anchored" : "Unanchored"}. Double-click to toggle anchor. Drag to stretch; Shift scales proportionally; Escape cancels.`;
+        handle.setAttribute("aria-pressed", pinned ? "true" : "false");
         const x = direction.includes("w")
           ? rect.left
           : direction.includes("e")
@@ -331,7 +410,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
           height: "12px",
           border: "2px solid white",
           borderRadius: "2px",
-          background: "#e0006d",
+          background: pinned ? "#00e676" : "#e0006d",
           cursor: `${direction}-resize`,
           pointerEvents: "auto",
           touchAction: "none",
@@ -350,6 +429,8 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
             containerWidth,
             startX: event.clientX,
             startY: event.clientY,
+            originX: event.clientX,
+            originY: event.clientY,
             startWidth,
             startHeight,
             width: startWidth,
@@ -366,10 +447,20 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
             if (widget.dataset.imageUnits === "2") gesture.model = imageTransformV2({ settings: {
               image_transform: currentTransform(widget), image_width_percent: Number(widget.dataset.imageWidth), image_height_px: Number(widget.dataset.imageHeight),
             } }, gesture.basis);
+            Object.assign(gesture, { initialRect: { ...gesture.rect }, lastRect: { ...gesture.rect },
+              lastX: event.clientX, lastY: event.clientY, shift: !!event.shiftKey, everProportional: !!event.shiftKey });
           }
           overlay.setPointerCapture?.(event.pointerId);
           event.preventDefault();
           event.stopPropagation();
+        });
+        handle.addEventListener("dblclick", (event) => {
+          if (!modern || widget.dataset.imageUnits !== "2") return;
+          event.preventDefault(); event.stopPropagation();
+          // Overlay redraws can replace a node between clicks. Pointer pairing
+          // handles that case; suppress its corresponding native dblclick.
+          if (pairedToggle?.key === `${widgetId}:${direction}` && Date.now() - pairedToggle.time <= 500) { pairedToggle = null; return; }
+          toggleAnchor(widget, direction);
         });
         overlay.appendChild(handle);
       }
@@ -381,6 +472,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       document.removeEventListener("pointercancel", cancelPointer);
       document.removeEventListener("lostpointercapture", cancelPointer);
       document.removeEventListener("keydown", key);
+      document.removeEventListener("keyup", keyUp);
       document.defaultView.removeEventListener("blur", cancel);
     },
   };

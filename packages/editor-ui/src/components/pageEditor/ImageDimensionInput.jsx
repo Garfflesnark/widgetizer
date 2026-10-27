@@ -20,6 +20,8 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
   saved.current = value;
   const height = setting.id === IMAGE_HEIGHT_SETTING;
   const modern = [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id);
+  const sliderMin = setting.sliderMin ?? setting.min;
+  const sliderMax = setting.sliderMax ?? setting.max;
   const hasAuto = height || (modern && !onUnitChange);
   const release = () => {
     const session = pointer.current;
@@ -107,7 +109,7 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
         pointer.current = { id: event.pointerId, element: event.currentTarget, rect };
         event.currentTarget.setPointerCapture?.(event.pointerId);
         const step = setting.step || 1;
-        preview(setting.min + Math.round((event.clientX - rect.left) / rect.width * (setting.max - setting.min) / step) * step);
+        preview(Math.max(sliderMin, Math.min(sliderMax, sliderMin + Math.round((event.clientX - rect.left) / rect.width * (sliderMax - sliderMin) / step) * step)));
       }}
       onPointerMove={(event) => {
         const session = pointer.current;
@@ -115,7 +117,7 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
         if (event.buttons === 0) { commit(); return; }
         event.preventDefault();
         const step = setting.step || 1;
-        preview(setting.min + Math.round((event.clientX - session.rect.left) / session.rect.width * (setting.max - setting.min) / step) * step);
+        preview(Math.max(sliderMin, Math.min(sliderMax, sliderMin + Math.round((event.clientX - session.rect.left) / session.rect.width * (sliderMax - sliderMin) / step) * step)));
       }}
       style={{ touchAction: "pan-y" }}
       onKeyDown={(event) => {
@@ -132,10 +134,10 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
       </label>
       <Slider
         disabled={disabled}
-        min={setting.min}
-        max={setting.max}
+        min={sliderMin}
+        max={sliderMax}
         step={setting.step}
-        value={local}
+        value={Math.max(sliderMin, Math.min(sliderMax, local))}
         ariaLabelForHandle={label}
         onBeforeChange={() => { begin(); sliderActive.current = true; setShield(true); }}
         onChange={(next) => { if (!cancelled.current) preview(next); }}
@@ -185,6 +187,7 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
         )}
       </div>
       {modern && <p className="text-xs text-slate-500 mt-1">{onUnitChange ? `${naturalScale ? "Natural proportions. " : ""}% scales the fitted original; px stores CSS pixels. Default Scale restores proportions.` : "Both percentages scale the fitted intrinsic image. Auto keeps proportions."}</p>}
+      {local > sliderMax && <p className="text-xs text-slate-500 mt-1">Slider limit: {sliderMax}{setting.unit}. Exact entry supports up to {setting.max}{setting.unit}; the saved value is unchanged.</p>}
       {height && (
         <p className="text-xs text-slate-500 mt-1">Auto keeps proportions. A pixel height stretches the image.</p>
       )}

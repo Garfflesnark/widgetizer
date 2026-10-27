@@ -1,4 +1,5 @@
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
+import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
 import { supportsImageStretch, imageWidth, imageHeight } from "@widgetizer/core/imageResize";
 import { handleImageResizeMessage, handleImageGeometryMessage, handleImageAlignmentMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
@@ -55,6 +56,7 @@ export default function SelectionOverlay({
         width: imageWidth(page.widgets[id].settings?.image_width_percent),
         height: imageHeight(page.widgets[id].settings?.image_height_px),
         transform: isImageTransform(page.widgets[id].settings?.image_transform) ? page.widgets[id].settings.image_transform : null,
+        ...(supportsImageSpacing(page.widgets[id], schemas[page.widgets[id].type]) ? { spacing: imageSpacing(page.widgets[id].settings) } : {}),
       }]));
       iframe.contentWindow?.postMessage({
         type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes },

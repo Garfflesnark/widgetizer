@@ -68,6 +68,28 @@ beforeEach(() => {
 });
 afterEach(() => saveStore.getState().stopAutoSave());
 
+it("clears pins with a manual dimension change in one Undo step, while spacing and Default Scale retain pins", async () => {
+  widgetStore.setState({ schemas: { image: schema }, imageGeometry: { w1: { containerWidth: 1000, width: 800, height: 600, imageSource: "" } } });
+  widgetStore.getState().resetImageScale("w1");
+  const model = { ...pageStore.getState().page.widgets.w1.settings.image_transform, anchors: ["nw", "n"] };
+  widgetStore.getState().updateWidgetSettingValues("w1", { image_transform: model });
+  pageStore.temporal.getState().clear();
+  const next = editedImageTransform("w1", "image_scale_width", 50);
+  expect(next.anchors).toEqual([]);
+  widgetStore.getState().updateWidgetSettingValues("w1", { image_transform: next });
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(1);
+  pageStore.temporal.getState().undo();
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform.anchors).toEqual(["nw", "n"]);
+  widgetStore.getState().resetImageScale("w1");
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform.anchors).toEqual(["nw", "n"]);
+  widgetStore.getState().updateWidgetSettingValues("w1", { bottom_spacing: "px", bottom_spacing_px: 0 });
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform.anchors).toEqual(["nw", "n"]);
+  expect((await saveStore.getState().save()).status).toBe("success");
+  await pageStore.getState().loadPage("index");
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform.anchors).toEqual(["nw", "n"]);
+  expect(pageStore.getState().page.widgets.w1.settings.bottom_spacing_px).toBe(0);
+});
+
 it("persists independent unit changes, alignment and Default Scale with undo/redo and save/reload", async () => {
   widgetStore.setState({ schemas: { image: schema }, imageGeometry: { w1: { containerWidth: 1000, width: 800, height: 600, imageSource: "" } } });
   widgetStore.getState().resetImageScale("w1");
