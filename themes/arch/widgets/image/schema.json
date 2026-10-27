@@ -58,6 +58,26 @@
       "default": 0
     },
     {
+      "type": "range",
+      "id": "image_scale_width",
+      "label": "Width",
+      "min": 0,
+      "max": 400,
+      "step": 1,
+      "unit": "%",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "image_scale_height",
+      "label": "Height",
+      "min": 0,
+      "max": 400,
+      "step": 1,
+      "unit": "%",
+      "default": 0
+    },
+    {
       "type": "header",
       "id": "appearance_header",
       "label": "tTheme:global.widgets.settings.appearance_header.label"

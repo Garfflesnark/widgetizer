@@ -1,3 +1,16 @@
+{% assign image_filename = widget.settings.image | split: '/' | last %}
+{% assign image_media = mediaFiles[image_filename] %}
+{% assign natural_width = image_media.width | default: 1600 | plus: 0 | at_least: 1 %}
+{% assign natural_height = image_media.height | default: 900 | plus: 0 | at_least: 1 %}
+{% assign transform = widget.settings.image_transform %}
+{% assign transformed = false %}
+{% if transform.version == 1 and transform.reference == 'intrinsic-fit' %}
+  {% assign transformed = true %}
+  {% assign width_scale = transform.scale.width | default: transform.scale.height | default: 100 | plus: 0 | at_least: 1 | at_most: 400 | divided_by: 100.0 %}
+  {% assign height_scale = transform.scale.height | default: transform.scale.width | default: 100 | plus: 0 | at_least: 1 | at_most: 400 | divided_by: 100.0 %}
+  {% assign inline_inset = transform.flowInset.inlinePercent | default: 0 | plus: 0 | at_least: 0 | at_most: 100 %}
+  {% assign block_inset = transform.flowInset.blockPercent | default: 0 | plus: 0 | at_least: 0 | at_most: 400 | divided_by: 100.0 %}
+{% endif %}
 {% assign image_width = widget.settings.image_width_percent | default: 100 | plus: 0 | at_least: 10 | at_most: 100 | round %}
 {% assign image_height = widget.settings.image_height_px | default: 0 | plus: 0 | at_least: 0 | at_most: 2000 | round %}
 <section
@@ -7,6 +20,17 @@
   data-widget-type="image"
   data-image-width="{{ image_width }}"
   data-image-height="{{ image_height }}"
+  data-image-transform-capable="true"
+  data-image-source="{{ widget.settings.image }}"
+  data-image-natural-width="{{ natural_width }}"
+  data-image-natural-height="{{ natural_height }}"
+  {% if transformed %}
+  data-image-transform-width="{{ transform.scale.width }}"
+  data-image-transform-height="{{ transform.scale.height }}"
+  data-image-transform-inline="{{ inline_inset }}"
+  data-image-transform-block="{{ transform.flowInset.blockPercent | default: 0 }}"
+  data-image-transform-version="1"
+  {% endif %}
   {% if widget.index != null %}data-widget-index="{{ widget.index }}"{% endif %}
 >
   <style>
@@ -73,6 +97,28 @@
           {% endif %}
         }
       }
+
+      {% if transformed %}
+      & .widget-content { container-type: inline-size; }
+      & .image-resize-target {
+        --image-reference-width: min(100cqw, {{ natural_width }}px);
+        --image-reference-height: calc(var(--image-reference-width) * {{ natural_height }} / {{ natural_width }});
+        --image-visible-width: max(1px, min(calc(var(--image-reference-width) * {{ width_scale }}), calc(100cqw - {{ inline_inset }}cqw)));
+        width: var(--image-visible-width);
+        margin-inline-start: {{ inline_inset }}%;
+        margin-inline-end: 0;
+        padding-block-start: calc(var(--image-reference-height) * {{ block_inset }});
+        & img {
+          width: 100%;
+          {% if transform.scale.width == nil or transform.scale.height == nil %}
+          height: calc(var(--image-visible-width) * {{ natural_height }} / {{ natural_width }});
+          {% else %}
+          height: calc(var(--image-reference-height) * {{ height_scale }});
+          {% endif %}
+          object-fit: fill;
+        }
+      }
+      {% endif %}
 
       & .image-figure {
         margin: 0;

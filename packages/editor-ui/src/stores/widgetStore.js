@@ -1,3 +1,4 @@
+import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform } from "@widgetizer/core/imageTransform";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, isImageWidth, isImageHeight, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
@@ -120,6 +121,8 @@ function getClearedHoverState() {
 const useWidgetStore = create((set, get) => ({
   // State
   schemas: {},
+  imageGeometry: {},
+  setImageGeometry: (id, geometry) => set((state) => ({ imageGeometry: { ...state.imageGeometry, [id]: geometry } })),
   selectedWidgetId: null,
   selectedBlockId: null,
   selectedGlobalWidgetId: null,
@@ -177,6 +180,7 @@ const useWidgetStore = create((set, get) => ({
   resetForProjectChange: () => {
     set({
       schemas: {},
+      imageGeometry: {},
       ...getWidgetSelectionState(null),
       ...getClearedHoverState(),
       loadedProjectId: getActiveProjectId(),
@@ -304,6 +308,11 @@ const useWidgetStore = create((set, get) => ({
         Object.hasOwn(values, IMAGE_WIDTH_SETTING) && !isImageWidth(values[IMAGE_WIDTH_SETTING])) return;
 
     const widget = page.widgets[widgetId];
+    if (Object.hasOwn(values, "image_transform")) {
+      if (!supportsImageTransform(widget, get().schemas[widget.type]) || !isImageTransform(values.image_transform)) return;
+      if (Object.entries(values).every(([key, value]) => JSON.stringify(widget.settings?.[key]) === JSON.stringify(value))) return;
+      pageStore.beginHistoryStep();
+    }
     const imageSupported = supportsImageResize(widget, get().schemas[widget.type]);
     if (supportsImageStretch(widget, get().schemas[widget.type]) && Object.hasOwn(values, IMAGE_HEIGHT_SETTING) &&
         !isImageHeight(values[IMAGE_HEIGHT_SETTING])) return;
@@ -327,6 +336,17 @@ const useWidgetStore = create((set, get) => ({
         },
       },
     });
+  },
+
+  resetImageScale: (widgetId) => {
+    const widget = usePageStore.getState().page?.widgets?.[widgetId];
+    if (!widget || !supportsImageResize(widget, get().schemas[widget.type])) return;
+    const values = supportsImageTransform(widget, get().schemas[widget.type])
+      ? { image_transform: structuredClone(DEFAULT_IMAGE_TRANSFORM), fullwidth: false }
+      : { image_width_percent: 100, image_height_px: 0, fullwidth: false };
+    if (Object.entries(values).every(([key, value]) => JSON.stringify(widget.settings?.[key]) === JSON.stringify(value))) return;
+    get().updateWidgetSettingValues(widgetId, values);
+    useAutoSave.getState().markWidgetModified(widgetId);
   },
 
   updateGlobalWidgetSettings: (widgetType, settingId, value) => {

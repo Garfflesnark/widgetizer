@@ -1,3 +1,5 @@
+import { resizeAnchoredRect } from "./anchoredResize.js";
+import { imageReference, isImageTransform, rectTransform, transformRect } from "./imageTransform.js";
 export const IMAGE_WIDTH_SETTING = "image_width_percent";
 export const MIN_IMAGE_WIDTH = 10;
 export const MAX_IMAGE_WIDTH = 100;
@@ -57,12 +59,15 @@ export function supportsImageStretch(widget, schema) {
 }
 
 // Gestures and sidebar drafts affect only DOM styles until a single store commit.
-export function createImageResizeController({ document, onCommit, onPreview }) {
+export function createImageResizeController({ document, onCommit, onPreview, onContext }) {
   let gesture = null;
   let draft = null;
   let supported = new Set();
   let stretch = new Set();
   const canonicalSizes = new Map();
+  const canonicalValues = new Map();
+  const contextKeys = new Map();
+  let transforms = new Set();
   const find = (id) =>
     Array.from(document.querySelectorAll("[data-widget-id]")).find((el) => el.dataset.widgetId === id);
   function parts(widget) {
@@ -85,16 +90,46 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
       target,
       image,
       originalWidth: target.style.width,
+      originalInlineStart: target.style.marginInlineStart,
+      originalInlineEnd: target.style.marginInlineEnd,
+      originalBlockStart: target.style.paddingBlockStart,
       originalHeight: image.style.height,
       originalFit: image.style.objectFit,
     };
   }
   function restore(state) {
     state.target.style.width = state.originalWidth;
+    state.target.style.marginInlineStart = state.originalInlineStart;
+    state.target.style.marginInlineEnd = state.originalInlineEnd;
+    state.target.style.paddingBlockStart = state.originalBlockStart;
     state.image.style.height = state.originalHeight;
     state.image.style.objectFit = state.originalFit;
   }
+  function reference(widget) {
+    const { target } = parts(widget);
+    return imageReference(target.parentElement.getBoundingClientRect().width,
+      Number(widget.dataset.imageNaturalWidth), Number(widget.dataset.imageNaturalHeight));
+  }
+  function currentTransform(widget) {
+    if (canonicalValues.has(widget.dataset.widgetId)) return canonicalValues.get(widget.dataset.widgetId).transform || null;
+    if (widget.dataset.imageTransformVersion !== "1") return null;
+    const nullable = (v) => v === "" || v === undefined ? null : Number(v);
+    const value = { version: 1, reference: "intrinsic-fit", scale: {
+      width: nullable(widget.dataset.imageTransformWidth), height: nullable(widget.dataset.imageTransformHeight) },
+      flowInset: { inlinePercent: Number(widget.dataset.imageTransformInline), blockPercent: Number(widget.dataset.imageTransformBlock) } };
+    return isImageTransform(value) ? value : null;
+  }
+  function applyTransform(state, transform, basis) {
+    const rect = transformRect(transform, basis);
+    Object.assign(state.target.style, { width: `${rect.width}px`, marginInlineStart: `${rect.left}px`,
+      marginInlineEnd: "0px", paddingBlockStart: `${rect.top}px` });
+    state.image.style.height = `${rect.height}px`;
+    state.image.style.objectFit = "fill";
+  }
   function apply(state, width, height) {
+    state.target.style.marginInlineStart = "auto";
+    state.target.style.marginInlineEnd = "auto";
+    state.target.style.paddingBlockStart = "0px";
     state.target.style.width = `${width}%`;
     if (height !== undefined) {
       state.image.style.height = height ? `${height}px` : "auto";
@@ -111,15 +146,13 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
     if (!gesture) return;
     const current = gesture;
     gesture = null;
-    const changed = current.width !== current.startWidth || current.height !== current.startHeight;
+    const changed = current.modern ? !!current.moved : current.width !== current.startWidth || current.height !== current.startHeight;
     if (!commit || !changed) restore(current);
     if (current.capture.hasPointerCapture?.(current.pointerId))
       current.capture.releasePointerCapture(current.pointerId);
     if (commit && changed) {
-      onCommit({
-        widgetId: current.widgetId,
-        width: current.width,
-        startWidth: current.startWidth,
+      onCommit(current.modern ? { widgetId: current.widgetId, transform: current.transform, startTransform: current.startTransform } : {
+        widgetId: current.widgetId, width: current.width, startWidth: current.startWidth,
         ...(current.twoAxes ? { height: current.height, startHeight: current.startHeight } : {}),
       });
     }
@@ -134,6 +167,18 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
     const dx = event.clientX - gesture.startX;
     const dy = event.clientY - gesture.startY;
+    if (gesture.modern) {
+      const rect = resizeAnchoredRect(gesture.rect, gesture.direction, dx, dy, {
+        left: 0, top: 0, right: gesture.basis.containerWidth, maxTop: gesture.basis.height * 4,
+        minWidth: gesture.basis.width / 100, minHeight: gesture.basis.height / 100,
+        maxWidth: gesture.basis.width * 4, maxHeight: gesture.basis.height * 4,
+      });
+      gesture.transform = rectTransform(rect, gesture.basis);
+      gesture.moved = Math.abs(rect.left - gesture.rect.left) + Math.abs(rect.top - gesture.rect.top) +
+        Math.abs(rect.width - gesture.rect.width) + Math.abs(rect.height - gesture.rect.height) > 0.01;
+      applyTransform(gesture, gesture.transform, gesture.basis);
+      event.preventDefault(); onPreview(); return;
+    }
     const xSign = gesture.direction.includes("w") ? -1 : 1;
     const ySign = gesture.direction.includes("n") ? -1 : 1;
     if (/[ew]/.test(gesture.direction)) {
@@ -175,12 +220,17 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
   document.defaultView.addEventListener("blur", cancel);
   return {
     cancel,
-    setSupported(ids, stretchIds = []) {
+    setSupported(ids, stretchIds = [], transformIds = []) {
+      transforms = new Set(transformIds);
       supported = new Set(ids);
       stretch = new Set(stretchIds);
       if (gesture && !supported.has(gesture.widgetId)) finish(false);
       if (draft && !supported.has(draft.widgetId)) cancelDraft();
-      for (const id of canonicalSizes.keys()) if (!supported.has(id)) canonicalSizes.delete(id);
+      for (const id of canonicalSizes.keys()) if (!supported.has(id)) {
+        canonicalSizes.delete(id);
+        canonicalValues.delete(id);
+        contextKeys.delete(id);
+      }
     },
     setSizes(sizes = {}) {
       // Undo can return to the last server-rendered state before its debounce
@@ -190,21 +240,32 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
         if (!size || !eligible(widget, null) || !isImageWidth(size.width)) continue;
         const twoAxes = stretch.has(widgetId) && widget.hasAttribute("data-image-height");
         if (twoAxes && !isImageHeight(size.height)) continue;
-        const key = `${size.width}:${twoAxes ? size.height : "auto"}`;
+        if (size.transform !== undefined && size.transform !== null && (!transforms.has(widgetId) || !isImageTransform(size.transform))) continue;
+        canonicalValues.set(widgetId, size);
+        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null]);
         if (canonicalSizes.get(widgetId) === key) continue;
         if (gesture?.widgetId === widgetId) finish(false);
         if (draft?.widgetId === widgetId) cancelDraft();
-        apply(snapshot(widget), size.width, twoAxes ? size.height : undefined);
+        if (isImageTransform(size.transform)) applyTransform(snapshot(widget), size.transform, reference(widget));
+        else apply(snapshot(widget), size.width, twoAxes ? size.height : undefined);
         canonicalSizes.set(widgetId, key);
       }
       onPreview();
     },
-    preview({ widgetId, width, height, phase }) {
+    preview({ widgetId, width, height, transform, phase }) {
       if (phase === "cancel") {
         cancel();
         return;
       }
       const widget = find(widgetId);
+      if (transform !== undefined) {
+        if (!eligible(widget, null) || !transforms.has(widgetId) || !isImageTransform(transform)) return;
+        finish(false);
+        if (draft?.widgetId !== widgetId) { cancelDraft(); draft = snapshot(widget); }
+        applyTransform(draft, transform, reference(widget));
+        if (phase === "commit") draft = null;
+        onPreview(); return;
+      }
       if (
         !eligible(widget, null) ||
         !isImageWidth(width) ||
@@ -227,6 +288,17 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
       if (!eligible(widget, blockId)) return;
       const { target, image } = parts(widget);
       const widgetId = widget.dataset.widgetId;
+      const modern = transforms.has(widgetId) && widget.dataset.imageTransformCapable === "true";
+      if (modern) {
+        const basis = reference(widget);
+        const context = { widgetId, ...basis, imageSource: widget.dataset.imageSource || "" };
+        const key = JSON.stringify(context);
+        if (contextKeys.get(widgetId) !== key) {
+          contextKeys.set(widgetId, key);
+          if (!gesture && !draft && isImageTransform(currentTransform(widget))) applyTransform(snapshot(widget), currentTransform(widget), basis);
+          onContext?.(context);
+        }
+      }
       const rect = image.getBoundingClientRect();
       const twoAxes = stretch.has(widgetId) && widget.hasAttribute("data-image-height");
       for (const direction of twoAxes ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["e"]) {
@@ -281,6 +353,12 @@ export function createImageResizeController({ document, onCommit, onPreview }) {
             twoAxes,
             direction,
           };
+          if (modern) {
+            const container = target.parentElement.getBoundingClientRect();
+            const bounds = image.getBoundingClientRect();
+            Object.assign(gesture, { modern: true, basis: reference(widget), startTransform: currentTransform(widget), moved: false,
+              rect: { left: bounds.left - container.left, top: bounds.top - container.top, width: bounds.width, height: bounds.height } });
+          }
           overlay.setPointerCapture?.(event.pointerId);
           event.preventDefault();
           event.stopPropagation();

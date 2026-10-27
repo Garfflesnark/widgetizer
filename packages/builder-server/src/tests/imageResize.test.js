@@ -158,6 +158,46 @@ it("saves and reloads width through real storage and exports the same CSS as pre
   assert.doesNotMatch(html, /wz-image-resize-handle|previewRuntime\.js/);
 });
 
+it("persists the opt-in transform and exports identical intrinsic scaling and normal-flow insets", async () => {
+  const image_transform = { version: 1, reference: "intrinsic-fit", scale: { width: 50, height: 80 },
+    flowInset: { inlinePercent: 10, blockPercent: 20 } };
+  const page = { id: "index", slug: "index", name: "Home", widgetsOrder: ["w1"], widgets: {
+    w1: { type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform } },
+  } };
+  const saved = response();
+  await savePageContent(request(page), saved);
+  assert.equal(saved.code, 200);
+  const loaded = response();
+  await getPage(request(), loaded);
+  assert.deepEqual(loaded.data.widgets.w1.settings.image_transform, image_transform);
+  const preview = response();
+  await generatePreview(request({ pageData: loaded.data, themeSettings, previewMode: "editor" }), preview);
+  const exported = await harness.runExport();
+  assert.equal(exported._status, 200);
+  const html = await fs.readFile(path.join(harness.latestExportDir(), "index.html"), "utf8");
+  const css = (text) => text.match(/--image-reference-width:[\s\S]+?object-fit: fill;/)?.[0].replace(/\s+/g, "");
+  assert.ok(css(html));
+  assert.equal(css(html), css(preview.html));
+  assert.match(html, /min\(100cqw, 800px\)/);
+  assert.match(html, /margin-inline-start: 10%;/);
+  assert.match(html, /padding-block-start: calc\(var\(--image-reference-height\) \* 0.2\)/);
+  assert.match(html, /height: calc\(var\(--image-reference-height\) \* 0.8\)/);
+  assert.doesNotMatch(html, /wz-image-resize-handle/);
+});
+
+it("uses proportional dimensions for either Auto axis and rejects malformed transforms without changing legacy appearance", async () => {
+  const render = (settings) => renderWidget("resize-project", "w1", { type: "image", settings }, themeSettings);
+  for (const scale of [{ width: null, height: null }, { width: 50, height: null }, { width: null, height: 50 }]) {
+    const html = await render({ image_transform: { version: 1, reference: "intrinsic-fit", scale, flowInset: { inlinePercent: 0, blockPercent: 0 } } });
+    assert.match(html, /height: calc\(var\(--image-visible-width\) \* 900 \/ 1600\)/);
+  }
+  const legacy = { image_width_percent: 73, image_height_px: 350, fullwidth: true };
+  const expected = await render(legacy);
+  for (const value of [null, { version: 2 }, { version: 1, reference: "intrinsic-fit", scale: { width: "50", height: null }, flowInset: { inlinePercent: 0, blockPercent: 0 } }]) {
+    assert.equal(await render({ ...legacy, image_transform: value }), expected);
+  }
+});
+
 it("keeps the existing container-constrained default and renders saved Full Width percentages unchanged", async () => {
   const imageSchema = await fs.readJson(path.join(source, "schema.json"));
   assert.equal(imageSchema.settings.find((setting) => setting.id === "fullwidth").default, false);

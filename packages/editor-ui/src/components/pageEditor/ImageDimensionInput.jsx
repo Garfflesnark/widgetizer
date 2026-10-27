@@ -1,3 +1,4 @@
+import { SCALE_WIDTH, SCALE_HEIGHT } from "@widgetizer/core/imageTransform";
 import { useEffect, useRef, useState } from "react";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
@@ -5,7 +6,7 @@ import { imageSizePreview } from "../../lib/imageResizeBridge";
 import { IMAGE_HEIGHT_SETTING } from "@widgetizer/core/imageResize";
 
 // Image-only transient feedback bypasses PreviewPanel's server-render debounce.
-export default function ImageDimensionInput({ widgetId, setting, value = setting.default, label, onChange }) {
+export default function ImageDimensionInput({ widgetId, setting, value = setting.default, label, onChange, disabled = false }) {
   const [local, setLocal] = useState(value);
   const active = useRef(false);
   const cancelled = useRef(false);
@@ -13,6 +14,8 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
   const saved = useRef(value);
   saved.current = value;
   const height = setting.id === IMAGE_HEIGHT_SETTING;
+  const modern = [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id);
+  const hasAuto = height || modern;
   const send = (next, phase) => imageSizePreview(widgetId, setting.id, next, phase);
   const cancel = () => {
     if (!active.current) return;
@@ -43,7 +46,8 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
   };
   const preview = (next) => {
     if (!Number.isFinite(next)) return;
-    next = Math.round(Math.max(setting.min, Math.min(setting.max, next)));
+    next = Math.round(Math.max(setting.min, Math.min(setting.max, next)) * 100) / 100;
+    if (modern && next > 0 && next < 1) next = 1;
     if (!active.current) begin();
     latest.current = next;
     setLocal(next);
@@ -51,7 +55,8 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
   };
   const commit = (next = latest.current) => {
     if (cancelled.current || !Number.isFinite(next)) return;
-    next = Math.round(Math.max(setting.min, Math.min(setting.max, next)));
+    next = Math.round(Math.max(setting.min, Math.min(setting.max, next)) * 100) / 100;
+    if (modern && next > 0 && next < 1) next = 1;
     active.current = false;
     latest.current = next;
     setLocal(next);
@@ -75,6 +80,7 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
         {label}
       </label>
       <Slider
+        disabled={disabled}
         min={setting.min}
         max={setting.max}
         step={setting.step}
@@ -88,6 +94,7 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
         <input
           id={id}
           aria-label={label}
+          disabled={disabled}
           type="number"
           min={setting.min}
           max={setting.max}
@@ -105,9 +112,10 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
             }
           }}
         />
-        <span>{height && local === 0 ? "Auto" : setting.unit}</span>
-        {height && (
+        <span>{hasAuto && local === 0 ? "Auto" : setting.unit}</span>
+        {hasAuto && (
           <button
+            disabled={disabled}
             type="button"
             className="text-sm underline"
             onClick={() => {
@@ -119,6 +127,7 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
           </button>
         )}
       </div>
+      {modern && <p className="text-xs text-slate-500 mt-1">Both percentages scale the fitted intrinsic image. Auto keeps proportions.</p>}
       {height && (
         <p className="text-xs text-slate-500 mt-1">Auto keeps proportions. A pixel height stretches the image.</p>
       )}

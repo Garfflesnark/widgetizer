@@ -1,3 +1,4 @@
+import { getEditorHistoryShortcut } from "./editorHistoryShortcut.js";
 /*
 This is the runtime script that is injected into the preview iframe.
 It handles CSS variable updates, font loading, real-time settings updates,
@@ -825,7 +826,14 @@ function setupOverlayClickHandler() {
 
 // ── Message Handler ─────────────────────────────────────────────────────────
 
+let editorHistoryState = { canUndo: false, canRedo: false };
 function handleMessage(event) {
+  if (event.data?.type === "EDITOR_HISTORY_STATE") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const state = event.data.payload;
+    if (typeof state?.canUndo === "boolean" && typeof state?.canRedo === "boolean") editorHistoryState = state;
+    return;
+  }
   if (event.data?.type === "IMAGE_SIZE_PREVIEW") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     const payload = event.data.payload;
@@ -840,7 +848,9 @@ function handleMessage(event) {
     if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) return;
     const stretchIds = event.data.payload?.stretchWidgetIds || [];
     if (!Array.isArray(stretchIds) || !stretchIds.every((id) => typeof id === "string" && ids.includes(id))) return;
-    imageResizeController?.setSupported(ids, stretchIds);
+    const transformIds = event.data.payload?.transformWidgetIds || [];
+    if (!Array.isArray(transformIds) || !transformIds.every((id) => typeof id === "string" && stretchIds.includes(id))) return;
+    imageResizeController?.setSupported(ids, stretchIds, transformIds);
     const sizes = event.data.payload?.sizes;
     if (sizes && typeof sizes === "object" && !Array.isArray(sizes)) imageResizeController?.setSizes(sizes);
     renderOverlay();
@@ -1177,9 +1187,15 @@ function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
     imageResizeController = createImageResizeController({
-      document, onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload }), onPreview: renderOverlay,
+      document, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload }), onPreview: renderOverlay,
     });
   }
+  if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
+    const command = getEditorHistoryShortcut(event);
+    if (!command || !editorHistoryState[command === "undo" ? "canUndo" : "canRedo"]) return;
+    event.preventDefault();
+    postToParent({ type: "EDITOR_HISTORY_SHORTCUT", payload: { command } });
+  });
   setupInteractionHandler();
   setupHoverHandler();
   setupScrollBoundsReporting();
@@ -1187,7 +1203,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => renderOverlay());
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

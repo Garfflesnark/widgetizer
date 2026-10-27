@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import schema from "../../../../../../themes/arch/widgets/image/schema.json";
 
@@ -41,7 +41,7 @@ function panel(type = "image") {
   const currentSchema = { ...schema, type };
   pageStore.setState({ page: { id: "index", widgets: { w1: widget }, widgetsOrder: ["w1"] } });
   pageStore.temporal.getState().clear();
-  widgetStore.setState({ schemas: { [type]: currentSchema } });
+  widgetStore.setState({ schemas: { [type]: currentSchema }, imageGeometry: { w1: { imageSource: "", containerWidth: 800, width: 800, height: 600 } } });
   render(
     <SettingsPanel
       selectedWidgetId="w1"
@@ -51,11 +51,11 @@ function panel(type = "image") {
     />,
   );
 }
-it("uses live controls for image dimensions and explains Full Width", () => {
+it("uses percentage controls for both axes and replaces Full Width with Default Scale", () => {
   panel();
-  expect(dimensions.map((props) => props.setting.id)).toEqual(["image_width_percent", "image_height_px"]);
-  expect(dimensions.map((props) => props.value)).toEqual([45, 350]);
-  expect(screen.getByText(/Enabling Full Width resets Width to 100%/)).toBeTruthy();
+  expect(dimensions.map((props) => props.setting.id)).toEqual(["image_scale_width", "image_scale_height"]);
+  expect(dimensions.map((props) => props.value)).toEqual([45, 58.33]);
+  expect(screen.getByRole("button", { name: "Default Scale" })).toBeTruthy();
   expect(settings.some((props) => props.setting.id === "image_width_percent")).toBe(false);
 });
 it("leaves unrelated widget range inputs on the shared renderer", () => {
@@ -64,12 +64,13 @@ it("leaves unrelated widget range inputs on the shared renderer", () => {
   expect(settings.some((props) => props.setting.id === "image_width_percent")).toBe(true);
   expect(screen.queryByText(/Enabling Full Width resets/)).toBeNull();
 });
-it("routes Full Width through one atomic store change and existing dirty tracking", () => {
+it("resets both axes and flow spacing in one atomic Default Scale operation", () => {
   panel();
-  act(() => settings.find((props) => props.setting.id === "fullwidth").onChange("fullwidth", true));
+  act(() => fireEvent.click(screen.getByRole("button", { name: "Default Scale" })));
   expect(pageStore.getState().page.widgets.w1.settings).toEqual({
-    fullwidth: true,
-    image_width_percent: 100,
+    fullwidth: false,
+    image_transform: { version: 1, reference: "intrinsic-fit", scale: { width: null, height: null }, flowInset: { inlinePercent: 0, blockPercent: 0 } },
+    image_width_percent: 45,
     image_height_px: 350,
   });
   expect(pageStore.temporal.getState().pastStates).toHaveLength(1);

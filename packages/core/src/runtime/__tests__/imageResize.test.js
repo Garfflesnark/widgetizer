@@ -32,6 +32,41 @@ beforeEach(() => {
 });
 afterEach(() => controller.destroy());
 
+function modernFixture() {
+  target.innerHTML = "<img>";
+  widget.dataset.imageHeight = "0";
+  widget.dataset.imageTransformCapable = "true";
+  widget.dataset.imageNaturalWidth = "1000";
+  widget.dataset.imageNaturalHeight = "500";
+  target.parentElement.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000 });
+  target.querySelector("img").getBoundingClientRect = () => ({ left: 0, top: 0, right: 1000, bottom: 500, width: 1000, height: 500 });
+  controller.setSupported(["w1"], ["w1"], ["w1"]);
+  render();
+}
+it("moves the modern top edge down with its bottom anchored and commits once", () => {
+  modernFixture();
+  pointer(overlay.querySelector('[data-resize-direction="n"]'), "pointerdown", 500, 1, 0);
+  pointer(document, "pointermove", 500, 1, 100);
+  expect(target.style.paddingBlockStart).toBe("100px");
+  expect(target.querySelector("img").style.height).toBe("400px");
+  expect(commit).not.toHaveBeenCalled();
+  pointer(document, "pointerup", 500, 1, 100);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(commit.mock.calls[0][0]).toMatchObject({ startTransform: null, transform: {
+    scale: { width: 100, height: 80 }, flowInset: { inlinePercent: 0, blockPercent: 20 },
+  } });
+});
+it("cancels a modern corner gesture without leaving flow insets or committing", () => {
+  modernFixture();
+  pointer(overlay.querySelector('[data-resize-direction="nw"]'), "pointerdown", 0, 1, 0);
+  pointer(document, "pointermove", 100, 1, 100);
+  expect(target.style.marginInlineStart).toBe("100px");
+  pointer(document, "pointercancel", 100, 1, 100);
+  expect(target.style.marginInlineStart).toBe("");
+  expect(target.style.paddingBlockStart).toBe("");
+  expect(commit).not.toHaveBeenCalled();
+});
+
 describe("image width values", () => {
   it.each([NaN, Infinity, -Infinity, "50", null, undefined, {}, 0, 9, 101, 50.5])("rejects %s", (value) => {
     expect(isImageWidth(value)).toBe(false);

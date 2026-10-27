@@ -1,5 +1,7 @@
+import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
+import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
 import { supportsImageStretch, imageWidth, imageHeight } from "@widgetizer/core/imageResize";
-import { handleImageResizeMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
+import { handleImageResizeMessage, handleImageGeometryMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
 import { useEffect, useCallback } from "react";
 import useWidgetStore from "../../stores/widgetStore";
 import usePageStore from "../../stores/pageStore";
@@ -52,9 +54,10 @@ export default function SelectionOverlay({
       const sizes = Object.fromEntries(widgetIds.map((id) => [id, {
         width: imageWidth(page.widgets[id].settings?.image_width_percent),
         height: imageHeight(page.widgets[id].settings?.image_height_px),
+        transform: isImageTransform(page.widgets[id].settings?.image_transform) ? page.widgets[id].settings.image_transform : null,
       }]));
       iframe.contentWindow?.postMessage({
-        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, sizes },
+        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes },
       }, getPreviewTargetOrigin());
     };
     const preview = (event) => iframe.contentWindow?.postMessage(
@@ -68,6 +71,15 @@ export default function SelectionOverlay({
       window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
     };
   }, [iframeRef, page, schemas, previewReadyKey]);
+
+  useEffect(() => {
+    const iframe = iframeRef?.current;
+    if (!iframe) return;
+    const sync = () => iframe.contentWindow?.postMessage({ type: "EDITOR_HISTORY_STATE", payload: editorHistoryState() }, getPreviewTargetOrigin());
+    const unsubscribe = usePageStore.temporal.subscribe(sync);
+    sync(); iframe.addEventListener("load", sync);
+    return () => { unsubscribe(); iframe.removeEventListener("load", sync); };
+  }, [iframeRef, previewReadyKey]);
 
   const effectiveWidgetId = selectedWidgetId || selectedGlobalWidgetId;
 
@@ -106,6 +118,16 @@ export default function SelectionOverlay({
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
+        handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        return;
+      }
+      if (event.data?.type === "EDITOR_HISTORY_SHORTCUT") {
+        if (event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin() && event.origin !== "null") {
+          performEditorHistory(event.data.payload?.command);
+        }
+        return;
+      }
       if (event.data?.type === "IMAGE_RESIZE_COMMIT") {
         handleImageResizeMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;

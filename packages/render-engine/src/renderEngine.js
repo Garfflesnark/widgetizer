@@ -1,3 +1,4 @@
+import { isImageTransform } from "@widgetizer/core/imageTransform";
 import { Liquid } from "liquidjs";
 import fs from "fs/promises";
 import path from "path";
@@ -1369,6 +1370,9 @@ async function renderWidget(
       cleanUrls,
       defaultLanguage,
     });
+
+    if (type === "image" && resolvedWidgetData.settings.image_transform !== undefined &&
+        !isImageTransform(resolvedWidgetData.settings.image_transform)) delete resolvedWidgetData.settings.image_transform;
 
     // Create widget context for template
     const widgetContext = {

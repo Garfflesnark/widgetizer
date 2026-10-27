@@ -3,6 +3,32 @@ import { beforeAll, expect, it, vi } from "vitest";
 
 const sent = [];
 const origin = window.location.origin;
+
+it("relays available editor shortcuts but preserves native input and empty history behaviour", () => {
+  sent.length = 0;
+  message("EDITOR_HISTORY_STATE", { canUndo: true, canRedo: true }, null);
+  const first = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+  document.dispatchEvent(first);
+  expect(first.defaultPrevented).toBe(false);
+  message("EDITOR_HISTORY_STATE", { canUndo: true, canRedo: true });
+  for (const [key, command] of [["z", "undo"], ["y", "redo"]]) {
+    const event = new KeyboardEvent("keydown", { key, ctrlKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(sent.at(-1)).toEqual({ type: "EDITOR_HISTORY_SHORTCUT", payload: { command } });
+  }
+  const input = document.createElement("input");
+  input.type = "number";
+  document.body.append(input);
+  const native = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+  input.dispatchEvent(native);
+  expect(native.defaultPrevented).toBe(false);
+  input.remove();
+  message("EDITOR_HISTORY_STATE", { canUndo: false, canRedo: false });
+  const empty = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, bubbles: true, cancelable: true });
+  document.dispatchEvent(empty);
+  expect(empty.defaultPrevented).toBe(false);
+});
 function message(type, payload, source = window.parent, eventOrigin = origin) {
   window.dispatchEvent(new MessageEvent("message", { data: { type, payload }, source, origin: eventOrigin }));
 }

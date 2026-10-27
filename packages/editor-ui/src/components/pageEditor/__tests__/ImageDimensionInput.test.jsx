@@ -16,6 +16,18 @@ const width = { id: "image_width_percent", default: 100, min: 10, max: 100, step
 const height = { id: "image_height_px", default: 0, min: 0, max: 2000, step: 1, unit: "px" };
 beforeEach(() => vi.clearAllMocks());
 
+it.each(["image_scale_width", "image_scale_height"])("supports Auto and bounded fractional percentages for %s", (id) => {
+  const setting = { id, default: 0, min: 0, max: 400, step: 1, unit: "%" };
+  const onChange = vi.fn();
+  render(<ImageDimensionInput widgetId="w1" setting={setting} value={50} label="Scale" onChange={onChange} />);
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "0.5" } });
+  fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "Enter" });
+  expect(onChange).toHaveBeenLastCalledWith(id, 1);
+  fireEvent.click(screen.getByRole("button", { name: "Auto" }));
+  expect(onChange).toHaveBeenLastCalledWith(id, 0);
+  expect(imageSizePreview).toHaveBeenLastCalledWith("w1", id, 0, "commit");
+});
+
 it("previews every slider move, commits only release, and synchronizes external mouse edits", () => {
   const onChange = vi.fn();
   const view = render(

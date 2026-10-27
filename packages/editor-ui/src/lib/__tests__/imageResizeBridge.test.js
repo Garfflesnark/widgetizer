@@ -31,6 +31,8 @@ const { default: widgetStore } = await import("../../stores/widgetStore");
 const { default: saveStore } = await import("../../stores/saveStore");
 const { savePageContent } = await import("../../queries/pageManager");
 const { handleImageResizeMessage, supportedImageWidgetIds } = await import("../imageResizeBridge");
+const { handleImageGeometryMessage, editedImageTransform } = await import("../imageResizeBridge");
+const { DEFAULT_IMAGE_TRANSFORM } = await import("@widgetizer/core/imageTransform");
 const iframe = {};
 const origin = "https://preview.example";
 const message = (width = 60, startWidth = 100) => ({
@@ -55,7 +57,7 @@ beforeEach(() => {
     originalGlobalWidgets: {},
   });
   pageStore.temporal.getState().clear();
-  widgetStore.setState({ schemas: { image: schema }, selectedWidgetId: "w1", selectedBlockId: null });
+  widgetStore.setState({ schemas: { image: schema }, selectedWidgetId: "w1", selectedBlockId: null, imageGeometry: {} });
   saveStore.setState({
     modifiedWidgets: new Set(),
     structureModified: false,
@@ -64,6 +66,52 @@ beforeEach(() => {
   });
 });
 afterEach(() => saveStore.getState().stopAutoSave());
+
+it("validates reference messages and makes both percentages comparable with independent Auto", () => {
+  const context = { source: iframe, origin, data: { type: "IMAGE_GEOMETRY_CONTEXT", payload: {
+    widgetId: "w1", containerWidth: 1000, width: 800, height: 600, imageSource: "",
+  } } };
+  expect(handleImageGeometryMessage({ ...context, source: {} }, iframe, origin)).toBe(false);
+  expect(handleImageGeometryMessage({ ...context, origin: "https://evil.example" }, iframe, origin)).toBe(false);
+  expect(handleImageGeometryMessage(context, iframe, origin)).toBe(true);
+  widgetStore.getState().resetImageScale("w1");
+  const width = editedImageTransform("w1", "image_scale_width", 50);
+  widgetStore.getState().updateWidgetSettingValues("w1", { image_transform: width });
+  expect(editedImageTransform("w1", "image_scale_height", 50).scale).toEqual({ width: 50, height: 50 });
+  expect(editedImageTransform("w1", "image_scale_height", 80).scale).toEqual({ width: 50, height: 80 });
+  expect(editedImageTransform("w1", "image_scale_width", 0).scale.width).toBeNull();
+  for (const invalid of [-1, NaN, Infinity, "50", 401, 0.5]) {
+    expect(editedImageTransform("w1", "image_scale_width", invalid)).toBeNull();
+  }
+});
+
+it("resets both axes and insets atomically, leaves legacy fields intact and avoids a duplicate reset", () => {
+  const settings = { fullwidth: true, image_width_percent: 73, image_height_px: 350,
+    image_transform: { ...structuredClone(DEFAULT_IMAGE_TRANSFORM), scale: { width: 50, height: 80 }, flowInset: { inlinePercent: 12, blockPercent: 25 } } };
+  pageStore.setState({ page: { ...pageStore.getState().page, widgets: { w1: { type: "image", settings } } } });
+  pageStore.temporal.getState().clear();
+  widgetStore.getState().resetImageScale("w1");
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual({ ...settings, fullwidth: false, image_transform: DEFAULT_IMAGE_TRANSFORM });
+  widgetStore.getState().resetImageScale("w1");
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(1);
+  pageStore.temporal.getState().undo();
+  expect(pageStore.getState().page.widgets.w1.settings).toEqual(settings);
+  pageStore.temporal.getState().redo();
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform).toEqual(DEFAULT_IMAGE_TRANSFORM);
+});
+
+it("commits one modern geometry change, rejects stale or invalid gestures, and saves/reloads it", async () => {
+  const transform = { ...structuredClone(DEFAULT_IMAGE_TRANSFORM), scale: { width: 50, height: 50 }, flowInset: { inlinePercent: 10, blockPercent: 50 } };
+  const event = { source: iframe, origin, data: { type: "IMAGE_RESIZE_COMMIT", payload: { widgetId: "w1", startTransform: null, transform } } };
+  expect(handleImageResizeMessage({ ...event, data: { ...event.data, payload: { ...event.data.payload, transform: { ...transform, scale: { width: 500, height: 50 } } } } }, iframe, origin)).toBe(false);
+  expect(handleImageResizeMessage(event, iframe, origin)).toBe(true);
+  expect(handleImageResizeMessage(event, iframe, origin)).toBe(false);
+  expect(pageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect((await saveStore.getState().save()).status).toBe("success");
+  await pageStore.getState().loadPage("index");
+  expect(pageStore.getState().page.widgets.w1.settings.image_transform).toEqual(transform);
+});
 
 it("commits once, marks dirty, and gives consecutive gestures independent undo steps", () => {
   expect(handleImageResizeMessage(message(), iframe, origin)).toBe(true);

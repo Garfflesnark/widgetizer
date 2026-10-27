@@ -1,3 +1,5 @@
+import { SCALE_WIDTH, SCALE_HEIGHT, supportsImageTransform, legacyImageTransform } from "@widgetizer/core/imageTransform";
+import { editedImageTransform } from "../../lib/imageResizeBridge";
 import ImageDimensionInput from "./ImageDimensionInput";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { ArrowLeft } from "lucide-react";
@@ -27,7 +29,7 @@ export default function SettingsPanel({
   const { schemas: collectionSchemas } = useCollections();
   const { tTheme } = useThemeLocale();
   const { page, globalWidgets, updateThemeSetting } = usePageStore();
-  const { updateWidgetSettingValues, updateGlobalWidgetSettings, updateBlockSettings } = useWidgetStore();
+  const { imageGeometry, resetImageScale, updateWidgetSettingValues, updateGlobalWidgetSettings, updateBlockSettings } = useWidgetStore();
   const { markWidgetModified, setThemeSettingsModified } = useAutoSave();
   const showToast = useToastStore((state) => state.showToast);
 
@@ -72,6 +74,11 @@ export default function SettingsPanel({
   }
 
   const handleSettingChange = (settingId, value) => {
+    if (!isGlobalWidget && !isThemeSettings && !selectedBlockId && [SCALE_WIDTH, SCALE_HEIGHT].includes(settingId)) {
+      const transform = editedImageTransform(selectedWidgetId, settingId, value);
+      if (transform) { updateWidgetSettingValues(selectedWidgetId, { image_transform: transform }); markWidgetModified(selectedWidgetId); }
+      return;
+    }
     if (isThemeSettings) {
       updateThemeSetting(selectedThemeGroup, settingId, value);
       setThemeSettingsModified(true);
@@ -223,6 +230,16 @@ export default function SettingsPanel({
                   : `widget-${selectedWidgetId}`;
             const imageSettings = !isGlobalWidget && !selectedBlockId && !isThemeSettings &&
               supportsImageResize(currentWidget, currentWidgetSchema);
+            const modernImage = imageSettings && supportsImageTransform(currentWidget, currentWidgetSchema);
+            if (modernImage && [IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING].includes(setting.id)) return null;
+            if (modernImage && [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id)) {
+              const geometry = imageGeometry[selectedWidgetId];
+              const ready = geometry?.imageSource === (currentWidget.settings?.image || "");
+              const transform = ready ? legacyImageTransform(currentWidget, geometry) : null;
+              const value = transform?.scale[setting.id === SCALE_WIDTH ? "width" : "height"];
+              return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
+                value={value == null ? 0 : Math.round(value * 100) / 100} label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready} />;
+            }
             if (imageSettings && (setting.id === IMAGE_WIDTH_SETTING ||
                 (setting.id === IMAGE_HEIGHT_SETTING && supportsImageStretch(currentWidget, currentWidgetSchema)))) {
               return (
@@ -231,14 +248,11 @@ export default function SettingsPanel({
               );
             }
             if (imageSettings && setting.id === "fullwidth") {
-              return (
-                <div key={`${contextKey}-${setting.id}`}>
-                  <SettingsRenderer setting={setting} value={currentValues?.[setting.id]} onChange={handleSettingChange} />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Enabling Full Width resets Width to 100%. You can resize it again afterwards; Height is unchanged.
-                  </p>
-                </div>
-              );
+              return <div key={`${contextKey}-default-scale`}>
+                <button type="button" className="form-button w-full" onClick={() => resetImageScale(selectedWidgetId)}>Default Scale</button>
+                <p className="text-xs text-slate-500 mt-1">{modernImage ? "Restore Auto width and height, fitted intrinsic size, and zero flow insets." : "Restore container width and automatic height."} Uses the normal page container.</p>
+                {modernImage && !currentWidget.settings?.image_transform && <p className="text-xs text-slate-500 mt-1">Legacy appearance is preserved until you edit a scale or use Default Scale.</p>}
+              </div>;
             }
             return (
               <SettingsRenderer
