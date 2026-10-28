@@ -8,6 +8,7 @@ vi.mock("../../stores/themeStore", () => ({ default: { getState: () => ({ settin
 import usePageStore from "../../stores/pageStore";
 import useWidgetStore from "../../stores/widgetStore";
 import useAutoSave from "../../stores/saveStore";
+import { handleImageResizeMessage } from "../imageResizeBridge";
 import {
   applyCompositionGeometry,
   compositionInteractionContext,
@@ -36,6 +37,22 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+it("toggles a pin on a rotated image without changing its angle or allowing resize to inject rotation", () => {
+  rotateCompositionImage("a", 30);
+  usePageStore.temporal.getState().clear();
+  const page = usePageStore.getState().page, previous = page.widgets.a.settings.image_transform;
+  const iframe = {}, origin = "https://preview.example";
+  const payload = { widgetId: "a", startTransform: previous,
+    transform: { ...previous, anchors: ["nw"] }, interactionContext: compositionInteractionContext() };
+  const event = { source: iframe, origin, data: { type: "IMAGE_RESIZE_COMMIT", payload } };
+  const frame = page.layout.compositions.canvas.placements.a.frames.desktop;
+  expect(handleImageResizeMessage({ ...event, data: { ...event.data, payload: { ...payload,
+    frame: { ...frame, rotation: 45 }, startFrame: frame } } }, iframe, origin)).toBe(false);
+  expect(handleImageResizeMessage(event, iframe, origin)).toBe(true);
+  expect(usePageStore.getState().page.widgets.a.settings.image_transform.anchors).toEqual(["nw"]);
+  expect(usePageStore.getState().page.layout.compositions.canvas.placements.a.frames.desktop.rotation).toBe(30);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+});
 it("precisely rotates with retained pins and position lock, one Undo/Redo step and a versioned JSON round trip", () => {
   const before = structuredClone(usePageStore.getState().page);
   const iframe = {}, origin = "https://preview.example";
