@@ -1,3 +1,4 @@
+import { renderPageContent } from "@widgetizer/render-engine";
 import fs from "fs-extra";
 import path from "path";
 import archiver from "archiver";
@@ -677,32 +678,9 @@ export async function exportProjectToDir(projectId, options = {}, collectionDeps
       }
 
       // Render page-specific widgets sequentially
-      let pageWidgetsHtml = "";
-      if (pageData.widgets && pageData.widgetsOrder) {
-        let widgetIndex = 0;
-        for (const widgetId of pageData.widgetsOrder) {
-          // Skip header/footer as they are rendered separately
-          if (widgetId === "header" || widgetId === "footer") {
-            continue;
-          }
-          const widget = pageData.widgets[widgetId];
-          if (!widget) {
-            console.warn(` -> Widget data missing for ID: ${widgetId} on page ${pageData.id}`);
-            continue;
-          }
-          widgetIndex += 1; // 1-based index (first widget = 1, second = 2, etc.)
-          pageWidgetsHtml += await renderWidget(
-            projectId,
-            widgetId,
-            widget,
-            rawThemeSettings,
-            "publish",
-            sharedGlobals,
-            widgetIndex,
-            renderCollectionDeps,
-          );
-        }
-      }
+      const pageWidgetsHtml = await renderPageContent(pageData, (id, widget, index) => renderWidget(
+        projectId, id, widget, rawThemeSettings, "publish", sharedGlobals, index, renderCollectionDeps,
+      ));
 
       // Render footer if exists
       if (pageFooterData) {

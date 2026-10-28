@@ -1,3 +1,4 @@
+import { renderPageContent } from "@widgetizer/render-engine";
 import fs from "fs-extra";
 import path from "path";
 import { getProjectDir, CORE_WIDGETS_DIR, LOCALES_DIR } from "../config.js";
@@ -157,23 +158,9 @@ async function generatePreviewHtml(pageData, rawThemeSettings, previewMode, coll
   const widgetOrder = pageData.widgetsOrder || Object.keys(pageData.widgets || {});
 
   if (widgetOrder.length > 0 && pageData.widgets) {
-    let widgetIndex = 0;
-    for (const widgetId of widgetOrder) {
-      const widget = pageData.widgets[widgetId];
-      if (!widget) continue;
-      widgetIndex += 1;
-      const renderedWidgetHtml = await renderWidget(
-        activeProjectId,
-        widgetId,
-        widget,
-        rawThemeSettings,
-        "preview",
-        sharedGlobals,
-        widgetIndex,
-        collectionDeps,
-      );
-      mainContent += renderedWidgetHtml;
-    }
+    mainContent = await renderPageContent(pageData, (id, widget, index) => renderWidget(
+      activeProjectId, id, widget, rawThemeSettings, "preview", sharedGlobals, index, collectionDeps,
+    ));
   } else {
     // No page widgets - show empty state message
     let emptyStateTitle = "No widgets yet";

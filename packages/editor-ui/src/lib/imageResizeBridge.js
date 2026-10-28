@@ -1,3 +1,5 @@
+import { compositionFor } from "@widgetizer/core/composition";
+import { applyCompositionGeometry, compositionInteractionContext } from "./compositionActions";
 import { SCALE_WIDTH, SCALE_HEIGHT, isImageTransform, supportsImageTransform, supportsImageUnits, imageTransformV2, switchImageUnit, legacyImageTransform } from "@widgetizer/core/imageTransform";
 import {
   IMAGE_WIDTH_SETTING,
@@ -44,6 +46,7 @@ export function handleImageResizeMessage(event, iframeWindow, origin) {
     if (!supportsImageTransform(selected, store.schemas[selected.type]) || !isImageTransform(payload.transform) ||
         (payload.transform.version === 2 && !supportsImageUnits(selected, store.schemas[selected.type])) ||
         JSON.stringify(previous) !== JSON.stringify(payload.startTransform) || JSON.stringify(previous) === JSON.stringify(payload.transform)) return false;
+    if (compositionFor(page, widgetId)) return payload.interactionContext === compositionInteractionContext() && applyCompositionGeometry(widgetId, { frame: payload.frame, startFrame: payload.startFrame, transform: payload.transform, startTransform: payload.startTransform });
     usePageStore.getState().beginHistoryStep();
     store.updateWidgetSettingValues(widgetId, { image_transform: payload.transform });
     usePageStore.getState().beginHistoryStep();
@@ -158,6 +161,7 @@ export function handleImageAlignmentMessage(event, iframeWindow, origin) {
   const transform = imageTransformV2(widget, ref);
   transform.alignment = p.alignment;
   transform.flowInset.inlinePercent = 0;
+  if (compositionFor(usePageStore.getState().page, p.widgetId)) return applyCompositionGeometry(p.widgetId, { transform, alignment: p.alignment });
   if (JSON.stringify(widget.settings?.image_transform) === JSON.stringify(transform)) return true;
   store.updateWidgetSettingValues(p.widgetId, { image_transform: transform });
   useAutoSave.getState().markWidgetModified(p.widgetId);
@@ -168,7 +172,7 @@ export function handleImageGeometryMessage(event, iframeWindow, origin) {
   const p = event.data?.payload;
   const widget = usePageStore.getState().page?.widgets?.[p?.widgetId];
   const store = useWidgetStore.getState();
-  if (!p || event.data.type !== "IMAGE_GEOMETRY_CONTEXT" || store.selectedWidgetId !== p.widgetId ||
+  if (!p || event.data.type !== "IMAGE_GEOMETRY_CONTEXT" || !supportedImageWidgetIds(usePageStore.getState().page, store.schemas).includes(p.widgetId) ||
       !supportsImageTransform(widget, store.schemas[widget?.type]) || p.imageSource !== (widget.settings?.image || "") ||
       ![p.width, p.height, p.containerWidth].every((n) => Number.isFinite(n) && n > 0 && n < 1e7) || p.width > p.containerWidth) return false;
   store.setImageGeometry(p.widgetId, p);

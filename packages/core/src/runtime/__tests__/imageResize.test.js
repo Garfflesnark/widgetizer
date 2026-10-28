@@ -1,3 +1,5 @@
+import { imageReference, transformRect } from "../imageTransform.js";
+import { compositionRect } from "../composition.js";
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createImageResizeController, imageWidth, isImageWidth } from "../imageResize.js";
@@ -289,4 +291,50 @@ it("reconciles a quick Undo before any server morph, and keeps active drafts whe
   expect(target.style.width).toBe("100%");
   expect(target.style.height).toBe("auto");
   expect(commit).not.toHaveBeenCalled();
+});
+
+function compositionFixture(widthUnit = "%", heightUnit = "%", anchors = []) {
+  modernFixture(); widget.dataset.imageUnits = "2";
+  const area = document.createElement("section"), child = document.createElement("div");
+  Object.assign(area.dataset, { compositionId: "canvas", compositionWidth: "1000", compositionHeight: "800" });
+  child.dataset.compositionChild = "w1";
+  const frame = { x: 0.2, y: 0.1, pivot: { x: 0, y: 0 } };
+  child.dataset.compositionFrame = JSON.stringify(frame);
+  widget.before(area); area.append(child); child.append(widget);
+  area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 800 });
+  target.querySelector("img").getBoundingClientRect = () => ({ left: 200, top: 100, right: 700, bottom: 350, width: 500, height: 250 });
+  const model = { version: 2, reference: "intrinsic-fit", alignment: "center", anchors,
+    dimensions: { width: { unit: widthUnit, value: widthUnit === "%" ? 50 : 500 }, height: { unit: heightUnit, value: heightUnit === "%" ? 50 : 250 } }, flowInset: { inlinePercent: 7, blockPercent: 12 } };
+  controller.setSizes({ w1: { width: 100, height: 0, transform: model } }); render();
+  return { area, child, frame, model };
+}
+it.each(["%", "px"].flatMap(w => ["%", "px"].flatMap(h => ["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(node => [w,h,node]))))(
+  "composition %s/%s %s handle preserves opposite geometry and dormant flow insets", (w, h, node) => {
+    const { frame, model } = compositionFixture(w, h);
+    const dx = /[ew]/.test(node) ? (node.includes("w") ? -40 : 40) : 0;
+    const dy = /[ns]/.test(node) ? (node.includes("n") ? -40 : 40) : 0;
+    pointer(overlay.querySelector(`[data-resize-direction="${node}"]`), "pointerdown", 600, 1, 300);
+    pointer(document, "pointermove", 600 + dx, 1, 300 + dy);
+    expect(commit).not.toHaveBeenCalled();
+    pointer(document, "pointerup", 600 + dx, 1, 300 + dy);
+    expect(commit).toHaveBeenCalledTimes(1);
+    const p = commit.mock.calls[0][0], size = transformRect(p.transform, imageReference(1000, 1000, 500));
+    const rect = compositionRect(p.frame, size.width, size.height, 1000);
+    expect(p.startFrame).toEqual(frame);
+    expect(p.transform.flowInset).toEqual(model.flowInset);
+    expect(p.transform.dimensions.width.unit).toBe(w); expect(p.transform.dimensions.height.unit).toBe(h);
+    if (node.includes("w")) expect(rect.left + rect.width).toBeCloseTo(700, 2); else expect(rect.left).toBeCloseTo(200, 2);
+    if (node.includes("n")) expect(rect.top + rect.height).toBeCloseTo(350, 2); else expect(rect.top).toBeCloseTo(100, 2);
+  });
+it("composition Shift resize preserves a green pin and cancellation restores the wrapper", () => {
+  const { child, model } = compositionFixture("px", "%", ["nw"]), original = child.getAttribute("style");
+  pointer(overlay.querySelector('[data-resize-direction="se"]'), "pointerdown", 700, 1, 350, true);
+  pointer(document, "pointermove", 650, 1, 325, true);
+  controller.cancel(); expect(child.getAttribute("style")).toBe(original); expect(commit).not.toHaveBeenCalled();
+  pointer(overlay.querySelector('[data-resize-direction="se"]'), "pointerdown", 700, 1, 350, true);
+  pointer(document, "pointerup", 650, 1, 325, true);
+  expect(commit).toHaveBeenCalledTimes(1);
+  const p = commit.mock.calls[0][0], size = transformRect(p.transform, imageReference(1000, 1000, 500));
+  expect(size.width / size.height).toBeCloseTo(2, 2); expect(p.transform.anchors).toEqual(model.anchors);
+  expect(p.frame.x).toBeCloseTo(0.2); expect(p.frame.y).toBeCloseTo(0.1);
 });

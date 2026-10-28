@@ -24,3 +24,5 @@ export { resolveMenuSettings, schemaHasMenuSetting } from "./menuResolver.js";
 // references. Exported for the shells that assemble their own render context, and
 // so the behaviour can be tested without standing up a full render.
 export { resolveThemeSettingReferences } from "./renderEngine.js";
+
+export { renderPageContent } from "./compositionRenderer.js";

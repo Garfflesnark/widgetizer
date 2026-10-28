@@ -1,3 +1,5 @@
+import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
+import { handleCompositionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext, handleCompositionLockMessage, pruneCompositionMovementLocks } from "../../lib/compositionActions";
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
@@ -36,18 +38,29 @@ export default function SelectionOverlay({
   onGlobalWidgetSelect,
   previewReadyKey,
   structuralReloadRef,
+  editorZoom = 1,
 }) {
+  useEffect(() => {
+    const iframe = iframeRef?.current;
+    if (!iframe) return;
+    const sync = () => iframe.contentWindow?.postMessage({ type: "EDITOR_ZOOM", payload: editorZoom }, getPreviewTargetOrigin());
+    sync(); iframe.addEventListener("load", sync);
+    return () => iframe.removeEventListener("load", sync);
+  }, [iframeRef, editorZoom, previewReadyKey]);
+
   // Get hover state from store
   const sidebarHoveredWidgetId = useWidgetStore((state) => state.hoveredWidgetId);
   const sidebarHoveredBlockId = useWidgetStore((state) => state.hoveredBlockId);
   const reorderWidgets = useWidgetStore((state) => state.reorderWidgets);
   const page = usePageStore((state) => state.page);
   const schemas = useWidgetStore((state) => state.schemas);
+  const movementLocks = useWidgetStore((state) => state.compositionMovementLocks);
+  const compositionLayoutContext = useWidgetStore((state) => state.compositionContext);
 
   useEffect(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
-    const sync = () => {
+    const sync = (force = false) => {
       const widgetIds = supportedImageWidgetIds(page, schemas);
       const stretchWidgetIds = widgetIds.filter((id) =>
         supportsImageStretch(page.widgets[id], schemas[page.widgets[id].type]),
@@ -58,6 +71,7 @@ export default function SelectionOverlay({
         transform: isImageTransform(page.widgets[id].settings?.image_transform) ? page.widgets[id].settings.image_transform : null,
         ...(supportsImageSpacing(page.widgets[id], schemas[page.widgets[id].type]) ? { spacing: imageSpacing(page.widgets[id].settings) } : {}),
       }]));
+      iframe.contentWindow?.postMessage({ type: "COMPOSITION_SYNC", force: force === true, context: compositionInteractionContext(), movementLocks: pruneCompositionMovementLocks(), payload: page?.layout, sizes, revisions: Object.fromEntries(widgetIds.filter(id => compositionFor(page, id)).map(id => [id, compositionRevision(page.widgets[id], compositionFor(page, id)[1].placements[id].frames.desktop)])) }, getPreviewTargetOrigin());
       iframe.contentWindow?.postMessage({
         type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes },
       }, getPreviewTargetOrigin());
@@ -65,14 +79,17 @@ export default function SelectionOverlay({
     const preview = (event) => iframe.contentWindow?.postMessage(
       { type: "IMAGE_SIZE_PREVIEW", payload: event.detail }, getPreviewTargetOrigin(),
     );
+    const reconcile = () => sync(true);
+    window.addEventListener("widgetizer:composition-reconcile", reconcile);
     window.addEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
     sync();
     iframe.addEventListener("load", sync);
     return () => {
       iframe.removeEventListener("load", sync);
       window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
+      window.removeEventListener("widgetizer:composition-reconcile", reconcile);
     };
-  }, [iframeRef, page, schemas, previewReadyKey]);
+  }, [iframeRef, page, schemas, previewReadyKey, compositionLayoutContext, movementLocks]);
 
   useEffect(() => {
     const iframe = iframeRef?.current;
@@ -83,7 +100,11 @@ export default function SelectionOverlay({
     return () => { unsubscribe(); iframe.removeEventListener("load", sync); };
   }, [iframeRef, previewReadyKey]);
 
-  const effectiveWidgetId = selectedWidgetId || selectedGlobalWidgetId;
+  const selectedCompositionId = useWidgetStore((state) => state.selectedCompositionId);
+  const effectiveWidgetId = selectedCompositionId ? null : selectedWidgetId || selectedGlobalWidgetId;
+  useEffect(() => {
+    if (selectedCompositionId && !page?.layout?.compositions?.[selectedCompositionId]) useWidgetStore.getState().setSelectedCompositionId(null);
+  }, [page, selectedCompositionId]);
 
   // Send message to iframe
   const postToIframe = useCallback(
@@ -106,23 +127,36 @@ export default function SelectionOverlay({
       // Always send selection update (even during reload — it queues for the new iframe)
       postToIframe({
         type: "UPDATE_SELECTION",
-        payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId },
+        payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId, compositionId: selectedCompositionId },
       });
     } else {
       // Clear selection in iframe
       postToIframe({
         type: "UPDATE_SELECTION",
-        payload: { widgetId: null, blockId: null },
+        payload: { widgetId: null, blockId: null, compositionId: selectedCompositionId },
       });
     }
-  }, [effectiveWidgetId, selectedBlockId, iframeRef, postToIframe, structuralReloadRef]);
+  }, [effectiveWidgetId, selectedBlockId, selectedCompositionId, iframeRef, postToIframe, structuralReloadRef]);
 
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.data?.type === "ORDER_SELECTION") {
+        handleOrderingMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
+      }
+      if (event.data?.type === "COMPOSITION_SELECTED") {
+        if (event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin()) useWidgetStore.getState().setSelectedCompositionId(event.data.payload?.compositionId);
+        return;
+      }
       if (event.data?.type === "IMAGE_ALIGN") {
         handleImageAlignmentMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;
+      }
+      if (event.data?.type === "COMPOSITION_LOCK") {
+        handleCompositionLockMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
+      }
+      if (event.data?.type === "COMPOSITION_MOVE") {
+        handleCompositionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }
       if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
         handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
@@ -138,6 +172,7 @@ export default function SelectionOverlay({
         handleImageResizeMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;
       }
+      if (event.source !== iframeRef?.current?.contentWindow || event.origin !== getPreviewTargetOrigin()) return;
       const { type, payload } = event.data || {};
 
       switch (type) {
@@ -154,6 +189,8 @@ export default function SelectionOverlay({
 
         case "REORDER_WIDGET": {
           const { widgetId, direction } = payload;
+          if (useWidgetStore.getState().selectedWidgetId !== widgetId || useWidgetStore.getState().selectedCompositionId) break;
+          if (page?.layout) { reorderContentBlock(widgetId, direction); break; }
           const currentOrder = page?.widgetsOrder;
           if (!currentOrder || !widgetId) break;
 
@@ -195,17 +232,17 @@ export default function SelectionOverlay({
     if (!iframe) return;
 
     const handleLoad = () => {
-      if (effectiveWidgetId) {
+      if (effectiveWidgetId || selectedCompositionId) {
         postToIframe({
           type: "UPDATE_SELECTION",
-          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId },
+          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId, compositionId: selectedCompositionId },
         });
       }
     };
 
     iframe.addEventListener("load", handleLoad);
     return () => iframe.removeEventListener("load", handleLoad);
-  }, [iframeRef, effectiveWidgetId, selectedBlockId, postToIframe]);
+  }, [iframeRef, effectiveWidgetId, selectedBlockId, selectedCompositionId, postToIframe]);
 
   // Sync on iframe resize (handles preview mode changes, NOT structural reloads)
   useEffect(() => {
@@ -227,16 +264,16 @@ export default function SelectionOverlay({
 
   // Re-request selection sync when preview content changes
   useEffect(() => {
-    if (previewReadyKey > 0 && effectiveWidgetId) {
+    if (previewReadyKey > 0 && (effectiveWidgetId || selectedCompositionId)) {
       const timeoutId = setTimeout(() => {
         postToIframe({
           type: "UPDATE_SELECTION",
-          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId },
+          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId, compositionId: selectedCompositionId },
         });
       }, 50);
       return () => clearTimeout(timeoutId);
     }
-  }, [previewReadyKey, effectiveWidgetId, selectedBlockId, postToIframe]);
+  }, [previewReadyKey, effectiveWidgetId, selectedBlockId, selectedCompositionId, postToIframe]);
 
   // No visual rendering — overlay is inside the iframe
   return null;

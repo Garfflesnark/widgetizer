@@ -132,3 +132,13 @@ it.each(["blur", "unmount", "pointercancel"])("cancels transient styles on %s", 
   expect(onChange).not.toHaveBeenCalled();
   expect(imageSizePreview).toHaveBeenLastCalledWith("w1", width.id, 100, "cancel");
 });
+
+it("restores the saved numeric value when composition bounds reject a commit", () => {
+  const onChange = vi.fn(() => false);
+  render(<ImageDimensionInput widgetId="w1" setting={height} value={200} label="Height" onChange={onChange} />);
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "1500" } });
+  fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "Enter" });
+  expect(onChange).toHaveBeenCalledExactlyOnceWith(height.id, 1500);
+  expect(screen.getByRole("spinbutton").value).toBe("200");
+  expect(imageSizePreview).toHaveBeenLastCalledWith("w1", height.id, 200, "cancel");
+});

@@ -1,3 +1,5 @@
+import { createComposition, dissolveComposition } from "@widgetizer/core/composition";
+import { defaultImageTransform } from "@widgetizer/core/imageTransform";
 import { after, before, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "fs-extra";
@@ -18,7 +20,7 @@ const { LocalAssetStorageAdapter } = await import("@widgetizer/adapters-local");
 const assetStorage = new LocalAssetStorageAdapter({
   dataRoot: path.dirname(path.dirname(harness.getProjectDir("resize-project"))),
 });
-const { savePageContent, getPage } = await import("../controllers/pageController.js");
+const { savePageContent, getPage, updatePage } = await import("../controllers/pageController.js");
 const { generatePreview } = await import("../controllers/previewController.js");
 const { renderWidget } = await import("../services/renderingService.js");
 const { writeMediaFile } = await import("../controllers/mediaController.js");
@@ -308,4 +310,42 @@ it("project copies use installed themes and versioned latest snapshots rather th
     await fs.readJson(path.join(source, "schema.json")),
   );
   assert.deepEqual(await fs.readJson(path.join(project, "widgets/image/schema.json")), baseSchema);
+});
+
+it("saves Composition membership/stacking and shares exact preview/export placement with real image metadata", async () => {
+  const transform = defaultImageTransform();
+  transform.dimensions = { width: { unit: "px", value: 300 }, height: { unit: "%", value: 50 } };
+  transform.anchors = ["ne"];
+  const image = () => ({ type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: structuredClone(transform) }, blocks: {}, blocksOrder: [] });
+  const page = createComposition({ id: "index", slug: "index", name: "Home", widgets: { a: image(), b: image(), after: image() }, widgetsOrder: ["a", "b", "after"] }, "canvas", ["a", "b"], {
+    a: { x: 0.5, y: 0.15, pivot: { x: 0.5, y: 0 } }, b: { x: 0.4, y: 0.2, pivot: { x: 0, y: 0 } },
+  });
+  page.layout.compositions.canvas.stackOrder = ["b", "a"];
+  page.layout.contentOrder.reverse();
+  page.widgetsOrder = ["after", "a", "b"];
+  const saved = response(); await savePageContent(request(page), saved);
+  assert.equal(saved.code, 200, JSON.stringify(saved.data));
+  const loaded = response(); await getPage(request(), loaded);
+  assert.deepEqual(loaded.data.layout, page.layout);
+  assert.deepEqual(loaded.data.widgetsOrder, ["after", "a", "b"]);
+  assert.deepEqual(loaded.data.widgets.a.settings.image_transform, transform);
+  const preview = response(); await generatePreview(request({ pageData: loaded.data, themeSettings, previewMode: "editor" }), preview);
+  assert.equal(preview.code, 200);
+  assert.match(preview.html, /data-composition-id="canvas"/);
+  const exported = await harness.runExport(); assert.equal(exported._status, 200, JSON.stringify(exported._json));
+  const html = await fs.readFile(path.join(harness.latestExportDir(), "index.html"), "utf8");
+  const css = (text) => text.match(/left:\s*37.5%;\s*top:\s*22.5%;\s*width:\s*25%;\s*height:\s*37.5%;\s*z-index:\s*2/);
+  assert.ok(css(preview.html)); assert.ok(css(html));
+  assert.match(html, /aspect-ratio:\s*1200\s*\/\s*800/);
+  assert.doesNotMatch(html, /wz-image-resize-handle|previewRuntime\.js/);
+  const unsupported = response(); await savePageContent(request({ ...loaded.data, layout: { ...page.layout, version: 99 } }), unsupported);
+  assert.equal(unsupported.code, 422);
+  const oldClient = response(), oldPage = { ...loaded.data }; delete oldPage.layout;
+  await savePageContent(request(oldPage), oldClient); assert.equal(oldClient.code, 409);
+  const details = response(); await updatePage(request({ slug: "index", name: "Renamed composition page" }), details);
+  assert.equal(details.code, 200, JSON.stringify(details.data));
+  const afterDetails = response(); await getPage(request(), afterDetails);
+  assert.deepEqual(afterDetails.data.layout, loaded.data.layout);
+  assert.deepEqual(afterDetails.data.widgetsOrder, loaded.data.widgetsOrder);
+  const reverted = response(); await savePageContent(request(dissolveComposition(loaded.data, "canvas")), reverted); assert.equal(reverted.code, 200);
 });

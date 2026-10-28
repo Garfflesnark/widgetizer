@@ -43,7 +43,10 @@
     "./config/settingTypes": "./src/config/settingTypes.js",
     "./config/fonts.json": "./src/config/fonts.json",
     "./locales/*": "./src/locales/*",
-    "./widgets/locales/*": "./src/widgets/locales/*"
+    "./widgets/locales/*": "./src/widgets/locales/*",
+    "./orderingControls": "./src/runtime/orderingControls.js",
+    "./composition": "./src/runtime/composition.js",
+    "./compositionImage": "./src/runtime/compositionImage.js"
   },
   "dependencies": {
     "liquidjs": "^10.26.0",

@@ -1,3 +1,4 @@
+import { reconcileCompositionCrud } from "@widgetizer/core/composition";
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { getPage } from "../queries/pageManager";
@@ -226,7 +227,7 @@ const usePageStore = create(
       beginHistoryStep: () => { lastEdit = null; },
 
       setPage: (page) => {
-        set({ page });
+        set({ page: reconcileCompositionCrud(page, get().page) });
       },
 
       updateGlobalWidget: (widgetType, updates) => {
