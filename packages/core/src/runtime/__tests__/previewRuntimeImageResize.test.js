@@ -202,31 +202,48 @@ it("switches exclusive arrow ownership immediately between child and Composition
   expect(document.querySelector('[data-order-scope]').title).toBe("Bring Forward");
 });
 
-it("toggles temporary Move mode with green pressed feedback and clears it at hierarchy/context boundaries", () => {
+it("starts unlocked, toggles a green position lock, and retains it across hierarchy and responsive contexts", () => {
   message("UPDATE_SELECTION", { widgetId: "w1" });
-  let button = document.querySelector("[data-composition-move]");
+  let button = document.querySelector("[data-composition-lock]");
   expect(button.getAttribute("aria-pressed")).toBe("false");
-  button.click(); button = document.querySelector("[data-composition-move]");
+  expect(button.title).toBe("Lock Image Position");
+  expect(button.querySelector("svg")).not.toBeNull();
+  expect(getComputedStyle(button).backgroundColor).toBe("rgb(224, 0, 109)");
+  button.click(); button = document.querySelector("[data-composition-lock]");
   expect(button.getAttribute("aria-pressed")).toBe("true");
   expect(getComputedStyle(button).backgroundColor).toBe("rgb(0, 230, 118)");
-  expect(button.title).toBe("Disable Move mode");
-  message("UPDATE_SELECTION", { widgetId: "w1" });
-  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("true");
-  document.querySelector("[data-composition-move]").click();
-  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("false");
-  document.querySelector("[data-composition-move]").click();
+  expect(button.title).toBe("Unlock Image Position");
+  expect(document.querySelector("[data-composition-move]").disabled).toBe(true);
   message("UPDATE_SELECTION", { compositionId: "canvas" });
-  expect(document.querySelector("[data-composition-move]")).toBeNull();
+  message("UPDATE_SELECTION", { widgetId: "w2" });
   message("UPDATE_SELECTION", { widgetId: "w1" });
-  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("false");
-  document.querySelector("[data-composition-move]").click();
-  window.dispatchEvent(new MessageEvent("message", { data: { type: "COMPOSITION_SYNC", context: "mobile", payload: {} }, source: window.parent, origin }));
-  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("false");
+  expect(document.querySelector("[data-composition-lock]").getAttribute("aria-pressed")).toBe("true");
+  window.dispatchEvent(new MessageEvent("message", { data: { type: "COMPOSITION_SYNC", context: "mobile", movementLocks: { w1: "canvas" }, payload: { compositions: { canvas: { childrenOrder: ["w1"], placements: {} } } } }, source: window.parent, origin }));
+  expect(document.querySelector("[data-composition-lock]").getAttribute("aria-pressed")).toBe("true");
+  document.querySelector("[data-composition-lock]").click();
+  expect(document.querySelector("[data-composition-lock]").getAttribute("aria-pressed")).toBe("false");
+  expect(document.querySelector("[data-composition-move]").disabled).toBe(false);
+});
+it("does not move a locked Image through either target or turn lock clicks into gestures", () => {
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  const lock = document.querySelector("[data-composition-lock]");
+  sent.length = 0;
+  pointer(lock, "pointerdown", 300); pointer(document, "pointerup", 400);
+  expect(sent.filter(e => e.type === "COMPOSITION_MOVE")).toHaveLength(0);
+  lock.click();
+  expect(sent.at(-1).type).toBe("COMPOSITION_LOCK");
+  sent.length = 0;
+  for (const target of [document.querySelector("img"), document.querySelector("[data-composition-move]")]) {
+    pointer(target, "pointerdown", 300); pointer(document, "pointermove", 400); pointer(document, "pointerup", 400);
+  }
+  expect(sent).toEqual([]);
+  expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(8);
+  expect(document.querySelector("[data-order-scope]").title).toBe("Bring Forward");
+  document.querySelector("[data-composition-lock]").click();
 });
 it("preserves image selection through repeated captured releases, cancellation and synchronization", () => {
   message("UPDATE_SELECTION", { widgetId: "w1" });
   const area = document.querySelector("[data-composition-id]");
-  document.querySelector("[data-composition-move]").click();
   sent.length = 0;
   for (let i = 0; i < 2; i++) {
     pointer(document.querySelector("img"), "pointerdown", 300);
@@ -234,7 +251,7 @@ it("preserves image selection through repeated captured releases, cancellation a
     pointer(document, "pointerup", 400);
     area.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
     message("UPDATE_SELECTION", { widgetId: "w1" });
-    expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector("[data-composition-lock]").getAttribute("aria-pressed")).toBe("false");
     expect(document.querySelector("[data-order-scope]").title).toBe("Bring Forward");
     expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(8);
   }

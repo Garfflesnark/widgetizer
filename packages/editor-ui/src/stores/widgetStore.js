@@ -181,6 +181,7 @@ const useWidgetStore = create((set, get) => ({
     set({ hoveredWidgetId: widgetId, hoveredBlockId: blockId });
   },
 
+  compositionMovementLocks: {},
   compositionContext: "desktop",
   setCompositionContext: (context) => set({ compositionContext: context }),
 

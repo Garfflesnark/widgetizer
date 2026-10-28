@@ -112,7 +112,7 @@ it("keeps repeated gestures independent and suppresses cancellation release with
     expect(commit).toHaveBeenCalledTimes(2);
   } finally { document.removeEventListener("click", select, true); }
 });
-it("gates image-body dragging by temporary mode while retaining the movement grip", () => {
+it("blocks both body and grip when position is locked, then resumes without reselection", () => {
   controller.destroy(); let enabled = false;
   controller = createCompositionMoveController({ document, selected: () => "a", isEnabled: () => enabled, onPreview: vi.fn(), onCommit: commit });
   pointer("pointerdown", 120, 170, document.querySelector("img")); pointer("pointerup", 220, 270);
@@ -121,6 +121,9 @@ it("gates image-body dragging by temporary mode while retaining the movement gri
   pointer("pointerdown", 120, 170, document.querySelector("img")); pointer("pointerup", 220, 270);
   expect(commit).toHaveBeenCalledTimes(1);
   enabled = false;
+  pointer("pointerdown", 120, 170, grip); pointer("pointerup", 220, 270);
+  expect(commit).toHaveBeenCalledTimes(1);
+  enabled = true;
   pointer("pointerdown", 120, 170, grip); pointer("pointerup", 220, 270);
   expect(commit).toHaveBeenCalledTimes(2);
 });

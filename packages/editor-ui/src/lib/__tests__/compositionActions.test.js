@@ -15,6 +15,9 @@ import {
   handleCompositionMessage,
   reorderContentBlock,
   handleOrderingMessage,
+  handleCompositionLockMessage,
+  getCompositionMovementLocks,
+  returnCompositionToFlow,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -23,6 +26,7 @@ beforeEach(() => {
   usePageStore.temporal.getState().clear();
   useWidgetStore.setState({
     compositionContext: "desktop",
+    compositionMovementLocks: {},
     schemas: { image: schema },
     selectedCompositionId: null,
     selectedWidgetId: "a",
@@ -136,4 +140,40 @@ it("routes arrows by current hierarchy, rejects stale scope and preserves indepe
   expect(useWidgetStore.getState().selectedCompositionId).toBeNull();
   expect(handleOrderingMessage(event("composition", "canvas", "up"), iframe, origin)).toBe(false);
   expect(handleOrderingMessage(event("image", "a", "down"), iframe, origin)).toBe(true);
+});
+
+it("keeps movement locks outside content/history and rejects locked moves through the trusted bridge", () => {
+  const iframe = {}, origin = "https://preview.example";
+  const before = structuredClone(usePageStore.getState().page);
+  const lock = (locked) => ({ source: iframe, origin, data: { type: "COMPOSITION_LOCK", payload: { widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(), locked } } });
+  expect(handleCompositionLockMessage({ ...lock(true), source: {} }, iframe, origin)).toBe(false);
+  expect(handleCompositionLockMessage({ ...lock(true), origin: "https://evil.example" }, iframe, origin)).toBe(false);
+  expect(handleCompositionLockMessage(lock(true), iframe, origin)).toBe(true);
+  expect(getCompositionMovementLocks()).toEqual({ a: "canvas" });
+  const start = before.layout.compositions.canvas.placements.a.frames.desktop;
+  const move = { source: iframe, origin, data: { type: "COMPOSITION_MOVE", payload: { widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(), startRevision: compositionRevision(before.widgets.a, start), startFrame: start, frame: { ...start, x: 0.6 } } } };
+  expect(handleCompositionMessage(move, iframe, origin)).toBe(false);
+  expect(usePageStore.getState().page).toEqual(before);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  useWidgetStore.getState().setSelectedWidgetId("b");
+  useWidgetStore.getState().setSelectedCompositionId("canvas");
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  expect(getCompositionMovementLocks()).toEqual({ a: "canvas" });
+  useWidgetStore.setState({ compositionContext: "desktop" });
+  useWidgetStore.getState().setSelectedWidgetId("a");
+  expect(handleCompositionLockMessage(lock(false), iframe, origin)).toBe(true);
+  expect(handleCompositionMessage(move, iframe, origin)).toBe(true);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
+  usePageStore.temporal.getState().undo(); usePageStore.temporal.getState().redo();
+  expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
+});
+it("clears locks on Return to Flow without restoring them on Undo", () => {
+  const iframe = {}, origin = "https://preview.example";
+  const event = { source: iframe, origin, data: { type: "COMPOSITION_LOCK", payload: { widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(), locked: true } } };
+  handleCompositionLockMessage(event, iframe, origin);
+  returnCompositionToFlow("canvas");
+  expect(getCompositionMovementLocks()).toEqual({});
+  usePageStore.temporal.getState().undo();
+  expect(getCompositionMovementLocks()).toEqual({});
 });

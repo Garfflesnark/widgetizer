@@ -22,6 +22,36 @@ export function compositionInteractionContext() {
   return JSON.stringify([state.loadedProjectId, state.page?.id, useWidgetStore.getState().compositionContext]);
 }
 
+// Interaction locks survive preview replacement and selection/context changes,
+// but never enter page content, history, or export.
+function movementLockScope() {
+  const state = usePageStore.getState();
+  return JSON.stringify([state.loadedProjectId, state.page?.id]);
+}
+export function getCompositionMovementLocks() {
+  const page = usePageStore.getState().page;
+  const locks = useWidgetStore.getState().compositionMovementLocks[movementLockScope()] || {};
+  return Object.fromEntries(Object.entries(locks).filter(([id, area]) => compositionFor(page, id)?.[0] === area));
+}
+export function pruneCompositionMovementLocks() {
+  const state = useWidgetStore.getState(), key = movementLockScope(), valid = getCompositionMovementLocks();
+  if (JSON.stringify(state.compositionMovementLocks[key] || {}) !== JSON.stringify(valid))
+    useWidgetStore.setState({ compositionMovementLocks: { ...state.compositionMovementLocks, [key]: valid } });
+  return valid;
+}
+export function handleCompositionLockMessage(event, iframe, origin) {
+  if (!iframe || origin === "*" || event.source !== iframe || event.origin !== origin || event.data?.type !== "COMPOSITION_LOCK") return false;
+  const p = event.data.payload, state = useWidgetStore.getState();
+  const found = compositionFor(usePageStore.getState().page, p?.widgetId);
+  if (!p || typeof p.locked !== "boolean" || p.interactionContext !== compositionInteractionContext() ||
+      state.compositionContext !== "desktop" || state.selectedWidgetId !== p.widgetId || state.selectedBlockId ||
+      !found || found[0] !== p.compositionId) return false;
+  const locks = getCompositionMovementLocks();
+  if (p.locked) locks[p.widgetId] = found[0]; else delete locks[p.widgetId];
+  useWidgetStore.setState({ compositionMovementLocks: { ...state.compositionMovementLocks, [movementLockScope()]: locks } });
+  return true;
+}
+
 export function commitCompositionPage(next) {
   const store = usePageStore.getState();
   validateCompositionLayout(next, compositionAdapters);
@@ -43,6 +73,7 @@ export function commitCompositionPage(next) {
   if (JSON.stringify(store.page) === JSON.stringify(next)) return false;
   store.beginHistoryStep();
   store.setPage(next);
+  pruneCompositionMovementLocks();
   store.beginHistoryStep();
   useAutoSave.getState().setStructureModified(true);
   return true;
@@ -171,6 +202,7 @@ export function handleCompositionMessage(event, iframe, origin) {
     p.interactionContext !== compositionInteractionContext() ||
     store.selectedWidgetId !== p.widgetId ||
     store.selectedBlockId ||
+    getCompositionMovementLocks()[p.widgetId] ||
     !found ||
     found[0] !== p.compositionId
   )

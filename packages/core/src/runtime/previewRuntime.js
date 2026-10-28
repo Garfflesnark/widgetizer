@@ -342,7 +342,7 @@ function setupScrollBoundsReporting() {
 function updateSelection(widgetId, blockId, compositionId = null) {
   widgetId = widgetId || null; blockId = blockId || null;
   if (compositionId) { widgetId = null; blockId = null; }
-  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionMoveModeFor = null; }
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); }
   currentSelectedCompositionId = compositionId;
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
@@ -698,7 +698,7 @@ let overlayContainer = null;
 let imageResizeController = null;
 let compositionMoveController = null;
 let compositionInteractionContext = null;
-let compositionMoveModeFor = null;
+let compositionMovementLocks = {};
 let imageAlignmentMenuFor = null;
 
 function createOverlayContainer() {
@@ -714,7 +714,8 @@ function createOverlayContainer() {
     .wz-widget-label { padding: 1px 8px; font-size: 11px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: white; background: #e0006d; border-radius: 4px; white-space: nowrap; pointer-events: none; line-height: 18px; }
     .wz-hover-label { position: absolute; transform: translateX(-50%); left: 50%; padding: 1px 6px; font-size: 11px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #e0006d; background: #ffd6eb; border-radius: 4px; white-space: nowrap; pointer-events: none; line-height: 18px; }
     .wz-reorder-btn { color: #e0006d; min-width:24px;min-height:24px;justify-content:center; pointer-events: auto; padding: 2px; border-radius: 4px; background: white; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; display: flex; align-items: center; line-height: 0; }
-    .wz-reorder-btn[data-composition-move][aria-pressed="true"] { background: #00e676; color: #064e3b; border-color: #00e676; }
+    .wz-reorder-btn[data-composition-lock] { background:#e0006d; color:white; }
+    .wz-reorder-btn[data-composition-lock][aria-pressed="true"] { background: #00e676; color: #064e3b; border-color: #00e676; }
     .wz-reorder-btn:hover { background: #fff0f8; border-color: #f96cb5; }
     .wz-reorder-btn[disabled] { opacity: 0.3; cursor: not-allowed; }
     .wz-reorder-btn[disabled]:hover { background: white; border-color: #e2e8f0; }
@@ -826,7 +827,12 @@ function renderOverlay() {
           `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
         if (showReorder) html += `<button type="button" class="wz-reorder-btn" title="${orderControl.downLabel}" aria-label="${orderControl.downLabel}" data-reorder="down" data-order-scope="${orderControl.scope}" data-order-id="${orderControl.id}" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveDown ? "disabled" : ""}>${CHEVRON_DOWN_SVG}</button>`;
         const composition = compositionContext(selEl);
-        if (composition) html += composition.editable ? `<button type="button" class="wz-reorder-btn" data-composition-move="${currentSelectedWidgetId}" title="${compositionMoveModeFor === currentSelectedWidgetId ? "Disable Move mode" : "Enable Move mode: drag image or Move grip"}" aria-label="Move image" aria-pressed="${compositionMoveModeFor === currentSelectedWidgetId}">Move</button>` : `<span class="wz-widget-label">Mobile: generated Proportional</span>`;
+        if (composition) {
+          const locked = compositionMovementLocks[currentSelectedWidgetId] === composition.area.dataset.compositionId;
+          const label = locked ? "Unlock Image Position" : "Lock Image Position";
+          const icon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="${locked ? "M8 10V6a4 4 0 0 1 8 0v4" : "M8 10V6a4 4 0 0 1 8 0"}"/></svg>`;
+          html += composition.editable ? `<button type="button" class="wz-reorder-btn" data-composition-lock="${currentSelectedWidgetId}" title="${label}" aria-label="${label}" aria-pressed="${locked}">${icon}Move</button><button type="button" class="wz-reorder-btn" data-composition-move="${currentSelectedWidgetId}" title="Drag Image" aria-label="Drag Image" ${locked ? "disabled" : ""}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg></button>` : `<span class="wz-widget-label">Mobile: generated Proportional</span>`;
+        }
         if (units && imageAlignmentMenuFor === currentSelectedWidgetId) {
           html += `<div class="wz-image-menu" role="menu" aria-label="Image alignment">`;
           for (const [alignment, label] of [["left", "Align Left"], ["center", "Align Center"], ["right", "Align Right"]])
@@ -862,10 +868,6 @@ function renderOverlay() {
     }
   }
 
-  if (compositionMoveModeFor) {
-    const movingWidget = document.querySelector(`[data-widget-id="${compositionMoveModeFor}"]`);
-    if (compositionMoveModeFor !== currentSelectedWidgetId || !compositionContext(movingWidget)?.editable) compositionMoveModeFor = null;
-  }
   overlayContainer.innerHTML = html;
   for (const controls of overlayContainer.querySelectorAll(".wz-image-controls")) {
     const box = controls.getBoundingClientRect();
@@ -890,14 +892,18 @@ function setupOverlayClickHandler() {
   if (!overlayContainer) return;
 
   overlayContainer.addEventListener("click", (event) => {
-    const moveButton = event.target.closest("[data-composition-move]");
-    if (moveButton) {
+    const lockButton = event.target.closest("[data-composition-lock]");
+    if (lockButton) {
       event.preventDefault(); event.stopPropagation();
-      if (moveButton.dataset.compositionMove === currentSelectedWidgetId) {
+      const widget = document.querySelector(`[data-widget-id="${currentSelectedWidgetId}"]`), context = compositionContext(widget);
+      if (lockButton.dataset.compositionLock === currentSelectedWidgetId && context?.editable) {
         compositionMoveController?.cancel();
-        compositionMoveModeFor = compositionMoveModeFor === currentSelectedWidgetId ? null : currentSelectedWidgetId;
+        const locked = compositionMovementLocks[currentSelectedWidgetId] !== context.area.dataset.compositionId;
+        if (locked) compositionMovementLocks[currentSelectedWidgetId] = context.area.dataset.compositionId;
+        else delete compositionMovementLocks[currentSelectedWidgetId];
+        postToParent({ type: "COMPOSITION_LOCK", payload: { widgetId: currentSelectedWidgetId, compositionId: context.area.dataset.compositionId, interactionContext: compositionInteractionContext, locked } });
         renderOverlay();
-        overlayContainer.querySelector("[data-composition-move]")?.focus();
+        overlayContainer.querySelector("[data-composition-lock]")?.focus();
       }
       return;
     }
@@ -957,10 +963,9 @@ function handleMessage(event) {
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
-    if (typeof event.data.context === "string") {
-      if (compositionInteractionContext !== event.data.context) compositionMoveModeFor = null;
-      compositionInteractionContext = event.data.context;
-    }
+    if (typeof event.data.context === "string") compositionInteractionContext = event.data.context;
+    compositionMovementLocks = Object.fromEntries(Object.entries(event.data.movementLocks || {}).filter(([id, area]) =>
+      typeof area === "string" && event.data.payload?.compositions?.[area]?.childrenOrder?.includes(id)));
     for (const [id, c] of Object.entries(event.data.payload?.compositions || {})) {
       const area = Array.from(document.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id);
       if (!area) continue;
@@ -1335,7 +1340,7 @@ function ensureHeaderScrollListener() {
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
-    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => imageResizeController?.cancel(), selected: () => currentSelectedWidgetId, isEnabled: () => compositionMoveModeFor === currentSelectedWidgetId, onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
+    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => imageResizeController?.cancel(), selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
     imageResizeController = createImageResizeController({
       document, isMoving: () => !!compositionMoveController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
     });
@@ -1353,7 +1358,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); if (window.innerWidth < 990) compositionMoveModeFor = null; renderOverlay(); });
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

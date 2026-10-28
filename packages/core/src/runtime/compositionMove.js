@@ -66,7 +66,7 @@ export function createCompositionMoveController({
       e.button !== 0 ||
       gesture ||
       e.target.closest(
-        ".wz-image-resize-handle,[data-image-align-menu],.wz-image-menu,[data-widget-reorder],[data-order-scope],[data-select-composition],input,textarea,select",
+        ".wz-image-resize-handle,[data-image-align-menu],.wz-image-menu,[data-widget-reorder],[data-order-scope],[data-select-composition],[data-composition-lock],input,textarea,select",
       )
     )
       return;
@@ -79,7 +79,7 @@ export function createCompositionMoveController({
     const context = compositionContext(widget);
     if (!context?.editable || !(context.scale > 0) || selected() !== widget?.dataset.widgetId || (e.target.closest("button") && !grip))
       return;
-    if (!grip && !isEnabled()) return;
+    if (!isEnabled()) return;
     if (getContext && !getContext()) return;
     const r = measure(widget);
     if (!r) return;

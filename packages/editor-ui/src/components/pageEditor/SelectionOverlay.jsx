@@ -1,5 +1,5 @@
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
-import { handleCompositionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext } from "../../lib/compositionActions";
+import { handleCompositionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext, handleCompositionLockMessage, pruneCompositionMovementLocks } from "../../lib/compositionActions";
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
@@ -54,6 +54,7 @@ export default function SelectionOverlay({
   const reorderWidgets = useWidgetStore((state) => state.reorderWidgets);
   const page = usePageStore((state) => state.page);
   const schemas = useWidgetStore((state) => state.schemas);
+  const movementLocks = useWidgetStore((state) => state.compositionMovementLocks);
   const compositionLayoutContext = useWidgetStore((state) => state.compositionContext);
 
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function SelectionOverlay({
         transform: isImageTransform(page.widgets[id].settings?.image_transform) ? page.widgets[id].settings.image_transform : null,
         ...(supportsImageSpacing(page.widgets[id], schemas[page.widgets[id].type]) ? { spacing: imageSpacing(page.widgets[id].settings) } : {}),
       }]));
-      iframe.contentWindow?.postMessage({ type: "COMPOSITION_SYNC", force: force === true, context: compositionInteractionContext(), payload: page?.layout, sizes, revisions: Object.fromEntries(widgetIds.filter(id => compositionFor(page, id)).map(id => [id, compositionRevision(page.widgets[id], compositionFor(page, id)[1].placements[id].frames.desktop)])) }, getPreviewTargetOrigin());
+      iframe.contentWindow?.postMessage({ type: "COMPOSITION_SYNC", force: force === true, context: compositionInteractionContext(), movementLocks: pruneCompositionMovementLocks(), payload: page?.layout, sizes, revisions: Object.fromEntries(widgetIds.filter(id => compositionFor(page, id)).map(id => [id, compositionRevision(page.widgets[id], compositionFor(page, id)[1].placements[id].frames.desktop)])) }, getPreviewTargetOrigin());
       iframe.contentWindow?.postMessage({
         type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes },
       }, getPreviewTargetOrigin());
@@ -88,7 +89,7 @@ export default function SelectionOverlay({
       window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
       window.removeEventListener("widgetizer:composition-reconcile", reconcile);
     };
-  }, [iframeRef, page, schemas, previewReadyKey, compositionLayoutContext]);
+  }, [iframeRef, page, schemas, previewReadyKey, compositionLayoutContext, movementLocks]);
 
   useEffect(() => {
     const iframe = iframeRef?.current;
@@ -150,6 +151,9 @@ export default function SelectionOverlay({
       if (event.data?.type === "IMAGE_ALIGN") {
         handleImageAlignmentMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;
+      }
+      if (event.data?.type === "COMPOSITION_LOCK") {
+        handleCompositionLockMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }
       if (event.data?.type === "COMPOSITION_MOVE") {
         handleCompositionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
