@@ -1,3 +1,5 @@
+import CompositionControls from "./CompositionControls";
+import { compositionFor } from "@widgetizer/core/composition";
 import { SCALE_WIDTH, SCALE_HEIGHT, supportsImageTransform, legacyImageTransform, supportsImageUnits, imageTransformV2, imageDimensionValue, isDefaultImageScale } from "@widgetizer/core/imageTransform";
 import { editedImageTransform, changeImageUnit } from "../../lib/imageResizeBridge";
 import CheckboxInput from "../settings/inputs/CheckboxInput";
@@ -78,8 +80,8 @@ export default function SettingsPanel({
   const handleSettingChange = (settingId, value) => {
     if (!isGlobalWidget && !isThemeSettings && !selectedBlockId && [SCALE_WIDTH, SCALE_HEIGHT].includes(settingId)) {
       const transform = editedImageTransform(selectedWidgetId, settingId, value);
-      if (transform) { updateWidgetSettingValues(selectedWidgetId, { image_transform: transform }); markWidgetModified(selectedWidgetId); }
-      return;
+      if (transform) { const accepted = updateWidgetSettingValues(selectedWidgetId, { image_transform: transform }); if (accepted !== false) markWidgetModified(selectedWidgetId); return accepted; }
+      return false;
     }
     if (isThemeSettings) {
       updateThemeSetting(selectedThemeGroup, settingId, value);
@@ -209,6 +211,8 @@ export default function SettingsPanel({
         )}
       </div>
       <div className="px-3 pb-4 flex-1 overflow-y-auto">
+        {!isGlobalWidget && !isThemeSettings && !selectedBlockId && <CompositionControls key={selectedWidgetId} widgetId={selectedWidgetId} />}
+        <fieldset disabled={!!compositionFor(page, selectedWidgetId) && useWidgetStore.getState().compositionContext !== "desktop"} inert={!!compositionFor(page, selectedWidgetId) && useWidgetStore.getState().compositionContext !== "desktop" ? true : undefined} className="disabled:opacity-60">
         <div
           key={
             isThemeSettings
@@ -294,6 +298,7 @@ export default function SettingsPanel({
             );
           })}
         </div>
+      </fieldset>
       </div>
     </div>
   );

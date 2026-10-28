@@ -103,8 +103,14 @@ it("outlines actual image bounds with a matching dashed border and keeps widget 
   expect(outline.style.borderColor).toBe(document.querySelector(".wz-image-resize-handle").style.backgroundColor);
   expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(8);
   expect(document.querySelector("[data-reorder]")).not.toBeNull();
-  expect(document.querySelector(".wz-controls").style.top).toBe("-44px");
-  expect(document.querySelector(".wz-image-controls").style.top).toBe("-30px");
+  const toolbar = document.querySelector(".wz-image-controls");
+  expect(toolbar.firstElementChild.dataset.reorder).toBe("up");
+  expect(toolbar.querySelector(".wz-widget-label")).not.toBeNull();
+  expect(toolbar.lastElementChild.dataset.reorder).toBe("down");
+  expect(toolbar.firstElementChild.getAttribute("aria-label")).toBe("Move Block up");
+  expect(toolbar.lastElementChild.getAttribute("title")).toBe("Move Block down");
+  expect(getComputedStyle(toolbar.lastElementChild).color).toBe("rgb(224, 0, 109)");
+  expect(toolbar.lastElementChild.querySelector("svg").getAttribute("stroke")).toBe("currentColor");
 });
 
 it("opens a compact image alignment menu and sends only an explicit action", () => {
@@ -154,4 +160,17 @@ it("updates image dimensions on quick Undo without needing a server render", () 
   const target = document.querySelector("[data-image-resize-target]");
   expect(target.style.width).toBe("73%");
   expect(target.querySelector("img").style.height).toBe("auto");
+});
+
+it("keeps handles at their physical target size in a scaled design viewport and rejects untrusted zoom", () => {
+  message("UPDATE_SELECTION", { widgetId: "w1", blockId: null });
+  message("SET_IMAGE_RESIZE_SUPPORT", { widgetIds: ["w1"], stretchWidgetIds: ["w1"] });
+  message("EDITOR_ZOOM", 0.5, null);
+  expect(document.documentElement.style.getPropertyValue("--wz-editor-inverse-zoom")).toBe("");
+  message("EDITOR_ZOOM", 0.5);
+  expect(document.querySelector(".wz-image-resize-handle").style.width).toBe("24px");
+  message("EDITOR_ZOOM", "0.2");
+  expect(document.documentElement.style.getPropertyValue("--wz-editor-inverse-zoom")).toBe("2");
+  message("EDITOR_ZOOM", 1);
+  expect(document.querySelector(".wz-image-resize-handle").style.width).toBe("12px");
 });

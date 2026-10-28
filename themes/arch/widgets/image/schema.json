@@ -152,5 +152,6 @@
       "default": 0
     }
   ],
-  "imageSpacingVersion": 1
+  "imageSpacingVersion": 1,
+  "compositionCapability": "image.v1"
 }

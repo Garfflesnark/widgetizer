@@ -1,3 +1,4 @@
+import { compositionFor } from "@widgetizer/core/composition";
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useThemeLocale } from "../../hooks/useThemeLocale";
@@ -28,7 +29,10 @@ function detectChangeType(newState, oldState) {
   // Check for reordering
   const orderChanged = JSON.stringify(newState.page?.widgetsOrder) !== JSON.stringify(oldState.page?.widgetsOrder);
 
-  const isStructural = addedWidgets.length > 0 || removedWidgets.length > 0 || orderChanged;
+  const structure = (page) => page?.layout ? [page.layout.version, page.layout.contentOrder, Object.entries(page.layout.compositions).map(([id, c]) => [id, c.childrenOrder, c.profiles, c.responsive])] : null;
+  const layoutChanged = JSON.stringify(structure(newState.page)) !== JSON.stringify(structure(oldState.page));
+  const compositionSettingsChanged = [...newWidgetIds].some((id) => compositionFor(newState.page, id) && JSON.stringify(newState.widgets?.[id]) !== JSON.stringify(oldState.widgets?.[id]));
+  const isStructural = addedWidgets.length > 0 || removedWidgets.length > 0 || orderChanged || layoutChanged || compositionSettingsChanged;
 
   // Find widgets with content changes (settings, blocks)
   const changedWidgetIds = [];
@@ -159,6 +163,15 @@ const PreviewPanel = forwardRef(function PreviewPanel(
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [previewReadyKey, setPreviewReadyKey] = useState(0);
   const iframeRef = useRef(null);
+  const containerRef = useRef(null);
+  const [paneWidth, setPaneWidth] = useState(1200);
+  const [paneHeight, setPaneHeight] = useState(700);
+  useEffect(() => {
+    const observer = new ResizeObserver(([entry]) => { setPaneWidth(entry.contentRect.width); setPaneHeight(entry.contentRect.height); });
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => { useWidgetStore.getState().setCompositionContext(previewMode); }, [previewMode]);
 
   // A single ref to hold the entire previous state for comparison
   const previousStateRef = useRef(null);
@@ -267,7 +280,10 @@ const PreviewPanel = forwardRef(function PreviewPanel(
     const widgetOrder = page?.widgetsOrder || [];
 
     iframeRef.current.contentWindow.postMessage(
-      { type: "SET_WIDGET_METADATA", payload: { metadata, widgetOrder } },
+      { type: "SET_WIDGET_METADATA", payload: { metadata, widgetOrder, reorderInfo: page?.layout ? Object.fromEntries(widgetOrder.map((id) => {
+        const parent = compositionFor(page, id), index = page.layout.contentOrder.findIndex((entry) => entry.id === (parent?.[0] || id));
+        return [id, { up: index > 0, down: index < page.layout.contentOrder.length - 1 }];
+      })) : null } },
       getPreviewTargetOrigin(),
     );
   }, [page, globalWidgets, schemas, tTheme, initialLoadComplete, previewReadyKey]);
@@ -552,7 +568,8 @@ const PreviewPanel = forwardRef(function PreviewPanel(
 
   return (
     <div
-      className={`flex-1 relative transition-colors duration-300 ${
+      ref={containerRef}
+      className={`flex-1 min-w-0 min-h-0 overflow-hidden relative transition-colors duration-300 ${
         previewMode === "desktop" ? "bg-white" : "bg-slate-200"
       }`}
     >
@@ -606,6 +623,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
           }`}
           style={{
             maxWidth: previewMode === "desktop" ? "100%" : previewMode === "tablet" ? "48rem" : "24rem",
+            ...(page?.layout ? { width: previewMode === "desktop" ? 1200 : previewMode === "tablet" ? 900 : 390, maxWidth: "none", zoom: Math.min(1, paneWidth / (previewMode === "desktop" ? 1200 : previewMode === "tablet" ? 900 : 390)), height: paneHeight / Math.min(1, paneWidth / (previewMode === "desktop" ? 1200 : previewMode === "tablet" ? 900 : 390)) } : {}),
           }}
           onLoad={() => {
             setInitialLoadComplete(true);
@@ -615,6 +633,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
       {showSelectionOverlay && (
         <SelectionOverlay
           iframeRef={iframeRef}
+          editorZoom={page?.layout ? Math.min(1, paneWidth / (previewMode === "desktop" ? 1200 : previewMode === "tablet" ? 900 : 390)) : 1}
           selectedWidgetId={selectedWidgetId}
           selectedBlockId={selectedBlockId}
           selectedGlobalWidgetId={selectedGlobalWidgetId}

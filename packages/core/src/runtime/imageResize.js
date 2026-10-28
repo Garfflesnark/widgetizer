@@ -1,3 +1,4 @@
+import { compositionContext, applyCompositionRect, resolvedCompositionRect, compositionFrame } from "./compositionDOM.js";
 import { resizeAnchoredRect, resizePinnedRect } from "./anchoredResize.js";
 import { imageReference, isImageTransform, rectTransform, transformRect, imageTransformV2 } from "./imageTransform.js";
 import { isImageSpacing } from "./imageSpacing.js";
@@ -81,6 +82,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   function eligible(widget, blockId) {
     return (
       !blockId &&
+      (compositionContext(widget)?.editable ?? true) &&
       supported.has(widget?.dataset.widgetId) &&
       widget?.dataset.widgetType === "image" &&
       !["header", "footer"].includes(widget?.dataset.widgetId) &&
@@ -90,6 +92,8 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   function snapshot(widget) {
     const { target, image } = parts(widget);
     return {
+      composition: compositionContext(widget),
+      originalCompositionStyle: compositionContext(widget)?.child.getAttribute("style"),
       widgetId: widget.dataset.widgetId,
       target,
       image,
@@ -102,6 +106,10 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     };
   }
   function restore(state) {
+    if (state.composition) {
+      if (state.originalCompositionStyle === null) state.composition.child.removeAttribute("style");
+      else state.composition.child.setAttribute("style", state.originalCompositionStyle);
+    }
     state.target.style.width = state.originalWidth;
     state.target.style.marginInlineStart = state.originalInlineStart;
     state.target.style.marginInlineEnd = state.originalInlineEnd;
@@ -111,7 +119,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   }
   function reference(widget) {
     const { target } = parts(widget);
-    return imageReference(target.parentElement.getBoundingClientRect().width,
+    return imageReference(compositionContext(widget)?.width || target.parentElement.getBoundingClientRect().width,
       Number(widget.dataset.imageNaturalWidth), Number(widget.dataset.imageNaturalHeight));
   }
   function currentTransform(widget) {
@@ -126,8 +134,15 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       flowInset: { inlinePercent: Number(widget.dataset.imageTransformInline), blockPercent: Number(widget.dataset.imageTransformBlock) } };
     return isImageTransform(value) ? value : null;
   }
-  function applyTransform(state, transform, basis) {
+  function applyTransform(state, transform, basis, override) {
     const rect = transformRect(transform, basis);
+    if (state.composition) {
+      const placed = override || resolvedCompositionRect(state.composition, rect);
+      placed.left = Math.max(0, Math.min(state.composition.width - placed.width, placed.left));
+      placed.top = Math.max(0, Math.min(state.composition.height - placed.height, placed.top));
+      applyCompositionRect(state.composition, placed);
+      return;
+    }
     Object.assign(state.target.style, { width: `${rect.width}px`, marginInlineStart: `${rect.left}px`,
       marginInlineEnd: "0px", paddingBlockStart: `${rect.top}px` });
     state.image.style.height = `${rect.height}px`;
@@ -172,7 +187,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     if (current.capture.hasPointerCapture?.(current.pointerId))
       current.capture.releasePointerCapture(current.pointerId);
     if (commit && changed) {
-      onCommit(current.modern ? { widgetId: current.widgetId, transform: current.transform, startTransform: current.startTransform } : {
+      onCommit(current.modern ? { widgetId: current.widgetId, transform: current.transform, startTransform: current.startTransform, ...(current.composition ? { frame: compositionFrame(current.composition, current.lastRect), startFrame: current.composition.frame } : {}) } : {
         widgetId: current.widgetId, width: current.width, startWidth: current.startWidth,
         ...(current.twoAxes ? { height: current.height, startHeight: current.startHeight } : {}),
       });
@@ -210,8 +225,8 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     gesture.dragged ||= Math.hypot(event.clientX - gesture.originX, event.clientY - gesture.originY) > 3;
     if (gesture.modern && gesture.shift !== !!event.shiftKey) rebaseShift(!!event.shiftKey);
     gesture.lastX = event.clientX; gesture.lastY = event.clientY;
-    const dx = event.clientX - gesture.startX;
-    const dy = event.clientY - gesture.startY;
+    const dx = (event.clientX - gesture.startX) / (gesture.composition?.scale || 1);
+    const dy = (event.clientY - gesture.startY) / (gesture.composition?.scale || 1);
     if (dx === 0 && dy === 0 && !gesture.moved && (gesture.modern ||
       (gesture.width === gesture.startWidth && gesture.height === gesture.startHeight))) { event.preventDefault(); return; }
     if (gesture.modern) {
@@ -222,14 +237,19 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         maxWidth: gesture.model?.dimensions.width.unit === "px" ? 10000 : gesture.basis.width * 4,
         maxHeight: gesture.model?.dimensions.height.unit === "px" ? 10000 : gesture.basis.height * 4,
       };
+      if (gesture.composition) { bounds.bottom = gesture.composition.height; bounds.maxTop = gesture.composition.height; }
       const rect = gesture.model ? resizePinnedRect(gesture.rect, gesture.direction, dx, dy, bounds,
         { proportional: gesture.shift, pins: gesture.model.anchors || [] }) : resizeAnchoredRect(gesture.rect, gesture.direction, dx, dy, bounds);
       gesture.transform = rectTransform(rect, gesture.basis, gesture.model, gesture.everProportional ? "nsew" : gesture.direction);
       gesture.lastRect = transformRect(gesture.transform, gesture.basis);
+      if (gesture.composition) {
+        gesture.transform.flowInset = structuredClone(gesture.model.flowInset);
+        gesture.lastRect = { ...gesture.lastRect, left: rect.left, top: rect.top };
+      }
       const start = gesture.initialRect || gesture.rect;
       gesture.moved = Math.abs(gesture.lastRect.left - start.left) + Math.abs(gesture.lastRect.top - start.top) +
         Math.abs(gesture.lastRect.width - start.width) + Math.abs(gesture.lastRect.height - start.height) > 0.01;
-      applyTransform(gesture, gesture.transform, gesture.basis);
+      applyTransform(gesture, gesture.transform, gesture.basis, gesture.composition ? gesture.lastRect : undefined);
       event.preventDefault(); onPreview(); return;
     }
     const xSign = gesture.direction.includes("w") ? -1 : 1;
@@ -296,24 +316,25 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         contextKeys.delete(id);
       }
     },
-    setSizes(sizes = {}) {
+    setSizes(sizes = {}, force = false) {
       // Undo can return to the last server-rendered state before its debounce
       // fires. Reconcile from store values even when no morph will be requested.
       for (const [widgetId, size] of Object.entries(sizes)) {
         const widget = find(widgetId);
-        if (!size || !eligible(widget, null) || !isImageWidth(size.width)) continue;
+        if (!size || (!eligible(widget, null) && !compositionContext(widget)) || !isImageWidth(size.width)) continue;
         const twoAxes = stretch.has(widgetId) && widget.hasAttribute("data-image-height");
         if (twoAxes && !isImageHeight(size.height)) continue;
         if (size.transform !== undefined && size.transform !== null && (!transforms.has(widgetId) || !isImageTransform(size.transform))) continue;
         canonicalValues.set(widgetId, size);
-        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing]);
-        if (canonicalSizes.get(widgetId) === key) continue;
+        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing, compositionContext(widget)?.frame]);
+        if (!force && canonicalSizes.get(widgetId) === key) continue;
         if (gesture?.widgetId === widgetId) finish(false);
         if (draft?.widgetId === widgetId || spacingDraft?.widgetId === widgetId) cancelDraft();
         applySpacing(widget, size.spacing);
         if (isImageTransform(size.transform)) applyTransform(snapshot(widget), size.transform, reference(widget));
         else apply(snapshot(widget), size.width, twoAxes ? size.height : undefined);
         canonicalSizes.set(widgetId, key);
+        if (transforms.has(widgetId)) onContext?.({ widgetId, ...reference(widget), hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth), naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" });
       }
       onPreview();
     },
@@ -362,7 +383,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       onPreview();
     },
     selectionRect(widget, blockId) {
-      return eligible(widget, blockId) ? parts(widget).image.getBoundingClientRect() : null;
+      return (eligible(widget, blockId) || (!blockId && compositionContext(widget))) ? parts(widget).image?.getBoundingClientRect() : null;
     },
     renderHandle(overlay, widget, blockId) {
       if (!eligible(widget, blockId)) return;
@@ -371,7 +392,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       const modern = transforms.has(widgetId) && widget.dataset.imageTransformCapable === "true";
       if (modern) {
         const basis = reference(widget);
-        const context = { widgetId, ...basis, imageSource: widget.dataset.imageSource || "" };
+        const context = { widgetId, ...basis, hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth), naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" };
         const key = JSON.stringify(context);
         if (contextKeys.get(widgetId) !== key) {
           contextKeys.set(widgetId, key);
@@ -383,6 +404,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       const twoAxes = stretch.has(widgetId) && widget.hasAttribute("data-image-height");
       const visibleTransform = gesture?.widgetId === widgetId ? gesture.transform || gesture.model :
         draft?.widgetId === widgetId ? draft.transform : currentTransform(widget);
+      const handleRadius = 6 * (Number(document.defaultView.getComputedStyle(document.documentElement).getPropertyValue("--wz-editor-inverse-zoom")) || 1);
       for (const direction of twoAxes ? ["nw", "n", "ne", "e", "se", "s", "sw", "w"] : ["e"]) {
         const handle = document.createElement("button");
         handle.type = "button";
@@ -404,10 +426,10 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
             : rect.top + rect.height / 2;
         Object.assign(handle.style, {
           position: "absolute",
-          left: `${x - 6}px`,
-          top: `${y - 6}px`,
-          width: "12px",
-          height: "12px",
+          left: `${Math.max(0, Math.min(document.defaultView.innerWidth - 2 * handleRadius, x - handleRadius))}px`,
+          top: `${Math.max(0, y - handleRadius)}px`,
+          width: `${2 * handleRadius}px`,
+          height: `${2 * handleRadius}px`,
           border: "2px solid white",
           borderRadius: "2px",
           background: pinned ? "#00e676" : "#e0006d",
@@ -443,7 +465,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
             const container = target.parentElement.getBoundingClientRect();
             const bounds = image.getBoundingClientRect();
             Object.assign(gesture, { modern: true, basis: reference(widget), startTransform: currentTransform(widget), moved: false,
-              rect: { left: bounds.left - container.left, top: bounds.top - container.top, width: bounds.width, height: bounds.height } });
+              rect: gesture.composition ? { left: (bounds.left - gesture.composition.area.getBoundingClientRect().left) / gesture.composition.scale, top: (bounds.top - gesture.composition.area.getBoundingClientRect().top) / gesture.composition.scale, width: bounds.width / gesture.composition.scale, height: bounds.height / gesture.composition.scale } : { left: bounds.left - container.left, top: bounds.top - container.top, width: bounds.width, height: bounds.height } });
             if (widget.dataset.imageUnits === "2") gesture.model = imageTransformV2({ settings: {
               image_transform: currentTransform(widget), image_width_percent: Number(widget.dataset.imageWidth), image_height_px: Number(widget.dataset.imageHeight),
             } }, gesture.basis);

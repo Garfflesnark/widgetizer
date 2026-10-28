@@ -1,3 +1,6 @@
+import { validateCompositionLayout } from "@widgetizer/core/composition";
+import { getMediaFiles } from "../db/repositories/mediaRepository.js";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { randomUUID } from "crypto";
 import { ConflictError } from "@widgetizer/core/errors";
 import {
@@ -66,6 +69,21 @@ async function readWidgetSchema(storage, scope, type) {
     return buf == null ? null : JSON.parse(buf.toString("utf8"));
   } catch {
     return null;
+  }
+}
+
+async function validateCompositionCapabilities(page, storage, scope) {
+  validateCompositionLayout(page, compositionAdapters);
+  if (!page.layout) return;
+  const media = getMediaFiles(scope.projectId).files;
+  const schemas = new Map();
+  for (const c of Object.values(page.layout.compositions)) for (const child of c.childrenOrder) {
+    const widget = page.widgets[child];
+    if (!schemas.has(widget.type)) schemas.set(widget.type, await readWidgetSchema(storage, scope, widget.type));
+    if (schemas.get(widget.type)?.compositionCapability !== compositionAdapters[widget.type]?.capability) throw new Error("Effective project theme lacks the required composition capability.");
+    const adapter = compositionAdapters[widget.type];
+    const file = media.find((file) => file.path === adapter.mediaPath?.(widget));
+    adapter.validateMedia?.(widget, c, c.placements[child].frames.desktop, file);
   }
 }
 
@@ -234,8 +252,16 @@ async function persistPageInSection({ scope, storage, pageId, pageData, previous
     let previousPaths = [];
     try {
       const buf = await storage.read(scope, pageKey(previousPageId || pageId, lang));
-      if (buf != null) previousPaths = extractMediaPathsFromPage(JSON.parse(buf.toString("utf8")));
-    } catch {
+      if (buf != null) {
+        const previous = JSON.parse(buf.toString("utf8"));
+        if (previous.layout && !Object.hasOwn(pageData, "layout")) {
+          const error = new Error("This page requires a composition-aware editor.");
+          error.code = "COMPOSITION_EDITOR_REQUIRED"; throw error;
+        }
+        previousPaths = extractMediaPathsFromPage(previous);
+      }
+    } catch (error) {
+      if (error.code === "COMPOSITION_EDITOR_REQUIRED") throw error;
       // A new page, or one we cannot read: nothing is known to be pre-existing.
     }
     await assertIntroducedMediaExists({
@@ -427,6 +453,8 @@ export async function updatePage(req, res) {
     let existingUuid = null;
     let existingGroupId = null;
     let existingWidgets = {};
+    let existingLayout;
+    let existingWidgetsOrder;
     try {
       const oldBuf = await storage.read(scope, pageKey(oldSlug, lang));
       if (oldBuf != null) {
@@ -435,12 +463,15 @@ export async function updatePage(req, res) {
         existingUuid = oldData.uuid || null; // Preserve stable uuid across renames
         existingGroupId = oldData.translationGroupId || null;
         existingWidgets = oldData.widgets || {}; // Preserve widgets if not included in request
+        existingLayout = oldData.layout;
+        existingWidgetsOrder = oldData.widgetsOrder;
       }
       // If old file doesn't exist (e.g. first save after create error, or manual rename), allow creation
     } catch (readError) {
       console.warn(`Could not read old page file ${oldSlug} during update: ${readError.message}`);
     }
 
+    if (existingLayout && pageData.widgets && !Object.hasOwn(pageData, "layout")) return res.status(409).json({ error: "This page requires a composition-aware editor." });
     // Construct the final page data for saving
     const resolvedUuid = existingUuid || randomUUID();
     // A page cannot be its own parent. The picker never offers it, and the
@@ -455,6 +486,7 @@ export async function updatePage(req, res) {
 
     const finalUpdatedPageData = {
       ...pageData, // Start with submitted data
+      ...(existingLayout && !Object.hasOwn(pageData, "layout") ? { layout: existingLayout, widgetsOrder: existingWidgetsOrder } : {}),
       parentPageUuid, // undefined drops the key entirely when cleared
       uuid: resolvedUuid, // Preserve existing uuid or generate new one if missing
       translationGroupId: existingGroupId || resolvedUuid,
@@ -466,6 +498,9 @@ export async function updatePage(req, res) {
       created: originalCreationDate, // Preserve original creation date
       updated: new Date().toISOString(), // Set new update timestamp
     };
+
+    try { await validateCompositionCapabilities(finalUpdatedPageData, storage, scope); }
+    catch (error) { return res.status(422).json({ error: error.message }); }
 
     // Both writes in one section, for the same reason as savePageContent below:
     // the sweep writes other pages in this language and must not outlive the
@@ -498,6 +533,7 @@ export async function updatePage(req, res) {
       ...(movedFrom.length ? { listingAnchorMovedFrom: movedFrom } : {}),
     });
   } catch (error) {
+    if (error.code === "COMPOSITION_EDITOR_REQUIRED") return res.status(409).json({ error: error.message });
     if (respondMissingMedia(res, error)) return;
     console.error("Error updating page:", error);
     res.status(500).json({
@@ -698,6 +734,9 @@ export async function bulkDeletePages(req, res) {
 export async function createPage(req, res) {
   try {
     const pageData = req.body; // Get all data including SEO
+    try { validateCompositionLayout(pageData, compositionAdapters); }
+    catch (error) { return res.status(422).json({ error: error.message }); }
+
     const { scope } = req;
     const { storage } = req.adapters;
     const lang = requestLanguage(req, res);
@@ -750,6 +789,7 @@ export async function createPage(req, res) {
 
     res.status(201).json(newPage);
   } catch (error) {
+    if (error.code === "COMPOSITION_EDITOR_REQUIRED") return res.status(409).json({ error: error.message });
     if (respondMissingMedia(res, error)) return;
     console.error("Error creating page:", error);
     res.status(500).json({ error: "Failed to create page" });
@@ -767,6 +807,9 @@ export async function savePageContent(req, res) {
   const { id } = req.params;
   try {
     const pageData = req.body; // Get all data including SEO
+    try { validateCompositionLayout(pageData, compositionAdapters); }
+    catch (error) { return res.status(422).json({ error: error.message }); }
+
 
     // Defensive sanitization for SEO fields
     if (pageData.seo) {
@@ -777,6 +820,8 @@ export async function savePageContent(req, res) {
 
     const { scope } = req;
     const { storage } = req.adapters;
+    try { await validateCompositionCapabilities(pageData, storage, scope); }
+    catch (error) { return res.status(422).json({ error: error.message }); }
     const lang = requestLanguage(req, res);
     if (!lang) return;
 
@@ -828,6 +873,11 @@ export async function savePageContent(req, res) {
     } catch (err) {
       console.warn(`Error reading existing page data for ${id}:`, err);
       // Decide if this should be a fatal error
+    }
+    if (existingData.layout && !pageData.layout) {
+      // Explicit Return to Flow is sent with a null envelope; an older editor
+      // omitting the field must not overwrite a composition page.
+      if (!Object.hasOwn(pageData, "layout")) return res.status(409).json({ error: "This page requires a composition-aware editor." });
     }
     // If the file didn't exist (or couldn't be read/parsed), set default created timestamp
     if (!loadedExisting && !existingData.created) {
@@ -885,6 +935,7 @@ export async function savePageContent(req, res) {
         : {}),
     });
   } catch (error) {
+    if (error.code === "COMPOSITION_EDITOR_REQUIRED") return res.status(409).json({ error: error.message });
     if (respondMissingMedia(res, error)) return;
     console.error(`Error saving page content for ${id}:`, error);
     res.status(500).json({ error: "Failed to save page content" });
@@ -1033,6 +1084,7 @@ export async function duplicatePage(req, res) {
 
     res.status(201).json(newPage);
   } catch (error) {
+    if (error.code === "COMPOSITION_EDITOR_REQUIRED") return res.status(409).json({ error: error.message });
     if (respondMissingMedia(res, error)) return;
     console.error("Error duplicating page:", error);
     res.status(500).json({ error: "Failed to duplicate page" });
@@ -1109,6 +1161,7 @@ export async function createPageLanguageVersion(req, res) {
     if (error?.name === "TranslationError") {
       return res.status(error.status).json({ error: "Version not created", message: error.message });
     }
+    if (error.code === "COMPOSITION_EDITOR_REQUIRED") return res.status(409).json({ error: error.message });
     if (respondMissingMedia(res, error)) return;
     console.error("Error creating a page language version:", error);
     res.status(500).json({ error: "Failed to create the page version" });

@@ -1,3 +1,7 @@
+import { overlayToolbarPlacement } from "./overlayToolbarPlacement.js";
+import { compositionImageAdapter } from "./compositionImage.js";
+import { createCompositionMoveController } from "./compositionMove.js";
+import { compositionContext } from "./compositionDOM.js";
 import { getEditorHistoryShortcut } from "./editorHistoryShortcut.js";
 /*
 This is the runtime script that is injected into the preview iframe.
@@ -335,7 +339,7 @@ function setupScrollBoundsReporting() {
 // ── Selection Update ────────────────────────────────────────────────────────
 
 function updateSelection(widgetId, blockId) {
-  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId) imageResizeController?.cancel();
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); }
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
 
@@ -676,11 +680,13 @@ let widgetMetadata = {};
 
 // ── Inline Selection Overlay ────────────────────────────────────────────────
 
-const CHEVRON_UP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>`;
-const CHEVRON_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+const CHEVRON_UP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>`;
+const CHEVRON_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
 let overlayContainer = null;
 let imageResizeController = null;
+let compositionMoveController = null;
+let compositionInteractionContext = null;
 let imageAlignmentMenuFor = null;
 
 function createOverlayContainer() {
@@ -695,16 +701,25 @@ function createOverlayContainer() {
     .wz-block-hover { position: absolute; border: 1px solid #93c5fd; background: rgba(59,130,246,0.05); pointer-events: none; }
     .wz-widget-label { padding: 1px 8px; font-size: 11px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: white; background: #e0006d; border-radius: 4px; white-space: nowrap; pointer-events: none; line-height: 18px; }
     .wz-hover-label { position: absolute; transform: translateX(-50%); left: 50%; padding: 1px 6px; font-size: 11px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #e0006d; background: #ffd6eb; border-radius: 4px; white-space: nowrap; pointer-events: none; line-height: 18px; }
-    .wz-reorder-btn { pointer-events: auto; padding: 2px; border-radius: 4px; background: white; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; display: flex; align-items: center; line-height: 0; }
+    .wz-reorder-btn { color: #e0006d; min-width:24px;min-height:24px;justify-content:center; pointer-events: auto; padding: 2px; border-radius: 4px; background: white; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; display: flex; align-items: center; line-height: 0; }
     .wz-reorder-btn:hover { background: #fff0f8; border-color: #f96cb5; }
     .wz-reorder-btn[disabled] { opacity: 0.3; cursor: not-allowed; }
     .wz-reorder-btn[disabled]:hover { background: white; border-color: #e2e8f0; }
     .wz-controls { position: absolute; transform: translateX(-50%); left: 50%; display: flex; align-items: center; gap: 4px; pointer-events: auto; }
     button.wz-widget-label { border: 0; cursor: pointer; pointer-events: auto; }
     button.wz-widget-label:focus-visible { outline: 2px solid #e0006d; outline-offset: 2px; }
+    .wz-image-controls { max-width: calc(100vw - 8px); }
+    .wz-image-controls > .wz-widget-label { max-width: min(240px, 50vw); min-width:0; overflow:hidden; text-overflow:ellipsis; }
+    .wz-image-controls > .wz-reorder-btn { flex-shrink:0; }
     .wz-image-menu { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); min-width: 132px; padding: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 12px #0002; pointer-events: auto; }
     .wz-image-menu button { display: block; width: 100%; text-align: left; color: #334155; font: 12px/20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 4px 8px; border: 0; border-radius: 4px; background: white; cursor: pointer; }
     .wz-image-menu button:hover, .wz-image-menu button:focus-visible { background: #fff0f8; color: #e0006d; }
+    .wz-image-controls > .wz-widget-label { font-size:calc(11px * var(--wz-editor-inverse-zoom, 1)); line-height:calc(18px * var(--wz-editor-inverse-zoom, 1)); padding:calc(1px * var(--wz-editor-inverse-zoom, 1)) calc(8px * var(--wz-editor-inverse-zoom, 1)); }
+    .wz-image-controls > .wz-reorder-btn { min-width:calc(24px * var(--wz-editor-inverse-zoom, 1)); min-height:calc(24px * var(--wz-editor-inverse-zoom, 1)); font-size:calc(12px * var(--wz-editor-inverse-zoom, 1)); }
+    .wz-image-controls svg { width:calc(14px * var(--wz-editor-inverse-zoom, 1)); height:calc(14px * var(--wz-editor-inverse-zoom, 1)); }
+    .wz-image-menu { min-width:calc(132px * var(--wz-editor-inverse-zoom, 1)); top:calc(26px * var(--wz-editor-inverse-zoom, 1)); }
+    .wz-image-menu button { font-size:calc(12px * var(--wz-editor-inverse-zoom, 1)); line-height:calc(20px * var(--wz-editor-inverse-zoom, 1)); }
+
   `;
   document.head.appendChild(style);
 
@@ -716,6 +731,7 @@ function createOverlayContainer() {
 }
 
 // Widget order info (sent from parent via SET_WIDGET_METADATA)
+let reorderInfo = null;
 let widgetOrder = []; // array of widgetIds in page order
 
 function renderOverlay() {
@@ -765,8 +781,8 @@ function renderOverlay() {
       const displayName = widgetMetadata[currentSelectedWidgetId] || "";
       const isPageWidget = widgetOrder.includes(currentSelectedWidgetId);
       const widgetIndex = widgetOrder.indexOf(currentSelectedWidgetId);
-      const canMoveUp = isPageWidget && widgetIndex > 0;
-      const canMoveDown = isPageWidget && widgetIndex < widgetOrder.length - 1;
+      const canMoveUp = reorderInfo?.[currentSelectedWidgetId]?.up ?? (isPageWidget && widgetIndex > 0);
+      const canMoveDown = reorderInfo?.[currentSelectedWidgetId]?.down ?? (isPageWidget && widgetIndex < widgetOrder.length - 1);
       const showReorder = isPageWidget && widgetOrder.length > 1;
 
       html += `<div class="wz-selection-box${imageRect ? " wz-image-selection" : ""}" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;${imageRect ? "border:2px dashed #e0006d;box-shadow:none;" : ""}">`;
@@ -774,7 +790,7 @@ function renderOverlay() {
       // Controls bar above the selection box
       html += `<div class="wz-controls" style="top:${controlsRect.top - rect.top - 24}px;">`;
 
-      if (showReorder) {
+      if (showReorder && !imageRect) {
         html += `<button class="wz-reorder-btn" data-reorder="up" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveUp ? "disabled" : ""}>${CHEVRON_UP_SVG}</button>`;
       }
 
@@ -782,16 +798,20 @@ function renderOverlay() {
         html += `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
       }
 
-      if (showReorder) {
+      if (showReorder && !imageRect) {
         html += `<button class="wz-reorder-btn" data-reorder="down" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveDown ? "disabled" : ""}>${CHEVRON_DOWN_SVG}</button>`;
       }
 
       html += `</div>`; // .wz-controls
       if (imageRect && displayName) {
         const units = selEl.dataset.imageUnits === "2";
-        html += `<div class="wz-controls wz-image-controls" style="top:-30px;">`;
+        html += `<div class="wz-controls wz-image-controls" style="top:${Math.max(2, rect.top - 30) - rect.top}px;">`;
+        if (showReorder) html += `<button type="button" class="wz-reorder-btn" title="Move Block up" aria-label="Move Block up" data-reorder="up" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveUp ? "disabled" : ""}>${CHEVRON_UP_SVG}</button>`;
         html += units ? `<button type="button" class="wz-widget-label" data-image-align-menu="${escapeHtml(currentSelectedWidgetId)}" aria-haspopup="menu" aria-expanded="${imageAlignmentMenuFor === currentSelectedWidgetId}">${escapeHtml(displayName)}</button>` :
           `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
+        if (showReorder) html += `<button type="button" class="wz-reorder-btn" title="Move Block down" aria-label="Move Block down" data-reorder="down" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveDown ? "disabled" : ""}>${CHEVRON_DOWN_SVG}</button>`;
+        const composition = compositionContext(selEl);
+        if (composition) html += composition.editable ? `<button type="button" class="wz-reorder-btn" data-composition-move="${currentSelectedWidgetId}" title="Move image" aria-label="Move image">Move</button>` : `<span class="wz-widget-label">Mobile: generated Proportional</span>`;
         if (units && imageAlignmentMenuFor === currentSelectedWidgetId) {
           html += `<div class="wz-image-menu" role="menu" aria-label="Image alignment">`;
           for (const [alignment, label] of [["left", "Align Left"], ["center", "Align Center"], ["right", "Align Right"]])
@@ -816,6 +836,12 @@ function renderOverlay() {
   }
 
   overlayContainer.innerHTML = html;
+  for (const controls of overlayContainer.querySelectorAll(".wz-image-controls")) {
+    const box = controls.getBoundingClientRect();
+    const placement = overlayToolbarPlacement(controls.parentElement.getBoundingClientRect(), box, window.innerWidth);
+    controls.style.top = `${placement.top}px`;
+    controls.style.marginLeft = `${placement.shift}px`;
+  }
   const selected = Array.from(document.querySelectorAll("[data-widget-id]")).find(
     (element) => element.dataset.widgetId === currentSelectedWidgetId,
   );
@@ -871,6 +897,31 @@ function setupOverlayClickHandler() {
 
 let editorHistoryState = { canUndo: false, canRedo: false };
 function handleMessage(event) {
+  if (event.data?.type === "EDITOR_ZOOM") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const zoom = event.data.payload;
+    if (typeof zoom !== "number" || !Number.isFinite(zoom) || zoom <= 0 || zoom > 1) return;
+    document.documentElement.style.setProperty("--wz-editor-inverse-zoom", String(1 / zoom));
+    imageResizeController?.cancel(); compositionMoveController?.cancel(); renderOverlay(); return;
+  }
+  if (event.data?.type === "COMPOSITION_SYNC") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    compositionMoveController?.cancel();
+    if (typeof event.data.context === "string") compositionInteractionContext = event.data.context;
+    for (const [id, c] of Object.entries(event.data.payload?.compositions || {})) {
+      const area = Array.from(document.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id);
+      if (!area) continue;
+      for (const child of area.querySelectorAll(":scope > [data-composition-child]")) {
+        const widgetId = child.dataset.compositionChild, frame = c.placements?.[widgetId]?.frames?.desktop;
+        if (!frame || !Number.isFinite(frame.x) || !Number.isFinite(frame.y)) continue;
+        child.dataset.compositionFrame = JSON.stringify(frame);
+        if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
+        child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
+      }
+    }
+    imageResizeController?.setSizes(event.data.sizes || {}, event.data.force === true);
+    renderOverlay(); return;
+  }
   if (event.data?.type === "EDITOR_HISTORY_STATE") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     const state = event.data.payload;
@@ -949,6 +1000,7 @@ function handleMessage(event) {
         widgetMetadata = payload.metadata;
       }
       if (payload.widgetOrder) {
+        reorderInfo = payload.reorderInfo || null;
         widgetOrder = payload.widgetOrder;
       }
       renderOverlay();
@@ -1079,7 +1131,7 @@ function trackWidgetObserver(widgetId, observer) {
 }
 
 function morphWidget(widgetId, newHtml) {
-  if (widgetId === currentSelectedWidgetId) imageResizeController?.cancel();
+  if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); }
   const existingElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
   if (!existingElement) {
     console.warn(`[PreviewRuntime] Widget ${widgetId} not found for morphing`);
@@ -1229,8 +1281,9 @@ function ensureHeaderScrollListener() {
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
+    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => imageResizeController?.cancel(), selected: () => currentSelectedWidgetId, onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
     imageResizeController = createImageResizeController({
-      document, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload }), onPreview: renderOverlay,
+      document, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
     });
   }
   if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
@@ -1246,7 +1299,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => { imageResizeController?.cancel(); renderOverlay(); });
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

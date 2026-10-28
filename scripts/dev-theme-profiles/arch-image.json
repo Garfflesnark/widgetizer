@@ -25,6 +25,10 @@
       {
         "revision": "927616b3d61d0d721f85f005fd5d72592575873e",
         "sha256": "b5db90f3a8b6bd7f307bc3f3cbeadb432fb630d8cf072f95720c731c465f0da0"
+      },
+      {
+        "revision": "1f7cf968a5cbe0d6a8bab920fa270cd20b4f5a3d",
+        "sha256": "918a413e77f4625ecefc8720d0ff70ad22946840442190b59bfed4f27e421af2"
       }
     ],
     "widgets/image/widget.liquid": [
@@ -47,6 +51,10 @@
       {
         "revision": "927616b3d61d0d721f85f005fd5d72592575873e",
         "sha256": "6c15b56e1feec9fc1ea6e6c86ae4f03cee8aa2c27760498f48500010b12fc097"
+      },
+      {
+        "revision": "1f7cf968a5cbe0d6a8bab920fa270cd20b4f5a3d",
+        "sha256": "bec8158e9ec63b93028474bde1fe86d75b819b0f84733748b544d0b9d0c79dd7"
       }
     ]
   }

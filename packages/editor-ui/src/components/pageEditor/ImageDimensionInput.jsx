@@ -86,7 +86,9 @@ export default function ImageDimensionInput({ widgetId, setting, value = setting
     setLocal(next);
     // Keep the transient style until the committed Liquid HTML arrives.
     send(next, "commit");
-    if (next !== saved.current) onChange(setting.id, next);
+    if (next !== saved.current && onChange(setting.id, next) === false) {
+      latest.current = saved.current; setLocal(saved.current); send(saved.current, "cancel");
+    }
   };
   actions.current = { commit };
   const id = `${widgetId}-${setting.id}`;

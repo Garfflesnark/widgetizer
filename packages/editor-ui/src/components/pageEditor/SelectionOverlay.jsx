@@ -1,3 +1,5 @@
+import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
+import { handleCompositionMessage, reorderContentBlock, compositionInteractionContext } from "../../lib/compositionActions";
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
@@ -36,18 +38,28 @@ export default function SelectionOverlay({
   onGlobalWidgetSelect,
   previewReadyKey,
   structuralReloadRef,
+  editorZoom = 1,
 }) {
+  useEffect(() => {
+    const iframe = iframeRef?.current;
+    if (!iframe) return;
+    const sync = () => iframe.contentWindow?.postMessage({ type: "EDITOR_ZOOM", payload: editorZoom }, getPreviewTargetOrigin());
+    sync(); iframe.addEventListener("load", sync);
+    return () => iframe.removeEventListener("load", sync);
+  }, [iframeRef, editorZoom, previewReadyKey]);
+
   // Get hover state from store
   const sidebarHoveredWidgetId = useWidgetStore((state) => state.hoveredWidgetId);
   const sidebarHoveredBlockId = useWidgetStore((state) => state.hoveredBlockId);
   const reorderWidgets = useWidgetStore((state) => state.reorderWidgets);
   const page = usePageStore((state) => state.page);
   const schemas = useWidgetStore((state) => state.schemas);
+  const compositionLayoutContext = useWidgetStore((state) => state.compositionContext);
 
   useEffect(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
-    const sync = () => {
+    const sync = (force = false) => {
       const widgetIds = supportedImageWidgetIds(page, schemas);
       const stretchWidgetIds = widgetIds.filter((id) =>
         supportsImageStretch(page.widgets[id], schemas[page.widgets[id].type]),
@@ -58,6 +70,7 @@ export default function SelectionOverlay({
         transform: isImageTransform(page.widgets[id].settings?.image_transform) ? page.widgets[id].settings.image_transform : null,
         ...(supportsImageSpacing(page.widgets[id], schemas[page.widgets[id].type]) ? { spacing: imageSpacing(page.widgets[id].settings) } : {}),
       }]));
+      iframe.contentWindow?.postMessage({ type: "COMPOSITION_SYNC", force: force === true, context: compositionInteractionContext(), payload: page?.layout, sizes, revisions: Object.fromEntries(widgetIds.filter(id => compositionFor(page, id)).map(id => [id, compositionRevision(page.widgets[id], compositionFor(page, id)[1].placements[id].frames.desktop)])) }, getPreviewTargetOrigin());
       iframe.contentWindow?.postMessage({
         type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes },
       }, getPreviewTargetOrigin());
@@ -65,14 +78,17 @@ export default function SelectionOverlay({
     const preview = (event) => iframe.contentWindow?.postMessage(
       { type: "IMAGE_SIZE_PREVIEW", payload: event.detail }, getPreviewTargetOrigin(),
     );
+    const reconcile = () => sync(true);
+    window.addEventListener("widgetizer:composition-reconcile", reconcile);
     window.addEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
     sync();
     iframe.addEventListener("load", sync);
     return () => {
       iframe.removeEventListener("load", sync);
       window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
+      window.removeEventListener("widgetizer:composition-reconcile", reconcile);
     };
-  }, [iframeRef, page, schemas, previewReadyKey]);
+  }, [iframeRef, page, schemas, previewReadyKey, compositionLayoutContext]);
 
   useEffect(() => {
     const iframe = iframeRef?.current;
@@ -124,6 +140,9 @@ export default function SelectionOverlay({
         handleImageAlignmentMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;
       }
+      if (event.data?.type === "COMPOSITION_MOVE") {
+        handleCompositionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
+      }
       if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
         handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;
@@ -154,6 +173,7 @@ export default function SelectionOverlay({
 
         case "REORDER_WIDGET": {
           const { widgetId, direction } = payload;
+          if (page?.layout) { reorderContentBlock(widgetId, direction); break; }
           const currentOrder = page?.widgetsOrder;
           if (!currentOrder || !widgetId) break;
 

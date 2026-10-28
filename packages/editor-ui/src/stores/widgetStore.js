@@ -1,3 +1,5 @@
+import { compositionFor } from "@widgetizer/core/composition";
+import { applyCompositionGeometry } from "../lib/compositionActions";
 import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform, supportsImageUnits, defaultImageTransform } from "@widgetizer/core/imageTransform";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, isImageWidth, isImageHeight, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { SPACING_FIELDS, isImageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
@@ -171,6 +173,9 @@ const useWidgetStore = create((set, get) => ({
     set({ hoveredWidgetId: widgetId, hoveredBlockId: blockId });
   },
 
+  compositionContext: "desktop",
+  setCompositionContext: (context) => set({ compositionContext: context }),
+
   resetSelection: () => {
     set({
       ...getWidgetSelectionState(null),
@@ -309,6 +314,10 @@ const useWidgetStore = create((set, get) => ({
         Object.hasOwn(values, IMAGE_WIDTH_SETTING) && !isImageWidth(values[IMAGE_WIDTH_SETTING])) return;
 
     const widget = page.widgets[widgetId];
+    if (compositionFor(page, widgetId) && Object.hasOwn(values, "image_transform")) {
+      if (!isImageTransform(values.image_transform) || values.image_transform.version !== 2) return;
+      return applyCompositionGeometry(widgetId, { transform: values.image_transform, ...(values.image_transform.alignment !== widget.settings.image_transform.alignment ? { alignment: values.image_transform.alignment } : {}) }, { fullwidth: values.fullwidth });
+    }
     if (supportsImageSpacing(widget, get().schemas[widget.type]) && Object.keys(values).some((key) => Object.hasOwn(SPACING_FIELDS, key) || ["top_spacing", "bottom_spacing"].includes(key))) {
       if (Object.entries(values).some(([key, value]) => Object.hasOwn(SPACING_FIELDS, key) && !isImageSpacing(value))) return;
       if (Object.entries(values).every(([key, value]) => widget.settings?.[key] === value)) return;
