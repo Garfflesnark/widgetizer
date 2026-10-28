@@ -41,9 +41,13 @@ it("moves with pins and mixed dimension modes in one Undo/Redo boundary, round t
   expect(
     JSON.parse(JSON.stringify(usePageStore.getState().page)).layout.compositions.canvas.placements.a.frames.desktop,
   ).toEqual(frame);
+  expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
   usePageStore.temporal.getState().undo();
+  expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
   expect(usePageStore.getState().page).toEqual(before);
   usePageStore.temporal.getState().redo();
+  expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
+  expect(useWidgetStore.getState().selectedCompositionId).toBeNull();
   expect(usePageStore.getState().page.layout.compositions.canvas.placements.a.frames.desktop).toEqual(frame);
 });
 it("layers separately and moves the Composition Block separately from reading or paint order", () => {

@@ -201,3 +201,65 @@ it("switches exclusive arrow ownership immediately between child and Composition
   message("UPDATE_SELECTION", { widgetId: "w1" });
   expect(document.querySelector('[data-order-scope]').title).toBe("Bring Forward");
 });
+
+it("toggles temporary Move mode with green pressed feedback and clears it at hierarchy/context boundaries", () => {
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  let button = document.querySelector("[data-composition-move]");
+  expect(button.getAttribute("aria-pressed")).toBe("false");
+  button.click(); button = document.querySelector("[data-composition-move]");
+  expect(button.getAttribute("aria-pressed")).toBe("true");
+  expect(getComputedStyle(button).backgroundColor).toBe("rgb(0, 230, 118)");
+  expect(button.title).toBe("Disable Move mode");
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("true");
+  document.querySelector("[data-composition-move]").click();
+  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("false");
+  document.querySelector("[data-composition-move]").click();
+  message("UPDATE_SELECTION", { compositionId: "canvas" });
+  expect(document.querySelector("[data-composition-move]")).toBeNull();
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("false");
+  document.querySelector("[data-composition-move]").click();
+  window.dispatchEvent(new MessageEvent("message", { data: { type: "COMPOSITION_SYNC", context: "mobile", payload: {} }, source: window.parent, origin }));
+  expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("false");
+});
+it("preserves image selection through repeated captured releases, cancellation and synchronization", () => {
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  const area = document.querySelector("[data-composition-id]");
+  document.querySelector("[data-composition-move]").click();
+  sent.length = 0;
+  for (let i = 0; i < 2; i++) {
+    pointer(document.querySelector("img"), "pointerdown", 300);
+    pointer(document, "pointermove", 400);
+    pointer(document, "pointerup", 400);
+    area.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+    message("UPDATE_SELECTION", { widgetId: "w1" });
+    expect(document.querySelector("[data-composition-move]").getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector("[data-order-scope]").title).toBe("Bring Forward");
+    expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(8);
+  }
+  expect(sent.filter(e => e.type === "COMPOSITION_MOVE")).toHaveLength(2);
+  expect(sent.filter(e => e.type === "COMPOSITION_SELECTED")).toHaveLength(0);
+  pointer(document.querySelector("img"), "pointerdown", 300);
+  pointer(document, "pointermove", 400);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  area.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+  expect(sent.filter(e => e.type === "COMPOSITION_SELECTED")).toHaveLength(0);
+  pointer(area, "pointerdown", 10); area.click();
+  expect(sent.at(-1).type).toBe("COMPOSITION_SELECTED");
+});
+it("keeps toolbar and all handle hit areas on negative image coordinates after nested scrolling and zoom", async () => {
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  message("EDITOR_ZOOM", 0.5);
+  const image = document.querySelector("img");
+  image.getBoundingClientRect = () => ({ left: -20, right: 580, top: -200, bottom: 100, width: 600, height: 300 });
+  document.querySelector("[data-composition-child]").dispatchEvent(new Event("scroll"));
+  await new Promise(resolve => window.requestAnimationFrame(resolve));
+  const handle = document.querySelector('[data-resize-direction="nw"]');
+  expect(handle.style.left).toBe("-32px"); expect(handle.style.top).toBe("-212px");
+  expect(handle.style.width).toBe("24px"); expect(handle.style.pointerEvents).toBe("auto");
+  expect(document.querySelector(".wz-image-selection").style.top).toBe("-200px");
+  expect(document.querySelector(".wz-image-controls").style.top).toBe("-6px");
+  expect(document.querySelectorAll('[data-composition-move]')).toHaveLength(1);
+  message("EDITOR_ZOOM", 1);
+});

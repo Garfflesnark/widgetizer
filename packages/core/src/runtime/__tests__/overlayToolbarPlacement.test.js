@@ -11,5 +11,12 @@ it.each([
   const left = image.left + (image.width - toolbar.width) / 2 + result.shift;
   expect(left).toBeGreaterThanOrEqual(4);
   expect(left + toolbar.width).toBeLessThanOrEqual(viewport - 4);
-  expect(image.top + result.top).toBeGreaterThanOrEqual(2);
+  expect(result.top).toBe(-toolbar.height - 6);
+});
+
+it("never pins the toolbar vertically while the image scrolls out of view", () => {
+  for (const top of [500, 10, -50, -500]) {
+    const result = overlayToolbarPlacement({ left: 100, top, width: 200 }, { width: 250, height: 48 }, 390);
+    expect(result.top).toBe(-54);
+  }
 });

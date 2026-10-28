@@ -426,8 +426,8 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
             : rect.top + rect.height / 2;
         Object.assign(handle.style, {
           position: "absolute",
-          left: `${Math.max(0, Math.min(document.defaultView.innerWidth - 2 * handleRadius, x - handleRadius))}px`,
-          top: `${Math.max(0, y - handleRadius)}px`,
+          left: `${x - handleRadius}px`,
+          top: `${y - handleRadius}px`,
           width: `${2 * handleRadius}px`,
           height: `${2 * handleRadius}px`,
           border: "2px solid white",

@@ -8,11 +8,18 @@ export function createCompositionMoveController({
   measure = (widget) => widget.getBoundingClientRect(),
   onStart,
   getContext,
+  isEnabled = () => true,
 }) {
   let gesture = null,
     raf = null,
-    suppressClick = false;
+    releaseClick = null,
+    releaseTimer = null;
   const view = document.defaultView;
+  const clearReleaseClick = () => {
+    releaseClick = null;
+    if (releaseTimer !== null) view.clearTimeout(releaseTimer);
+    releaseTimer = null;
+  };
   const draw = () => {
     raf = null;
     if (gesture) applyCompositionRect(gesture.context, gesture.rect);
@@ -27,10 +34,15 @@ export function createCompositionMoveController({
       raf = null;
     }
     const changed = Math.abs(g.rect.left - g.start.left) + Math.abs(g.rect.top - g.start.top) > 0.01;
+    // Pointer capture retargets the compatibility click to the area/overlay.
+    // Consume only that gesture's click, before any document selection listener.
+    if (g.moved || !g.grip) {
+      clearReleaseClick();
+      releaseClick = { area: g.context.area, capture: g.capture };
+      releaseTimer = view.setTimeout(clearReleaseClick, 500);
+    }
     if (commit && changed) {
       applyCompositionRect(g.context, g.rect);
-      suppressClick = true;
-      view.setTimeout(() => { suppressClick = false; }, 0);
       onCommit({
         widgetId: g.widgetId,
         compositionId: g.context.area.dataset.compositionId,
@@ -42,9 +54,10 @@ export function createCompositionMoveController({
     } else if (g.style === null) g.context.child.removeAttribute("style");
     else g.context.child.setAttribute("style", g.style);
     if (g.capture.hasPointerCapture?.(g.pointerId)) g.capture.releasePointerCapture(g.pointerId);
-    onPreview();
+    if (g.moved || !commit) onPreview();
   };
   const down = (e) => {
+    clearReleaseClick();
     if (e.target.closest(".wz-image-resize-handle")) {
       finish(false);
       return;
@@ -66,10 +79,10 @@ export function createCompositionMoveController({
     const context = compositionContext(widget);
     if (!context?.editable || !(context.scale > 0) || selected() !== widget?.dataset.widgetId || (e.target.closest("button") && !grip))
       return;
+    if (!grip && !isEnabled()) return;
     if (getContext && !getContext()) return;
     const r = measure(widget);
     if (!r) return;
-    onStart?.();
     const box = context.area.getBoundingClientRect(),
       start = {
         left: (r.left - box.left) / context.scale,
@@ -80,18 +93,21 @@ export function createCompositionMoveController({
     const capture = grip ? document.getElementById("wz-selection-overlay") : context.area;
     gesture = {
       context,
+      grip: !!grip,
       interactionContext: getContext?.(),
       revision: context.child.dataset.compositionRevision,
       widgetId: widget.dataset.widgetId,
       pointerId: e.pointerId,
       capture,
+      areaLeft: box.left,
+      areaTop: box.top,
       x: e.clientX,
       y: e.clientY,
       start,
       rect: { ...start },
       style: context.child.getAttribute("style"),
     };
-    capture.setPointerCapture?.(e.pointerId);
+    if (!grip) capture.setPointerCapture?.(e.pointerId);
     e.preventDefault();
     e.stopPropagation();
   };
@@ -99,14 +115,19 @@ export function createCompositionMoveController({
     if (!gesture || e.pointerId !== gesture.pointerId) return;
     const g = gesture;
     if (Math.hypot(e.clientX - g.x, e.clientY - g.y) <= 3 && !g.moved) return;
-    g.moved = true;
+    if (!g.moved) {
+      g.moved = true;
+      onStart?.();
+      g.capture.setPointerCapture?.(e.pointerId);
+    }
+    const box = g.context.area.getBoundingClientRect();
     g.rect.left = Math.max(
       0,
-      Math.min(g.context.width - g.start.width, g.start.left + (e.clientX - g.x) / g.context.scale),
+      Math.min(g.context.width - g.start.width, g.start.left + (e.clientX - g.x + g.areaLeft - box.left) / g.context.scale),
     );
     g.rect.top = Math.max(
       0,
-      Math.min(g.context.height - g.start.height, g.start.top + (e.clientY - g.y) / g.context.scale),
+      Math.min(g.context.height - g.start.height, g.start.top + (e.clientY - g.y + g.areaTop - box.top) / g.context.scale),
     );
     if (raf === null) raf = view.requestAnimationFrame(draw);
     e.preventDefault();
@@ -126,10 +147,10 @@ export function createCompositionMoveController({
   };
   const dragStart = (e) => { if (e.target.closest("[data-composition-child]")) e.preventDefault(); };
   const click = (e) => {
-    if (suppressClick) {
-      suppressClick = false;
+    if (e.detail !== 0 && releaseClick && (releaseClick.area.contains(e.target) || releaseClick.capture.contains(e.target))) {
+      clearReleaseClick();
       e.preventDefault();
-      e.stopPropagation();
+      e.stopImmediatePropagation();
     }
   };
   document.addEventListener("dragstart", dragStart, true);
@@ -149,6 +170,7 @@ export function createCompositionMoveController({
     },
     destroy() {
       cancel();
+      clearReleaseClick();
       document.removeEventListener("dragstart", dragStart, true);
       document.removeEventListener("pointerdown", down, true);
       document.removeEventListener("pointermove", move);

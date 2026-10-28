@@ -80,3 +80,77 @@ it("drags linked images without native HTML dragging or mid-gesture canonical re
   expect(commit).toHaveBeenCalledTimes(1);
   expect(commit.mock.calls[0][0].frame.x).toBeCloseTo(220 / 1200, 5);
 });
+
+it("consumes capture-retargeted release clicks before background selection, but permits intentional later clicks", () => {
+  const select = vi.fn();
+  document.addEventListener("click", select, true);
+  try {
+    pointer("pointerdown", 120, 170, document.querySelector("img"));
+    pointer("pointerup", 220, 270);
+    document.querySelector("[data-composition-id]").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+    expect(select).not.toHaveBeenCalled();
+    pointer("pointerdown", 20, 60, document.querySelector("[data-composition-id]"));
+    document.querySelector("[data-composition-id]").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+    expect(select).toHaveBeenCalledTimes(1);
+  } finally { document.removeEventListener("click", select, true); }
+});
+it("keeps repeated gestures independent and suppresses cancellation release without changing stack order", () => {
+  const child = document.querySelector("[data-composition-child]"); child.style.zIndex = "1";
+  const select = vi.fn(); document.addEventListener("click", select, true);
+  try {
+    for (let i = 0; i < 2; i++) {
+      pointer("pointerdown", 120, 170, document.querySelector("img"));
+      pointer("pointerup", 220, 270);
+      document.querySelector("[data-composition-id]").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+    }
+    expect(commit).toHaveBeenCalledTimes(2);
+    pointer("pointerdown", 120, 170, document.querySelector("img"));
+    pointer("pointermove", 220, 270); pointer("pointercancel", 220, 270);
+    document.querySelector("[data-composition-id]").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+    expect(select).not.toHaveBeenCalled();
+    expect(child.style.zIndex).toBe("1");
+    expect(commit).toHaveBeenCalledTimes(2);
+  } finally { document.removeEventListener("click", select, true); }
+});
+it("gates image-body dragging by temporary mode while retaining the movement grip", () => {
+  controller.destroy(); let enabled = false;
+  controller = createCompositionMoveController({ document, selected: () => "a", isEnabled: () => enabled, onPreview: vi.fn(), onCommit: commit });
+  pointer("pointerdown", 120, 170, document.querySelector("img")); pointer("pointerup", 220, 270);
+  expect(commit).not.toHaveBeenCalled();
+  enabled = true;
+  pointer("pointerdown", 120, 170, document.querySelector("img")); pointer("pointerup", 220, 270);
+  expect(commit).toHaveBeenCalledTimes(1);
+  enabled = false;
+  pointer("pointerdown", 120, 170, grip); pointer("pointerup", 220, 270);
+  expect(commit).toHaveBeenCalledTimes(2);
+});
+
+it("retains a stationary grip node for a real click toggle and delays pointer capture until movement", () => {
+  controller.destroy();
+  const preview = vi.fn(), start = vi.fn(), capture = vi.fn();
+  document.querySelector("#wz-selection-overlay").setPointerCapture = capture;
+  controller = createCompositionMoveController({ document, selected: () => "a", onPreview: preview, onStart: start, onCommit: commit });
+  pointer("pointerdown", 120, 170, grip);
+  expect(capture).not.toHaveBeenCalled(); expect(start).not.toHaveBeenCalled();
+  pointer("pointerup", 120, 170);
+  expect(preview).not.toHaveBeenCalled(); expect(grip.isConnected).toBe(true);
+  const click = vi.fn(); grip.addEventListener("click", click); grip.click(); expect(click).toHaveBeenCalledTimes(1);
+  pointer("pointerdown", 120, 170, grip); pointer("pointermove", 220, 270);
+  expect(capture).toHaveBeenCalledTimes(1); expect(start).toHaveBeenCalledTimes(1);
+});
+
+it("does not suppress unrelated keyboard activation after a movement", () => {
+  pointer("pointerdown", 120, 170, document.querySelector("img")); pointer("pointerup", 220, 270);
+  const select = vi.fn(), area = document.querySelector("[data-composition-id]");
+  area.addEventListener("click", select); area.click(); expect(select).toHaveBeenCalledTimes(1);
+});
+it("accounts for nested scrolling in design coordinates during a scaled drag", () => {
+  const area = document.querySelector("[data-composition-id]"); let top = 50;
+  area.getBoundingClientRect = () => ({ left: 0, top, width: 600, height: 400 });
+  document.querySelector("[data-widget-id]").getBoundingClientRect = () => ({ left: 60, top: 110, width: 150, height: 100 });
+  pointer("pointerdown", 60, 110, document.querySelector("img"));
+  top = -50;
+  pointer("pointermove", 110, 160); pointer("pointerup", 110, 160);
+  expect(commit.mock.calls[0][0].frame.x).toBeCloseTo(220 / 1200, 6);
+  expect(commit.mock.calls[0][0].frame.y).toBeCloseTo(420 / 1200, 6);
+});

@@ -333,15 +333,16 @@ function setupScrollBoundsReporting() {
         renderOverlay();
       });
     },
-    { passive: true },
+    { passive: true, capture: true },
   );
 }
 
 // ── Selection Update ────────────────────────────────────────────────────────
 
 function updateSelection(widgetId, blockId, compositionId = null) {
+  widgetId = widgetId || null; blockId = blockId || null;
   if (compositionId) { widgetId = null; blockId = null; }
-  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); }
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionMoveModeFor = null; }
   currentSelectedCompositionId = compositionId;
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
@@ -697,6 +698,7 @@ let overlayContainer = null;
 let imageResizeController = null;
 let compositionMoveController = null;
 let compositionInteractionContext = null;
+let compositionMoveModeFor = null;
 let imageAlignmentMenuFor = null;
 
 function createOverlayContainer() {
@@ -712,6 +714,7 @@ function createOverlayContainer() {
     .wz-widget-label { padding: 1px 8px; font-size: 11px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: white; background: #e0006d; border-radius: 4px; white-space: nowrap; pointer-events: none; line-height: 18px; }
     .wz-hover-label { position: absolute; transform: translateX(-50%); left: 50%; padding: 1px 6px; font-size: 11px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #e0006d; background: #ffd6eb; border-radius: 4px; white-space: nowrap; pointer-events: none; line-height: 18px; }
     .wz-reorder-btn { color: #e0006d; min-width:24px;min-height:24px;justify-content:center; pointer-events: auto; padding: 2px; border-radius: 4px; background: white; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; display: flex; align-items: center; line-height: 0; }
+    .wz-reorder-btn[data-composition-move][aria-pressed="true"] { background: #00e676; color: #064e3b; border-color: #00e676; }
     .wz-reorder-btn:hover { background: #fff0f8; border-color: #f96cb5; }
     .wz-reorder-btn[disabled] { opacity: 0.3; cursor: not-allowed; }
     .wz-reorder-btn[disabled]:hover { background: white; border-color: #e2e8f0; }
@@ -817,13 +820,13 @@ function renderOverlay() {
       html += `</div>`; // .wz-controls
       if (imageRect && displayName) {
         const units = selEl.dataset.imageUnits === "2";
-        html += `<div class="wz-controls wz-image-controls" style="top:${Math.max(2, rect.top - 30) - rect.top}px;">`;
+        html += `<div class="wz-controls wz-image-controls" style="top:-30px;">`;
         if (showReorder) html += `<button type="button" class="wz-reorder-btn" title="${orderControl.upLabel}" aria-label="${orderControl.upLabel}" data-reorder="up" data-order-scope="${orderControl.scope}" data-order-id="${orderControl.id}" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveUp ? "disabled" : ""}>${CHEVRON_UP_SVG}</button>`;
         html += units ? `<button type="button" class="wz-widget-label" data-image-align-menu="${escapeHtml(currentSelectedWidgetId)}" aria-haspopup="menu" aria-expanded="${imageAlignmentMenuFor === currentSelectedWidgetId}">${escapeHtml(displayName)}</button>` :
           `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
         if (showReorder) html += `<button type="button" class="wz-reorder-btn" title="${orderControl.downLabel}" aria-label="${orderControl.downLabel}" data-reorder="down" data-order-scope="${orderControl.scope}" data-order-id="${orderControl.id}" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveDown ? "disabled" : ""}>${CHEVRON_DOWN_SVG}</button>`;
         const composition = compositionContext(selEl);
-        if (composition) html += composition.editable ? `<button type="button" class="wz-reorder-btn" data-composition-move="${currentSelectedWidgetId}" title="Move image" aria-label="Move image">Move</button>` : `<span class="wz-widget-label">Mobile: generated Proportional</span>`;
+        if (composition) html += composition.editable ? `<button type="button" class="wz-reorder-btn" data-composition-move="${currentSelectedWidgetId}" title="${compositionMoveModeFor === currentSelectedWidgetId ? "Disable Move mode" : "Enable Move mode: drag image or Move grip"}" aria-label="Move image" aria-pressed="${compositionMoveModeFor === currentSelectedWidgetId}">Move</button>` : `<span class="wz-widget-label">Mobile: generated Proportional</span>`;
         if (units && imageAlignmentMenuFor === currentSelectedWidgetId) {
           html += `<div class="wz-image-menu" role="menu" aria-label="Image alignment">`;
           for (const [alignment, label] of [["left", "Align Left"], ["center", "Align Center"], ["right", "Align Right"]])
@@ -859,6 +862,10 @@ function renderOverlay() {
     }
   }
 
+  if (compositionMoveModeFor) {
+    const movingWidget = document.querySelector(`[data-widget-id="${compositionMoveModeFor}"]`);
+    if (compositionMoveModeFor !== currentSelectedWidgetId || !compositionContext(movingWidget)?.editable) compositionMoveModeFor = null;
+  }
   overlayContainer.innerHTML = html;
   for (const controls of overlayContainer.querySelectorAll(".wz-image-controls")) {
     const box = controls.getBoundingClientRect();
@@ -883,6 +890,17 @@ function setupOverlayClickHandler() {
   if (!overlayContainer) return;
 
   overlayContainer.addEventListener("click", (event) => {
+    const moveButton = event.target.closest("[data-composition-move]");
+    if (moveButton) {
+      event.preventDefault(); event.stopPropagation();
+      if (moveButton.dataset.compositionMove === currentSelectedWidgetId) {
+        compositionMoveController?.cancel();
+        compositionMoveModeFor = compositionMoveModeFor === currentSelectedWidgetId ? null : currentSelectedWidgetId;
+        renderOverlay();
+        overlayContainer.querySelector("[data-composition-move]")?.focus();
+      }
+      return;
+    }
     const compositionButton = event.target.closest("[data-select-composition]");
     if (compositionButton) { updateSelection(null, null, compositionButton.dataset.selectComposition); postToParent({ type: "COMPOSITION_SELECTED", payload: { compositionId: compositionButton.dataset.selectComposition } }); return; }
     const orderButton = event.target.closest("[data-order-scope]");
@@ -939,7 +957,10 @@ function handleMessage(event) {
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
-    if (typeof event.data.context === "string") compositionInteractionContext = event.data.context;
+    if (typeof event.data.context === "string") {
+      if (compositionInteractionContext !== event.data.context) compositionMoveModeFor = null;
+      compositionInteractionContext = event.data.context;
+    }
     for (const [id, c] of Object.entries(event.data.payload?.compositions || {})) {
       const area = Array.from(document.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id);
       if (!area) continue;
@@ -1314,7 +1335,7 @@ function ensureHeaderScrollListener() {
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
-    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => imageResizeController?.cancel(), selected: () => currentSelectedWidgetId, onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
+    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => imageResizeController?.cancel(), selected: () => currentSelectedWidgetId, isEnabled: () => compositionMoveModeFor === currentSelectedWidgetId, onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
     imageResizeController = createImageResizeController({
       document, isMoving: () => !!compositionMoveController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
     });
@@ -1332,7 +1353,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); renderOverlay(); });
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); if (window.innerWidth < 990) compositionMoveModeFor = null; renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
