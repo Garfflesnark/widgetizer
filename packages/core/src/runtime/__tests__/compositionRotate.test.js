@@ -49,3 +49,12 @@ it("does not edit generated mobile geometry or create click-only history", () =>
   pointer("pointerdown", 225, 135, false, handle); pointer("pointerup", 290, 200);
   expect(commit).not.toHaveBeenCalled();
 });
+it("does not snap an off-grid angle on a stationary Shift click or pointer jitter", () => {
+  child.dataset.compositionFrame = JSON.stringify({ x: 0.25, y: 0.25, pivot: { x: 0, y: 0 }, rotation: 22 });
+  child.style.transform = "rotate(22deg)";
+  pointer("pointerdown", 225, 135, true, handle);
+  pointer("pointermove", 226, 136, true);
+  pointer("pointerup", 225, 135, true);
+  expect(commit).not.toHaveBeenCalled();
+  expect(child.style.transform).toBe("rotate(22deg)");
+});

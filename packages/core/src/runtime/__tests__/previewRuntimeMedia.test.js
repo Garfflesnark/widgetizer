@@ -5,7 +5,7 @@
  * happen) while still selecting the widget, and re-rendering the widget must
  * not load its script again each time.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const widgetHtml = (src) => `
   <section data-widget-id="w1" data-widget-type="video-embed">
@@ -17,6 +17,8 @@ const widgetHtml = (src) => `
 const selections = [];
 
 beforeAll(async () => {
+  window.history.replaceState({}, "", `/?parentOrigin=${encodeURIComponent(window.location.origin)}`);
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
   // No script tag on first load, as when the widget started out as a YouTube embed.
   document.body.innerHTML = widgetHtml("/uploads/a.mp4").replace(/<script[^>]*><\/script>/, "");
   window.parent.postMessage = (data) => {
@@ -24,6 +26,7 @@ beforeAll(async () => {
   };
   await import("../previewRuntime.js");
 });
+afterAll(() => vi.unstubAllGlobals());
 
 function click(target) {
   const event = new MouseEvent("click", { bubbles: true, cancelable: true });

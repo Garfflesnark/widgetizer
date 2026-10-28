@@ -24,6 +24,8 @@ export function createCompositionRotateController({ document, selected, getConte
   const move = (e) => {
     if (!gesture || gesture.pointerId !== e.pointerId) return;
     const g = gesture, box = g.context.area.getBoundingClientRect();
+    if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 3) return;
+    g.moved = true;
     const cx = box.left + (g.rect.left + g.rect.width / 2) * g.context.scale;
     const cy = box.top + (g.rect.top + g.rect.height / 2) * g.context.scale;
     const raw = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
@@ -54,6 +56,7 @@ export function createCompositionRotateController({ document, selected, getConte
     gesture = { context, rect, id: selected(), interactionContext: getContext(),
       revision: context.child.dataset.compositionRevision, pointerId: e.pointerId, capture,
       style: context.child.getAttribute("style"), angle: context.frame.rotation || 0,
+      startX: e.clientX, startY: e.clientY, moved: false,
       startPointerAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI };
     capture.setPointerCapture?.(e.pointerId);
     e.preventDefault(); e.stopImmediatePropagation();

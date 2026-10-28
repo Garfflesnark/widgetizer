@@ -27,3 +27,9 @@ Regression coverage includes angle validation/normalization, rotated point hit t
 Use only RESIZE LAB (`53f6b4e8-6e6a-4b5d-8554-cf3c7c3940a8`), page TEST/test. The protected original project is `data/projects/test` (TEST/PIZZA). Snapshot the lab page and hash the protected project before acceptance. No theme file changes are required; this is platform/editor code.
 
 Acceptance: rotate TREE and linked LIMINAL with the handle; test Shift and Escape; enter positive/negative decimal angles; Undo/Redo each action; select through rotated images and empty bounding-box corners; resize each node and a green pin at a nonzero angle; test conflicting pins, numeric sizes, units, alignment, lock and layer controls; save/reload; compare Desktop/Mobile preview with static export. Do not merge without explicit approval. Automated tests are not human pointer acceptance.
+
+### Recorded validation
+
+Final focused run: 296 Vitest tests across 18 files passed (all core runtime tests, composition actions, resize bridge, composition renderer). Real storage/preview/export integration: 12 tests passed. The media runtime fixture now supplies ResizeObserver and the trusted parent origin, matching the browser environment. Rotation requires 3 CSS pixels of pointer movement before starting, preventing Shift-click jitter from changing an off-grid angle.
+
+RESIZE LAB browser checks verified decimal input, Undo/Redo, save/reload, rotated outlines, pin toggling and rotation with Movement Lock. Newer user-saved TREE/LIMINAL edits were preserved. Native drag automation could not safely resolve iframe coordinates; the later browser connection interrupted mobile checks. Full human pointer/Shift/resize and mobile/export visual acceptance remains pending. Automated coverage does not replace these checks. All 274 files in protected TEST/PIZZA matched the pre-acceptance SHA-256 manifest.
