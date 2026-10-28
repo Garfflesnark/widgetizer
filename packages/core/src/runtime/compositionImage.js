@@ -29,7 +29,7 @@ export const compositionImageAdapter = {
 export const compositionAdapters = { image: compositionImageAdapter };
 export function validateImageCompositionBounds(widget, composition, frame, naturalWidth, naturalHeight) {
   const rect = compositionImageRect(widget, composition, frame, naturalWidth, naturalHeight);
-  if (!containedRect(rect, composition.profiles.desktop.referenceWidthPx, composition.profiles.desktop.height.valuePx))
+  if (!containedRect(rect, composition.profiles.desktop.referenceWidthPx, composition.profiles.desktop.height.valuePx, frame.rotation))
     throw new Error("Composition image exceeds canvas bounds. Enlarge the Composition Area or resize the image.");
   return rect;
 }

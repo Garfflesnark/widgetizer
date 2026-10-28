@@ -46,7 +46,8 @@
     "./widgets/locales/*": "./src/widgets/locales/*",
     "./orderingControls": "./src/runtime/orderingControls.js",
     "./composition": "./src/runtime/composition.js",
-    "./compositionImage": "./src/runtime/compositionImage.js"
+    "./compositionImage": "./src/runtime/compositionImage.js",
+    "./rotationGeometry": "./src/runtime/rotationGeometry.js"
   },
   "dependencies": {
     "liquidjs": "^10.26.0",

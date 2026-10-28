@@ -1,6 +1,7 @@
 import { overlayToolbarPlacement } from "./overlayToolbarPlacement.js";
 import { compositionImageAdapter } from "./compositionImage.js";
 import { createCompositionMoveController } from "./compositionMove.js";
+import { createCompositionRotateController } from "./compositionRotate.js";
 import { compositionContext } from "./compositionDOM.js";
 import { getEditorHistoryShortcut } from "./editorHistoryShortcut.js";
 /*
@@ -342,7 +343,7 @@ function setupScrollBoundsReporting() {
 function updateSelection(widgetId, blockId, compositionId = null) {
   widgetId = widgetId || null; blockId = blockId || null;
   if (compositionId) { widgetId = null; blockId = null; }
-  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); }
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); }
   currentSelectedCompositionId = compositionId;
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
@@ -697,6 +698,7 @@ const CHEVRON_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" hei
 let overlayContainer = null;
 let imageResizeController = null;
 let compositionMoveController = null;
+let compositionRotateController = null;
 let compositionInteractionContext = null;
 let compositionMovementLocks = {};
 let imageAlignmentMenuFor = null;
@@ -801,7 +803,7 @@ function renderOverlay() {
       const canMoveDown = orderControl.down ?? reorderInfo?.[currentSelectedWidgetId]?.down ?? (isPageWidget && widgetIndex < widgetOrder.length - 1);
       const showReorder = orderControl.scope === "image" || (isPageWidget && widgetOrder.length > 1);
 
-      html += `<div class="wz-selection-box${imageRect ? " wz-image-selection" : ""}" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;${imageRect ? "border:2px dashed #e0006d;box-shadow:none;" : ""}">`;
+      html += `<div class="wz-selection-box${imageRect ? " wz-image-selection" : ""}" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;${imageRect ? (compositionContext(selEl) ? "border:2px solid transparent;box-shadow:none;" : "border:2px dashed #e0006d;box-shadow:none;") : ""}">`;
 
       // Controls bar above the selection box
       html += `<div class="wz-controls" style="top:${controlsRect.top - rect.top - 24}px;">`;
@@ -878,7 +880,8 @@ function renderOverlay() {
   const selected = Array.from(document.querySelectorAll("[data-widget-id]")).find(
     (element) => element.dataset.widgetId === currentSelectedWidgetId,
   );
-  imageResizeController?.renderHandle(overlayContainer, selected, currentSelectedBlockId);
+  if (!compositionRotateController?.active) imageResizeController?.renderHandle(overlayContainer, selected, currentSelectedBlockId);
+  compositionRotateController?.render(overlayContainer, selected, currentSelectedBlockId);
 }
 
 function escapeHtml(str) {
@@ -958,11 +961,12 @@ function handleMessage(event) {
     const zoom = event.data.payload;
     if (typeof zoom !== "number" || !Number.isFinite(zoom) || zoom <= 0 || zoom > 1) return;
     document.documentElement.style.setProperty("--wz-editor-inverse-zoom", String(1 / zoom));
-    imageResizeController?.cancel(); compositionMoveController?.cancel(); renderOverlay(); return;
+    imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); renderOverlay(); return;
   }
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
+    compositionRotateController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     if (typeof event.data.context === "string") compositionInteractionContext = event.data.context;
     compositionMovementLocks = Object.fromEntries(Object.entries(event.data.movementLocks || {}).filter(([id, area]) =>
       typeof area === "string" && event.data.payload?.compositions?.[area]?.childrenOrder?.includes(id)));
@@ -973,6 +977,10 @@ function handleMessage(event) {
         const widgetId = child.dataset.compositionChild, frame = c.placements?.[widgetId]?.frames?.desktop;
         if (!frame || !Number.isFinite(frame.x) || !Number.isFinite(frame.y)) continue;
         child.dataset.compositionFrame = JSON.stringify(frame);
+        if (!compositionRotateController?.active) {
+          child.style.transform = `rotate(${frame.rotation || 0}deg)`;
+          child.style.transformOrigin = "50% 50%";
+        }
         if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
         child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
       }
@@ -1190,7 +1198,7 @@ function trackWidgetObserver(widgetId, observer) {
 }
 
 function morphWidget(widgetId, newHtml) {
-  if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); }
+  if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); }
   const existingElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
   if (!existingElement) {
     console.warn(`[PreviewRuntime] Widget ${widgetId} not found for morphing`);
@@ -1340,9 +1348,12 @@ function ensureHeaderScrollListener() {
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
-    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => imageResizeController?.cancel(), selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
+    compositionRotateController = createCompositionRotateController({ document, selected: () => currentSelectedWidgetId,
+      getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); },
+      onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_ROTATE", payload }) });
+    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
     imageResizeController = createImageResizeController({
-      document, isMoving: () => !!compositionMoveController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
+      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
     });
   }
   if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
@@ -1358,7 +1369,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); renderOverlay(); });
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

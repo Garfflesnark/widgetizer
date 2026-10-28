@@ -8,6 +8,7 @@ import {
   layerImage,
   returnCompositionToFlow,
   commitCompositionPage,
+  rotateCompositionImage,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, blockSelected = false }) {
@@ -82,6 +83,23 @@ export default function CompositionControls({ widgetId, blockSelected = false })
               Send Backward
             </button>
           </div>}
+          {!blockSelected && <label className="block text-xs">
+            Rotation (° clockwise)
+            <input key={`${widgetId}:${found[1].placements[widgetId].frames.desktop.rotation || 0}`}
+              aria-label="Image rotation angle" className="border w-full" type="number" step="0.1"
+              disabled={context !== "desktop"}
+              defaultValue={found[1].placements[widgetId].frames.desktop.rotation || 0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") { e.currentTarget.value = found[1].placements[widgetId].frames.desktop.rotation || 0; e.currentTarget.blur(); }
+              }}
+              onBlur={(e) => {
+                const angle = e.currentTarget.valueAsNumber;
+                const accepted = rotateCompositionImage(widgetId, angle);
+                if (!accepted) e.currentTarget.value = found[1].placements[widgetId].frames.desktop.rotation || 0;
+              }} />
+            Drag the circular handle; Shift snaps to 15°. Rotation rebases retained pins.
+          </label>}
           <label className="block text-xs">
             Canvas height (px)
             <input

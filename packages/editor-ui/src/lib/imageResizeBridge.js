@@ -46,7 +46,8 @@ export function handleImageResizeMessage(event, iframeWindow, origin) {
     if (!supportsImageTransform(selected, store.schemas[selected.type]) || !isImageTransform(payload.transform) ||
         (payload.transform.version === 2 && !supportsImageUnits(selected, store.schemas[selected.type])) ||
         JSON.stringify(previous) !== JSON.stringify(payload.startTransform) || JSON.stringify(previous) === JSON.stringify(payload.transform)) return false;
-    if (compositionFor(page, widgetId)) return payload.interactionContext === compositionInteractionContext() && applyCompositionGeometry(widgetId, { frame: payload.frame, startFrame: payload.startFrame, transform: payload.transform, startTransform: payload.startTransform });
+    const composition = compositionFor(page, widgetId);
+    if (composition) return (payload.frame?.rotation || 0) === (composition[1].placements[widgetId].frames.desktop.rotation || 0) && payload.interactionContext === compositionInteractionContext() && applyCompositionGeometry(widgetId, { frame: payload.frame, startFrame: payload.startFrame, transform: payload.transform, startTransform: payload.startTransform });
     usePageStore.getState().beginHistoryStep();
     store.updateWidgetSettingValues(widgetId, { image_transform: payload.transform });
     usePageStore.getState().beginHistoryStep();

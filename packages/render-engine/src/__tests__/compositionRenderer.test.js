@@ -42,3 +42,14 @@ it("identifies an uninitialized Custom policy as Proportional fallback without s
   expect(html).toContain('data-responsive-fallback="proportional"');
   expect(JSON.stringify(p)).toBe(before);
 });
+
+it("renders persisted clockwise rotation identically in preview/export without changing unrotated dimensions", async () => {
+  const page = fixture();
+  page.layout.compositions.canvas.placements.a.version = 2;
+  page.layout.compositions.canvas.placements.a.frames.desktop.rotation = -45;
+  const preview = await renderPageContent(page, render);
+  expect(preview).toBe(await renderPageContent(JSON.parse(JSON.stringify(page)), render));
+  expect(preview).toContain("transform:rotate(-45deg);transform-origin:50% 50%");
+  expect(preview).toContain("left:37.5%;top:22.5%;width:25%;height:25%;z-index:1");
+  expect(preview).not.toMatch(/composition-rotate|wz-image/);
+});

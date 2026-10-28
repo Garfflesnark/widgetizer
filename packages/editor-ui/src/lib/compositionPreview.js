@@ -9,9 +9,11 @@ export function isCompositionGeometryOnlyChange(before, after) {
     for (const c of Object.values(page.layout.compositions)) {
       for (const p of Object.values(c.placements))
         if (p.frames?.desktop) {
+          delete p.version;
           delete p.frames.desktop.x;
           delete p.frames.desktop.y;
           delete p.frames.desktop.pivot;
+          delete p.frames.desktop.rotation;
         }
       delete c.stackOrder;
     }

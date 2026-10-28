@@ -18,6 +18,7 @@ import {
   handleCompositionLockMessage,
   getCompositionMovementLocks,
   returnCompositionToFlow,
+  rotateCompositionImage,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -35,6 +36,41 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+it("precisely rotates with retained pins and position lock, one Undo/Redo step and a versioned JSON round trip", () => {
+  const before = structuredClone(usePageStore.getState().page);
+  const iframe = {}, origin = "https://preview.example";
+  handleCompositionLockMessage({ source: iframe, origin, data: { type: "COMPOSITION_LOCK", payload: {
+    widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(), locked: true,
+  } } }, iframe, origin);
+  expect(rotateCompositionImage("a", 382.125)).toBe(true);
+  const next = usePageStore.getState().page;
+  expect(next.widgets).toEqual(before.widgets);
+  expect(next.layout.compositions.canvas.placements.a).toMatchObject({ version: 2, frames: { desktop: { rotation: 22.125 } } });
+  expect(next.layout.compositions.canvas.stackOrder).toEqual(before.layout.compositions.canvas.stackOrder);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(JSON.parse(JSON.stringify(next))).toEqual(next);
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); expect(usePageStore.getState().page).toEqual(next);
+  expect(getCompositionMovementLocks()).toEqual({ a: "canvas" });
+  expect(rotateCompositionImage("a", 22.125)).toBe(false);
+  expect(rotateCompositionImage("a", NaN)).toBe(false);
+});
+it("rejects rotation messages with foreign origins, stale context/revision, or position changes", () => {
+  const iframe = {}, origin = "https://preview.example", page = usePageStore.getState().page;
+  const start = page.layout.compositions.canvas.placements.a.frames.desktop;
+  const e = { source: iframe, origin, data: { type: "COMPOSITION_ROTATE", payload: {
+    widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(),
+    startRevision: compositionRevision(page.widgets.a, start), startFrame: start, frame: { ...start, rotation: 45 },
+  } } };
+  expect(handleCompositionMessage({ ...e, source: {} }, iframe, origin)).toBe(false);
+  expect(handleCompositionMessage({ ...e, origin: "https://evil.example" }, iframe, origin)).toBe(false);
+  expect(handleCompositionMessage({ ...e, data: { ...e.data, payload: { ...e.data.payload, frame: { ...start, x: 0.6, rotation: 45 } } } }, iframe, origin)).toBe(false);
+  expect(handleCompositionMessage({ ...e, data: { ...e.data, payload: { ...e.data.payload, startRevision: "old" } } }, iframe, origin)).toBe(false);
+  expect(handleCompositionMessage(e, iframe, origin)).toBe(true);
+  expect(handleCompositionMessage(e, iframe, origin)).toBe(false);
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  expect(rotateCompositionImage("a", 20)).toBe(false);
+});
 it("moves with pins and mixed dimension modes in one Undo/Redo boundary, round trips JSON", () => {
   const before = structuredClone(usePageStore.getState().page),
     start = before.layout.compositions.canvas.placements.a.frames.desktop;

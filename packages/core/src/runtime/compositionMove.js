@@ -1,4 +1,5 @@
-import { compositionContext, applyCompositionRect, compositionFrame } from "./compositionDOM.js";
+import { compositionContext, applyCompositionRect, compositionFrame, unrotatedCompositionRect } from "./compositionDOM.js";
+import { rotatedBounds } from "./rotationGeometry.js";
 
 export function createCompositionMoveController({
   document,
@@ -66,7 +67,7 @@ export function createCompositionMoveController({
       e.button !== 0 ||
       gesture ||
       e.target.closest(
-        ".wz-image-resize-handle,[data-image-align-menu],.wz-image-menu,[data-widget-reorder],[data-order-scope],[data-select-composition],[data-composition-lock],input,textarea,select",
+        ".wz-image-resize-handle,[data-composition-rotate],[data-image-align-menu],.wz-image-menu,[data-widget-reorder],[data-order-scope],[data-select-composition],[data-composition-lock],input,textarea,select",
       )
     )
       return;
@@ -84,7 +85,7 @@ export function createCompositionMoveController({
     const r = measure(widget);
     if (!r) return;
     const box = context.area.getBoundingClientRect(),
-      start = {
+      start = context.frame.rotation ? unrotatedCompositionRect(context) : {
         left: (r.left - box.left) / context.scale,
         top: (r.top - box.top) / context.scale,
         width: r.width / context.scale,
@@ -121,13 +122,15 @@ export function createCompositionMoveController({
       g.capture.setPointerCapture?.(e.pointerId);
     }
     const box = g.context.area.getBoundingClientRect();
+    const rotated = rotatedBounds(g.start, g.context.frame.rotation);
+    const insetX = rotated.left - g.start.left, insetY = rotated.top - g.start.top;
     g.rect.left = Math.max(
-      0,
-      Math.min(g.context.width - g.start.width, g.start.left + (e.clientX - g.x + g.areaLeft - box.left) / g.context.scale),
+      -insetX,
+      Math.min(g.context.width - rotated.width - insetX, g.start.left + (e.clientX - g.x + g.areaLeft - box.left) / g.context.scale),
     );
     g.rect.top = Math.max(
-      0,
-      Math.min(g.context.height - g.start.height, g.start.top + (e.clientY - g.y + g.areaTop - box.top) / g.context.scale),
+      -insetY,
+      Math.min(g.context.height - rotated.height - insetY, g.start.top + (e.clientY - g.y + g.areaTop - box.top) / g.context.scale),
     );
     if (raf === null) raf = view.requestAnimationFrame(draw);
     e.preventDefault();

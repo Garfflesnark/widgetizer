@@ -1,4 +1,5 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
+import { normalizeAngle } from "@widgetizer/core/rotationGeometry";
 import {
   changeStack,
   compositionFor,
@@ -20,6 +21,16 @@ import useToastStore from "../stores/toastStore";
 export function compositionInteractionContext() {
   const state = usePageStore.getState();
   return JSON.stringify([state.loadedProjectId, state.page?.id, useWidgetStore.getState().compositionContext]);
+}
+
+export function rotateCompositionImage(widgetId, angle) {
+  if (typeof angle !== "number" || !Number.isFinite(angle) || Math.abs(angle) > 360000) return false;
+  const found = compositionFor(usePageStore.getState().page, widgetId);
+  if (!found) return false;
+  const frame = found[1].placements[widgetId].frames.desktop;
+  const rotation = normalizeAngle(angle);
+  if ((frame.rotation || 0) === rotation) return false;
+  return applyCompositionGeometry(widgetId, { frame: { ...frame, rotation }, startFrame: frame });
 }
 
 // Interaction locks survive preview replacement and selection/context changes,
@@ -66,6 +77,7 @@ export function commitCompositionPage(next) {
           compositionRect(c.placements[id].frames.desktop, size.width, size.height, basis.containerWidth),
           basis.containerWidth,
           c.profiles.desktop.height.valuePx,
+          c.placements[id].frames.desktop.rotation,
         )
       )
         throw new Error("Image exceeds the Composition Area. Increase its height or resize the image first.");
@@ -151,6 +163,7 @@ export function applyCompositionGeometry(widgetId, { frame, startFrame, transfor
   if (transform) next.widgets[widgetId].settings.image_transform = transform;
   if (typeof additionalSettings.fullwidth === "boolean") next.widgets[widgetId].settings.fullwidth = additionalSettings.fullwidth;
   target.frames.desktop = frame || target.frames.desktop;
+  if (target.frames.desktop.rotation !== undefined) target.version = 2;
   try {
     validateCompositionLayout(next, compositionAdapters);
   } catch {
@@ -172,9 +185,9 @@ export function applyCompositionGeometry(widgetId, { frame, startFrame, transfor
       left: Math.max(0, Math.min(width - rect.width, rect.left)),
       top: Math.max(0, Math.min(height - rect.height, rect.top)),
     };
-    target.frames.desktop = frameFromRect(rect, target.frames.desktop.pivot, width);
+    target.frames.desktop = { ...target.frames.desktop, ...frameFromRect(rect, target.frames.desktop.pivot, width) };
   }
-  if (!containedRect(rect, width, height)) {
+  if (!containedRect(rect, width, height, target.frames.desktop.rotation)) {
     useToastStore.getState().showToast("Image exceeds the Composition Area. Increase its height or resize the image first.", "error");
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("widgetizer:composition-reconcile"));
     return false;
@@ -191,7 +204,7 @@ export function handleCompositionMessage(event, iframe, origin) {
     event.source !== iframe ||
     origin === "*" ||
     event.origin !== origin ||
-    event.data?.type !== "COMPOSITION_MOVE"
+    !["COMPOSITION_MOVE", "COMPOSITION_ROTATE"].includes(event.data?.type)
   )
     return false;
   const p = event.data.payload,
@@ -202,12 +215,18 @@ export function handleCompositionMessage(event, iframe, origin) {
     p.interactionContext !== compositionInteractionContext() ||
     store.selectedWidgetId !== p.widgetId ||
     store.selectedBlockId ||
-    getCompositionMovementLocks()[p.widgetId] ||
+    (event.data.type === "COMPOSITION_MOVE" && getCompositionMovementLocks()[p.widgetId]) ||
     !found ||
     found[0] !== p.compositionId
   )
     return false;
   const current = usePageStore.getState().page;
+  const original = found[1].placements[p.widgetId].frames.desktop;
+  // Each bridge authorizes only its own geometry channel.
+  if (event.data.type === "COMPOSITION_ROTATE") {
+    if (!p.frame || !Number.isFinite(p.frame.rotation) ||
+        JSON.stringify({ ...p.frame, rotation: undefined }) !== JSON.stringify({ ...original, rotation: undefined })) return false;
+  } else if ((p.frame?.rotation || 0) !== (original.rotation || 0)) return false;
   if (
     p.startRevision !== compositionRevision(current.widgets[p.widgetId], found[1].placements[p.widgetId].frames.desktop)
   )

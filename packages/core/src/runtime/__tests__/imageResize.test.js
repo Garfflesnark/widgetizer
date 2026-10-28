@@ -1,5 +1,6 @@
 import { imageReference, transformRect } from "../imageTransform.js";
 import { compositionRect } from "../composition.js";
+import { rotatedBounds, rotatedPoint, rotateVector } from "../rotationGeometry.js";
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createImageResizeController, imageWidth, isImageWidth } from "../imageResize.js";
@@ -52,6 +53,35 @@ function pinnedFixture(anchors = []) {
   controller.setSizes({ w1: { width: 100, height: 0, transform } }); render();
   return transform;
 }
+it.each([["px", "px"], ["px", "%"], ["%", "px"], ["%", "%"]])("resizes a rotated %s/%s composition image in local axes and keeps its green pin", (widthUnit, heightUnit) => {
+  const model = pinnedFixture(["nw"]);
+  model.dimensions = { width: { unit: widthUnit, value: widthUnit === "px" ? 200 : 20 },
+    height: { unit: heightUnit, value: heightUnit === "px" ? 100 : 20 } };
+  const frame = { x: 0.5, y: 0.3, pivot: { x: 0.5, y: 0.5 }, rotation: 90 };
+  const area = document.createElement("section"), child = document.createElement("div");
+  area.dataset.compositionId = "canvas"; area.dataset.compositionWidth = "1000"; area.dataset.compositionHeight = "800";
+  child.dataset.compositionChild = "w1"; child.dataset.compositionFrame = JSON.stringify(frame);
+  widget.before(area); area.append(child); child.append(widget);
+  area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 500, height: 400 });
+  const initial = compositionRect(frame, 200, 100, 1000), bounds = rotatedBounds(initial, 90);
+  const screen = { left: bounds.left / 2, top: bounds.top / 2, width: bounds.width / 2, height: bounds.height / 2 };
+  child.getBoundingClientRect = () => screen;
+  target.querySelector("img").getBoundingClientRect = () => ({ ...screen, right: screen.left + screen.width, bottom: screen.top + screen.height });
+  controller.setSizes({ w1: { width: 100, height: 0, transform: model } }); render();
+  const node = overlay.querySelector('[data-resize-direction="se"]');
+  const start = rotatedPoint(initial, 1, 1, 90), delta = rotateVector(20, 10, 90);
+  pointer(node, "pointerdown", start.x / 2, 1, start.y / 2);
+  pointer(document, "pointerup", (start.x + delta.x) / 2, 1, (start.y + delta.y) / 2);
+  expect(commit).toHaveBeenCalledTimes(1);
+  const payload = commit.mock.calls[0][0];
+  expect(payload.frame.rotation).toBe(90); expect(payload.transform.anchors).toEqual(["nw"]);
+  expect(payload.transform.dimensions.width.unit).toBe(widthUnit); expect(payload.transform.dimensions.height.unit).toBe(heightUnit);
+  const size = transformRect(payload.transform, imageReference(1000, 1000, 500));
+  expect(size.width).toBeCloseTo(220, 2); expect(size.height).toBeCloseTo(110, 2);
+  const after = compositionRect(payload.frame, size.width, size.height, 1000);
+  const pinBefore = rotatedPoint(initial, 0, 0, 90), pinAfter = rotatedPoint(after, 0, 0, 90);
+  expect(pinAfter.x).toBeCloseTo(pinBefore.x, 2); expect(pinAfter.y).toBeCloseTo(pinBefore.y, 2);
+});
 it("rebases mid-drag Shift changes without jumping and commits the whole interaction once", () => {
   pinnedFixture();
   pointer(overlay.querySelector('[data-resize-direction="se"]'), "pointerdown", 1000, 1, 500);

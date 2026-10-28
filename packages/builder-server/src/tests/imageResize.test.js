@@ -321,6 +321,8 @@ it("saves Composition membership/stacking and shares exact preview/export placem
     a: { x: 0.5, y: 0.15, pivot: { x: 0.5, y: 0 } }, b: { x: 0.4, y: 0.2, pivot: { x: 0, y: 0 } },
   });
   page.layout.compositions.canvas.stackOrder = ["b", "a"];
+  page.layout.compositions.canvas.placements.a.version = 2;
+  page.layout.compositions.canvas.placements.a.frames.desktop.rotation = 30;
   page.layout.contentOrder.reverse();
   page.widgetsOrder = ["after", "a", "b"];
   const saved = response(); await savePageContent(request(page), saved);
@@ -336,6 +338,8 @@ it("saves Composition membership/stacking and shares exact preview/export placem
   const html = await fs.readFile(path.join(harness.latestExportDir(), "index.html"), "utf8");
   const css = (text) => text.match(/left:\s*37.5%;\s*top:\s*22.5%;\s*width:\s*25%;\s*height:\s*37.5%;\s*z-index:\s*2/);
   assert.ok(css(preview.html)); assert.ok(css(html));
+  assert.match(preview.html, /transform:rotate\(30deg\)/);
+  assert.match(html, /transform:\s*rotate\(30deg\)/);
   assert.match(html, /aspect-ratio:\s*1200\s*\/\s*800/);
   assert.doesNotMatch(html, /wz-image-resize-handle|previewRuntime\.js/);
   const unsupported = response(); await savePageContent(request({ ...loaded.data, layout: { ...page.layout, version: 99 } }), unsupported);

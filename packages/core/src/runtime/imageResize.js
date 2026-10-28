@@ -1,4 +1,6 @@
-import { compositionContext, applyCompositionRect, resolvedCompositionRect, compositionFrame } from "./compositionDOM.js";
+import { compositionContext, applyCompositionRect, resolvedCompositionRect, compositionFrame, unrotatedCompositionRect } from "./compositionDOM.js";
+import { containedRect } from "./composition.js";
+import { rotateVector, rotatedPoint, rotatedResizeRect } from "./rotationGeometry.js";
 import { resizeAnchoredRect, resizePinnedRect } from "./anchoredResize.js";
 import { imageReference, isImageTransform, rectTransform, transformRect, imageTransformV2 } from "./imageTransform.js";
 import { isImageSpacing } from "./imageSpacing.js";
@@ -138,8 +140,10 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     const rect = transformRect(transform, basis);
     if (state.composition) {
       const placed = override || resolvedCompositionRect(state.composition, rect);
-      placed.left = Math.max(0, Math.min(state.composition.width - placed.width, placed.left));
-      placed.top = Math.max(0, Math.min(state.composition.height - placed.height, placed.top));
+      if (!state.composition.frame.rotation) {
+        placed.left = Math.max(0, Math.min(state.composition.width - placed.width, placed.left));
+        placed.top = Math.max(0, Math.min(state.composition.height - placed.height, placed.top));
+      } else if (!containedRect(placed, state.composition.width, state.composition.height, state.composition.frame.rotation)) return;
       applyCompositionRect(state.composition, placed);
       return;
     }
@@ -225,8 +229,9 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     gesture.dragged ||= Math.hypot(event.clientX - gesture.originX, event.clientY - gesture.originY) > 3;
     if (gesture.modern && gesture.shift !== !!event.shiftKey) rebaseShift(!!event.shiftKey);
     gesture.lastX = event.clientX; gesture.lastY = event.clientY;
-    const dx = (event.clientX - gesture.startX) / (gesture.composition?.scale || 1);
-    const dy = (event.clientY - gesture.startY) / (gesture.composition?.scale || 1);
+    const delta = rotateVector((event.clientX - gesture.startX) / (gesture.composition?.scale || 1),
+      (event.clientY - gesture.startY) / (gesture.composition?.scale || 1), -(gesture.composition?.frame.rotation || 0));
+    const dx = delta.x, dy = delta.y;
     if (dx === 0 && dy === 0 && !gesture.moved && (gesture.modern ||
       (gesture.width === gesture.startWidth && gesture.height === gesture.startHeight))) { event.preventDefault(); return; }
     if (gesture.modern) {
@@ -238,13 +243,17 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         maxHeight: gesture.model?.dimensions.height.unit === "px" ? 10000 : gesture.basis.height * 4,
       };
       if (gesture.composition) { bounds.bottom = gesture.composition.height; bounds.maxTop = gesture.composition.height; }
+      const angle = gesture.composition?.frame.rotation || 0;
+      if (angle) Object.assign(bounds, { left: -Infinity, top: -Infinity, right: Infinity, bottom: Infinity, maxTop: Infinity });
       const rect = gesture.model ? resizePinnedRect(gesture.rect, gesture.direction, dx, dy, bounds,
         { proportional: gesture.shift, pins: gesture.model.anchors || [] }) : resizeAnchoredRect(gesture.rect, gesture.direction, dx, dy, bounds);
+      const placed = angle ? rotatedResizeRect(gesture.rect, rect, angle) : rect;
+      if (angle && !containedRect(placed, gesture.composition.width, gesture.composition.height, angle)) { event.preventDefault(); return; }
       gesture.transform = rectTransform(rect, gesture.basis, gesture.model, gesture.everProportional ? "nsew" : gesture.direction);
       gesture.lastRect = transformRect(gesture.transform, gesture.basis);
       if (gesture.composition) {
         gesture.transform.flowInset = structuredClone(gesture.model.flowInset);
-        gesture.lastRect = { ...gesture.lastRect, left: rect.left, top: rect.top };
+        gesture.lastRect = { ...gesture.lastRect, left: placed.left, top: placed.top };
       }
       const start = gesture.initialRect || gesture.rect;
       gesture.moved = Math.abs(gesture.lastRect.left - start.left) + Math.abs(gesture.lastRect.top - start.top) +
@@ -424,10 +433,18 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
           : direction.includes("s")
             ? rect.bottom
             : rect.top + rect.height / 2;
+        const composition = compositionContext(widget);
+        let point = { x, y };
+        if (composition?.frame.rotation) {
+          const local = unrotatedCompositionRect(composition), area = composition.area.getBoundingClientRect();
+          point = rotatedPoint(local, direction.includes("w") ? 0 : direction.includes("e") ? 1 : 0.5,
+            direction.includes("n") ? 0 : direction.includes("s") ? 1 : 0.5, composition.frame.rotation);
+          point = { x: area.left + point.x * composition.scale, y: area.top + point.y * composition.scale };
+        }
         Object.assign(handle.style, {
           position: "absolute",
-          left: `${x - handleRadius}px`,
-          top: `${y - handleRadius}px`,
+          left: `${point.x - handleRadius}px`,
+          top: `${point.y - handleRadius}px`,
           width: `${2 * handleRadius}px`,
           height: `${2 * handleRadius}px`,
           border: "2px solid white",
@@ -469,6 +486,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
             if (widget.dataset.imageUnits === "2") gesture.model = imageTransformV2({ settings: {
               image_transform: currentTransform(widget), image_width_percent: Number(widget.dataset.imageWidth), image_height_px: Number(widget.dataset.imageHeight),
             } }, gesture.basis);
+            if (gesture.composition?.frame.rotation) gesture.rect = unrotatedCompositionRect(gesture.composition);
             Object.assign(gesture, { initialRect: { ...gesture.rect }, lastRect: { ...gesture.rect },
               lastX: event.clientX, lastY: event.clientY, shift: !!event.shiftKey, everProportional: !!event.shiftKey });
           }

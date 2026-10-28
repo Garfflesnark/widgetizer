@@ -1,3 +1,4 @@
+import { rotatedBounds } from "./rotationGeometry.js";
 // Composition membership and ordering are independent of each widget adapter.
 const finite = (v, min, max) => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
 const idOK = (v) =>
@@ -78,9 +79,11 @@ export function validateCompositionLayout(page, adapters = {}) {
         const p = c.placements[id],
           f = p?.frames?.desktop;
         if (
-          p?.version !== 1 ||
+          ![1, 2].includes(p?.version) ||
           !["inherit", "proportional", "custom"].includes(p.responsive?.mode) ||
           !f ||
+          (f.rotation !== undefined && !finite(f.rotation, -180, 180)) ||
+          (f.rotation !== undefined && p.version !== 2) ||
           !finite(f.x, 0, 1) ||
           !finite(f.y, 0, profile.height.valuePx / profile.referenceWidthPx) ||
           !finite(f.pivot?.x, 0, 1) ||
@@ -121,7 +124,8 @@ export function frameFromRect(rect, pivot, referenceWidth) {
     pivot: { ...pivot },
   };
 }
-export function containedRect(rect, width, height) {
+export function containedRect(rect, width, height, rotation = 0) {
+  rect = rotatedBounds(rect, rotation);
   return (
     rect.width <= width + 0.02 &&
     rect.height <= height + 0.02 &&
