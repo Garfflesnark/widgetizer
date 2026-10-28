@@ -1,6 +1,30 @@
 # Fruitform Round 2 architecture amendment
 
-Status: proposed, awaiting Creative Director approval. No schema implementation or migration is authorized by this document. Interaction design for the separate pivot is already approved.
+Status: the Creative Director has approved paired persistent layouts and the movable pivot. The paired-layout decisions below supersede the historical dormant proposal. No new-format writes are enabled yet; the older-writer safeguard described below requires resolution.
+
+## Final paired-layout decisions
+
+Content is shared; presentation is independent. Keep one canonical page.widgets registry. Proposed layout.version 2 contains a single contentOrder whose Composition entries refer to stable Areas, with each Area owning one children membership list, activeMode (flow/composition), flow.order, flow.presentation keyed by member ID, and composition presentation/placements/stack order/profiles. Both modes reference exactly the same membership. Existing non-Area Widgets remain ordinary Flow entries. Flattening the active arrangement yields widgetsOrder as a validated compatibility projection, never an independent authority.
+
+Presentation fields must be split through an explicit image adapter allowlist, not a copy of all settings: image_transform (including dimensions, alignment, resize anchors and flowInset), fullwidth, legacy dimension overrides and image spacing fields. Shared image source, link, name and metadata remain canonical. Readers/renderers resolve a temporary active Widget view; persisted canonical settings must not become a second authority for presentation. Editing routes presentation fields to the active arrangement and content fields to the canonical Widget. Inactive presentation is neither rewritten nor consulted by rendering.
+
+Mode switching changes only activeMode and the derived order projection. It creates one Undo step, keeps valid Widget selection and never derives authored geometry again. First-time initialization seeds the missing arrangement from the current compatible presentation without moving existing Composition children. Historical Flow geometry absent from legacy files cannot be reconstructed; conversion must explicitly disclose that limitation rather than imply recovery.
+
+Add/duplicate actions associated with an Area create one ID in the membership list and both orders. Flow insertion follows the associated child; Composition insertion uses a deterministic bounded initial position and appends to stack order without moving existing children. Duplicates copy shared content and independently copy both presentations. Deletion removes the canonical Widget and every mode reference atomically under existing confirmation/history conventions. Unassociated additions stay ordinary Flow until explicitly assigned to an Area; ambiguous Area association must be resolved by the editor action context.
+
+The approved placement version 3 rotationPivot contract and compensation equation below remain applicable in the Composition arrangement. Each mode keeps its own presentation through save/reload and Undo/Redo. Unknown layout/placement versions fail closed. No dormantCompositions map will be implemented.
+
+## Actual older-writer compatibility finding
+
+Inspection of PR #2 head 817ba650 and the rotation baseline confirms that validateCompositionLayout rejects layout versions other than 1. However, pageController.savePageContent accepts an explicit layout:null when an existing layout is present; its guard rejects only omitted layout. updatePage likewise validates the submitted result rather than rejecting removal based on the stored version. Therefore an older server can erase new-format layout state through a stale or explicit null write. Version tags alone cannot satisfy an absolute guarantee that old application code cannot discard new records.
+
+Proposed safeguard: conversion creates a separately identified copy and leaves the source untouched; new servers reject stripping/downgrading existing new-format layouts, including stale editor requests. New-format copies must not be opened for writing by older installations. If stronger isolation from an independently running old server is mandatory, new-format storage needs a separate namespace/container inaccessible to old discovery and write routes. That deployment/storage boundary is unresolved; do not enable writes until resolved. This limitation cannot be corrected retroactively by changing only the new reader.
+
+Use the approved Open with Compatible Layout dialog wording verbatim. Cancel is default. Enable Convert only for a tested known source version, validate before creating a copy, and leave the original intact on cancellation or failure. Unknown/future formats disable Convert and explain the required compatible version. Application file compatibility and renderer capabilities remain separate checks.
+
+## Historical proposal (superseded)
+
+The following dormant snapshot and restoration sections record the prior proposal only. They do not authorize implementation; the paired-layout decisions above replace their ownership, restoration and membership rules.
 
 ## Verified baseline
 
