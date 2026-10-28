@@ -30,6 +30,7 @@ export function createCompositionMoveController({
     if (commit && changed) {
       applyCompositionRect(g.context, g.rect);
       suppressClick = true;
+      view.setTimeout(() => { suppressClick = false; }, 0);
       onCommit({
         widgetId: g.widgetId,
         compositionId: g.context.area.dataset.compositionId,
@@ -52,7 +53,7 @@ export function createCompositionMoveController({
       e.button !== 0 ||
       gesture ||
       e.target.closest(
-        ".wz-image-resize-handle,[data-image-align-menu],.wz-image-menu,[data-widget-reorder],input,textarea,select",
+        ".wz-image-resize-handle,[data-image-align-menu],.wz-image-menu,[data-widget-reorder],[data-order-scope],[data-select-composition],input,textarea,select",
       )
     )
       return;
@@ -63,7 +64,7 @@ export function createCompositionMoveController({
         )
       : e.target.closest("[data-widget-id]");
     const context = compositionContext(widget);
-    if (!context?.editable || selected() !== widget?.dataset.widgetId || (e.target.closest("button,a") && !grip))
+    if (!context?.editable || !(context.scale > 0) || selected() !== widget?.dataset.widgetId || (e.target.closest("button") && !grip))
       return;
     if (getContext && !getContext()) return;
     const r = measure(widget);
@@ -123,6 +124,7 @@ export function createCompositionMoveController({
       cancel();
     }
   };
+  const dragStart = (e) => { if (e.target.closest("[data-composition-child]")) e.preventDefault(); };
   const click = (e) => {
     if (suppressClick) {
       suppressClick = false;
@@ -130,6 +132,7 @@ export function createCompositionMoveController({
       e.stopPropagation();
     }
   };
+  document.addEventListener("dragstart", dragStart, true);
   document.addEventListener("pointerdown", down, true);
   document.addEventListener("pointermove", move);
   document.addEventListener("pointerup", up);
@@ -140,8 +143,13 @@ export function createCompositionMoveController({
   view.addEventListener("blur", cancel);
   return {
     cancel,
+    get active() { return !!gesture; },
+    reconcile(context, revisions, force = false) {
+      if (gesture && (force || context !== gesture.interactionContext || revisions?.[gesture.widgetId] !== gesture.revision)) cancel();
+    },
     destroy() {
       cancel();
+      document.removeEventListener("dragstart", dragStart, true);
       document.removeEventListener("pointerdown", down, true);
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);

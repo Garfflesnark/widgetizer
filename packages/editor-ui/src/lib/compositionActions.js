@@ -1,3 +1,4 @@
+import { orderingControls } from "@widgetizer/core/orderingControls";
 import {
   changeStack,
   compositionFor,
@@ -87,8 +88,8 @@ export function returnCompositionToFlow(id) {
 export function reorderContentBlock(widgetId, direction) {
   const { page } = usePageStore.getState();
   if (!page?.layout || !["up", "down"].includes(direction)) return false;
-  const composition = compositionFor(page, widgetId),
-    id = composition?.[0] || widgetId;
+  if (compositionFor(page, widgetId)) return false;
+  const id = widgetId;
   const order = page.layout.contentOrder,
     index = order.findIndex((entry) => entry.id === id),
     nextIndex = index + (direction === "up" ? -1 : 1);
@@ -180,4 +181,16 @@ export function handleCompositionMessage(event, iframe, origin) {
   )
     return false;
   return applyCompositionGeometry(p.widgetId, { frame: p.frame, startFrame: p.startFrame });
+}
+
+export function handleOrderingMessage(event, iframe, origin) {
+  if (!iframe || origin === "*" || event.source !== iframe || event.origin !== origin || event.data?.type !== "ORDER_SELECTION") return false;
+  const state = useWidgetStore.getState(), pageStore = usePageStore.getState(), p = event.data.payload;
+  const control = orderingControls(pageStore.page, { compositionId: state.selectedCompositionId, widgetId: state.selectedWidgetId });
+  if (!p || !control || state.selectedBlockId || control.scope !== p.scope || control.id !== p.id || !["up", "down"].includes(p.direction) || !control[p.direction]) return false;
+  if (control.scope === "image") return layerImage(control.id, p.direction === "up" ? "forward" : "backward");
+  if (pageStore.page.layout) return reorderContentBlock(control.id, p.direction);
+  const order = [...pageStore.page.widgetsOrder], i = order.indexOf(control.id), j = i + (p.direction === "up" ? -1 : 1);
+  [order[i], order[j]] = [order[j], order[i]];
+  pageStore.beginHistoryStep(); state.reorderWidgets(order); pageStore.beginHistoryStep(); return true;
 }

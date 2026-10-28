@@ -1,5 +1,5 @@
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
-import { handleCompositionMessage, reorderContentBlock, compositionInteractionContext } from "../../lib/compositionActions";
+import { handleCompositionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext } from "../../lib/compositionActions";
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
@@ -99,7 +99,11 @@ export default function SelectionOverlay({
     return () => { unsubscribe(); iframe.removeEventListener("load", sync); };
   }, [iframeRef, previewReadyKey]);
 
-  const effectiveWidgetId = selectedWidgetId || selectedGlobalWidgetId;
+  const selectedCompositionId = useWidgetStore((state) => state.selectedCompositionId);
+  const effectiveWidgetId = selectedCompositionId ? null : selectedWidgetId || selectedGlobalWidgetId;
+  useEffect(() => {
+    if (selectedCompositionId && !page?.layout?.compositions?.[selectedCompositionId]) useWidgetStore.getState().setSelectedCompositionId(null);
+  }, [page, selectedCompositionId]);
 
   // Send message to iframe
   const postToIframe = useCallback(
@@ -122,20 +126,27 @@ export default function SelectionOverlay({
       // Always send selection update (even during reload — it queues for the new iframe)
       postToIframe({
         type: "UPDATE_SELECTION",
-        payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId },
+        payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId, compositionId: selectedCompositionId },
       });
     } else {
       // Clear selection in iframe
       postToIframe({
         type: "UPDATE_SELECTION",
-        payload: { widgetId: null, blockId: null },
+        payload: { widgetId: null, blockId: null, compositionId: selectedCompositionId },
       });
     }
-  }, [effectiveWidgetId, selectedBlockId, iframeRef, postToIframe, structuralReloadRef]);
+  }, [effectiveWidgetId, selectedBlockId, selectedCompositionId, iframeRef, postToIframe, structuralReloadRef]);
 
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.data?.type === "ORDER_SELECTION") {
+        handleOrderingMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
+      }
+      if (event.data?.type === "COMPOSITION_SELECTED") {
+        if (event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin()) useWidgetStore.getState().setSelectedCompositionId(event.data.payload?.compositionId);
+        return;
+      }
       if (event.data?.type === "IMAGE_ALIGN") {
         handleImageAlignmentMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;
@@ -157,6 +168,7 @@ export default function SelectionOverlay({
         handleImageResizeMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
         return;
       }
+      if (event.source !== iframeRef?.current?.contentWindow || event.origin !== getPreviewTargetOrigin()) return;
       const { type, payload } = event.data || {};
 
       switch (type) {
@@ -173,6 +185,7 @@ export default function SelectionOverlay({
 
         case "REORDER_WIDGET": {
           const { widgetId, direction } = payload;
+          if (useWidgetStore.getState().selectedWidgetId !== widgetId || useWidgetStore.getState().selectedCompositionId) break;
           if (page?.layout) { reorderContentBlock(widgetId, direction); break; }
           const currentOrder = page?.widgetsOrder;
           if (!currentOrder || !widgetId) break;
@@ -215,17 +228,17 @@ export default function SelectionOverlay({
     if (!iframe) return;
 
     const handleLoad = () => {
-      if (effectiveWidgetId) {
+      if (effectiveWidgetId || selectedCompositionId) {
         postToIframe({
           type: "UPDATE_SELECTION",
-          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId },
+          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId, compositionId: selectedCompositionId },
         });
       }
     };
 
     iframe.addEventListener("load", handleLoad);
     return () => iframe.removeEventListener("load", handleLoad);
-  }, [iframeRef, effectiveWidgetId, selectedBlockId, postToIframe]);
+  }, [iframeRef, effectiveWidgetId, selectedBlockId, selectedCompositionId, postToIframe]);
 
   // Sync on iframe resize (handles preview mode changes, NOT structural reloads)
   useEffect(() => {
@@ -247,16 +260,16 @@ export default function SelectionOverlay({
 
   // Re-request selection sync when preview content changes
   useEffect(() => {
-    if (previewReadyKey > 0 && effectiveWidgetId) {
+    if (previewReadyKey > 0 && (effectiveWidgetId || selectedCompositionId)) {
       const timeoutId = setTimeout(() => {
         postToIframe({
           type: "UPDATE_SELECTION",
-          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId },
+          payload: { widgetId: effectiveWidgetId, blockId: selectedBlockId, compositionId: selectedCompositionId },
         });
       }, 50);
       return () => clearTimeout(timeoutId);
     }
-  }, [previewReadyKey, effectiveWidgetId, selectedBlockId, postToIframe]);
+  }, [previewReadyKey, effectiveWidgetId, selectedBlockId, selectedCompositionId, postToIframe]);
 
   // No visual rendering — overlay is inside the iframe
   return null;

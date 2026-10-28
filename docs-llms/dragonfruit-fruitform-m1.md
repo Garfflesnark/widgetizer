@@ -10,7 +10,7 @@ The first adapter is Arch Image `image.v1`: valid accepted v2 dimensions, an upl
 
 Desktop offers image-body dragging after selection and a Move grip for linked or obscured images. Green pins translate with movement and constrain resizing. Existing eight-node geometry, Shift proportional resizing, %/px units, alignment, Default Scale and flow spacing remain separate. A move commits placement only; a resize commits dimensions and placement together, retaining dormant flow insets. Manual dimension edits retain the accepted clear-pins rule. Placement and stacking participate in page Undo/Redo and save/reload.
 
-Bring Forward and Send Backward swap adjacent entries in `stackOrder` only. Child buttons provide selection even when an image is fully hidden. Block Up/Down moves the entire containing Composition Area in `contentOrder`, separately from layers and child reading order. The arrows use the existing pink accent and flank the image indicator in a measured flex row; the indicator's alignment menu remains available. Overlay targets counter-scale when the design iframe is reduced to fit Codex.
+Bring Forward and Send Backward swap adjacent entries in `stackOrder` only. Child buttons provide selection even when an image is fully hidden. The arrows are context-sensitive: selecting a child activates Bring Forward/Send Backward on `stackOrder`; selecting the Composition Area background or indicator clears the child selection and activates Move Block Up/Down on `contentOrder`. The arrows use the existing pink accent and flank the image indicator in a measured flex row; the indicator's alignment menu remains available. Overlay targets counter-scale when the design iframe is reduced to fit Codex.
 
 Composition height is an explicit desktop **design** value. Its displayed width and height scale uniformly, including on mobile. Canvas width is initially 1200 design pixels; Desktop/Mobile editing viewports are 1200/390 CSS pixels, scaled to fit the available pane. Percent dimensions resolve once against the desktop intrinsic-fit reference. Stored px values are desktop design pixels in this opt-in mode, and their *presentation* scales with the composition; their saved values are not rewritten.
 
@@ -127,7 +127,7 @@ Use **RESIZE LAB** only. First confirm CURRENT PROJECT on the Pages screen. Keep
 - [ ] Select a fully obscured image using the Composition child buttons and move it using its grip.
 - [ ] Bring Forward/Send Backward change only paint order. Check the boundary disabled states and no-op history.
 - [ ] Undo/Redo a layer command without changing placement, units, reading order or Block order.
-- [ ] Block Up/Down moves the entire Composition relative to surrounding flow Blocks; it does not change child layers.
+- [ ] With an Image selected, Up/Down changes only its layer. Select the Composition Area background/indicator: the arrows immediately become Block Up/Down and move the whole Composition without changing child layers. Switch back through child controls.
 - [ ] Image indicator still follows the visible top edge; Left/Center/Right menu works beside the pink arrows.
 - [ ] Check arrow/menu hit targets on very narrow images, left/right/top canvas edges, rapid resizing and a narrow Codex pane. Check normal-flow images too.
 
@@ -185,3 +185,7 @@ scripts/dev-theme-profiles/arch-image.json
 themes/arch/widgets/image/schema.json
 themes/arch/widgets/image/widget.liquid
 ```
+
+## Correction 3
+
+See [context-sensitive ordering corrections](fruitform-m1-correction3.md) for the updated selection contract, drag interruption/flicker fixes, regression results and remaining manual checks.

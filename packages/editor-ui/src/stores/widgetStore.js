@@ -89,6 +89,7 @@ function markWidgetContentChanged(widgetId, isGlobal) {
 function getWidgetSelectionState(widgetId) {
   return {
     selectedWidgetId: widgetId,
+    selectedCompositionId: null,
     selectedBlockId: null,
     selectedGlobalWidgetId: null,
     selectedThemeGroup: null,
@@ -97,6 +98,7 @@ function getWidgetSelectionState(widgetId) {
 
 function getGlobalWidgetSelectionState(widgetId) {
   return {
+    selectedCompositionId: null,
     selectedGlobalWidgetId: widgetId,
     selectedWidgetId: null,
     selectedBlockId: null,
@@ -106,6 +108,7 @@ function getGlobalWidgetSelectionState(widgetId) {
 
 function getThemeGroupSelectionState(groupKey) {
   return {
+    selectedCompositionId: null,
     selectedThemeGroup: groupKey,
     selectedWidgetId: null,
     selectedBlockId: null,
@@ -124,6 +127,7 @@ function getClearedHoverState() {
 const useWidgetStore = create((set, get) => ({
   // State
   schemas: {},
+  selectedCompositionId: null,
   imageGeometry: {},
   setImageGeometry: (id, geometry) => set((state) => ({ imageGeometry: { ...state.imageGeometry, [id]: geometry } })),
   selectedWidgetId: null,
@@ -164,6 +168,10 @@ const useWidgetStore = create((set, get) => ({
     }
   },
 
+  setSelectedCompositionId: (id) => {
+    if (id && !usePageStore.getState().page?.layout?.compositions?.[id]) return;
+    set({ ...getWidgetSelectionState(null), selectedCompositionId: id });
+  },
   setSelectedWidgetId: (id) => set(getWidgetSelectionState(id)),
   setSelectedBlockId: (blockId) => set({ selectedBlockId: blockId }),
   setSelectedGlobalWidgetId: (id) => set(getGlobalWidgetSelectionState(id)),

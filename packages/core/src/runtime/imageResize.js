@@ -61,7 +61,7 @@ export function supportsImageStretch(widget, schema) {
 }
 
 // Gestures and sidebar drafts affect only DOM styles until a single store commit.
-export function createImageResizeController({ document, onCommit, onPreview, onContext }) {
+export function createImageResizeController({ document, onCommit, onPreview, onContext, isMoving = () => false }) {
   let gesture = null;
   let draft = null;
   let spacingDraft = null;
@@ -396,7 +396,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         const key = JSON.stringify(context);
         if (contextKeys.get(widgetId) !== key) {
           contextKeys.set(widgetId, key);
-          if (!gesture && !draft && isImageTransform(currentTransform(widget))) applyTransform(snapshot(widget), currentTransform(widget), basis);
+          if (!gesture && !draft && !isMoving() && isImageTransform(currentTransform(widget))) applyTransform(snapshot(widget), currentTransform(widget), basis);
           onContext?.(context);
         }
       }

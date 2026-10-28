@@ -1,3 +1,5 @@
+import { orderingControls } from "@widgetizer/core/orderingControls";
+import { isCompositionGeometryOnlyChange } from "../../lib/compositionPreview";
 import { compositionFor } from "@widgetizer/core/composition";
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +20,8 @@ function detectChangeType(newState, oldState) {
   if (!oldState) {
     return { isStructural: true, changedWidgetIds: [], changedGlobalWidgetIds: [] };
   }
+
+  if (isCompositionGeometryOnlyChange(oldState, newState)) return { isStructural: false, changedWidgetIds: [], changedGlobalWidgetIds: [] };
 
   const newWidgetIds = new Set(Object.keys(newState.widgets || {}));
   const oldWidgetIds = new Set(Object.keys(oldState.widgets || {}));
@@ -280,7 +284,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
     const widgetOrder = page?.widgetsOrder || [];
 
     iframeRef.current.contentWindow.postMessage(
-      { type: "SET_WIDGET_METADATA", payload: { metadata, widgetOrder, reorderInfo: page?.layout ? Object.fromEntries(widgetOrder.map((id) => {
+      { type: "SET_WIDGET_METADATA", payload: { metadata, widgetOrder, orderingInfo: { widgets: Object.fromEntries(widgetOrder.map(id => [id, orderingControls(page, { widgetId: id })])), compositions: Object.fromEntries(Object.keys(page?.layout?.compositions || {}).map(id => [id, orderingControls(page, { compositionId: id })])) }, reorderInfo: page?.layout ? Object.fromEntries(widgetOrder.map((id) => {
         const parent = compositionFor(page, id), index = page.layout.contentOrder.findIndex((entry) => entry.id === (parent?.[0] || id));
         return [id, { up: index > 0, down: index < page.layout.contentOrder.length - 1 }];
       })) : null } },
@@ -365,6 +369,10 @@ const PreviewPanel = forwardRef(function PreviewPanel(
 
     const newState = { page, widgets, globalWidgets, themeSettings };
     const { isStructural } = detectChangeType(newState, previousState);
+    if (isCompositionGeometryOnlyChange(previousState, newState)) {
+      previousStateRef.current = { ...newState, selectedWidgetId, selectedBlockId, selectedGlobalWidgetId };
+      return;
+    }
 
     // Immediate visual feedback for simple setting changes (text/images)
     if (!isStructural && iframeRef.current?.contentWindow && previousState?.widgets) {

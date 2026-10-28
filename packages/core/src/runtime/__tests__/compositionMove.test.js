@@ -68,3 +68,15 @@ it("moves a body surface only after selection, and keeps resize/menu interaction
   pointer("pointerup", 220, 270);
   expect(commit).not.toHaveBeenCalled();
 });
+
+it("drags linked images without native HTML dragging or mid-gesture canonical reset", () => {
+  const child = document.querySelector('[data-composition-child]'); child.dataset.compositionRevision = "r1";
+  const image = document.querySelector("img"), anchor = document.createElement("a"); anchor.href = "/index.html";
+  image.before(anchor); anchor.append(image);
+  const native = new Event("dragstart", { bubbles: true, cancelable: true }); image.dispatchEvent(native); expect(native.defaultPrevented).toBe(true);
+  pointer("pointerdown", 120, 170, image); pointer("pointermove", 220, 270);
+  controller.reconcile(undefined, { a: "r1" }); expect(controller.active).toBe(true);
+  pointer("pointerup", 220, 270);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(commit.mock.calls[0][0].frame.x).toBeCloseTo(220 / 1200, 5);
+});

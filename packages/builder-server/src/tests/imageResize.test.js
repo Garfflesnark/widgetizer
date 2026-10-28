@@ -317,14 +317,17 @@ it("saves Composition membership/stacking and shares exact preview/export placem
   transform.dimensions = { width: { unit: "px", value: 300 }, height: { unit: "%", value: 50 } };
   transform.anchors = ["ne"];
   const image = () => ({ type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: structuredClone(transform) }, blocks: {}, blocksOrder: [] });
-  const page = createComposition({ id: "index", slug: "index", name: "Home", widgets: { a: image(), b: image() }, widgetsOrder: ["a", "b"] }, "canvas", ["a", "b"], {
+  const page = createComposition({ id: "index", slug: "index", name: "Home", widgets: { a: image(), b: image(), after: image() }, widgetsOrder: ["a", "b", "after"] }, "canvas", ["a", "b"], {
     a: { x: 0.5, y: 0.15, pivot: { x: 0.5, y: 0 } }, b: { x: 0.4, y: 0.2, pivot: { x: 0, y: 0 } },
   });
   page.layout.compositions.canvas.stackOrder = ["b", "a"];
+  page.layout.contentOrder.reverse();
+  page.widgetsOrder = ["after", "a", "b"];
   const saved = response(); await savePageContent(request(page), saved);
   assert.equal(saved.code, 200, JSON.stringify(saved.data));
   const loaded = response(); await getPage(request(), loaded);
   assert.deepEqual(loaded.data.layout, page.layout);
+  assert.deepEqual(loaded.data.widgetsOrder, ["after", "a", "b"]);
   assert.deepEqual(loaded.data.widgets.a.settings.image_transform, transform);
   const preview = response(); await generatePreview(request({ pageData: loaded.data, themeSettings, previewMode: "editor" }), preview);
   assert.equal(preview.code, 200);

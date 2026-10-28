@@ -14,6 +14,7 @@ import {
   layerImage,
   handleCompositionMessage,
   reorderContentBlock,
+  handleOrderingMessage,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -23,6 +24,7 @@ beforeEach(() => {
   useWidgetStore.setState({
     compositionContext: "desktop",
     schemas: { image: schema },
+    selectedCompositionId: null,
     selectedWidgetId: "a",
     selectedBlockId: null,
     imageGeometry: { a: { containerWidth: 1200, width: 1200, height: 675, imageSource: "" } },
@@ -50,7 +52,7 @@ it("layers separately and moves the Composition Block separately from reading or
   expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
   layerImage("a", "forward");
   expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
-  reorderContentBlock("a", "down");
+  reorderContentBlock("canvas", "down");
   const next = usePageStore.getState().page;
   expect(next.layout.contentOrder[0].id).toBe("after");
   expect(next.layout.compositions.canvas.childrenOrder).toEqual(c.childrenOrder);
@@ -103,4 +105,31 @@ it("Default Scale also clears legacy fullwidth atomically while retaining pin id
   expect(next.layout.compositions.canvas.placements.a.frames.desktop.pivot).toEqual(page.layout.compositions.canvas.placements.a.frames.desktop.pivot);
   expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
   usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page.widgets.a.settings.fullwidth).toBe(true);
+});
+
+it("routes arrows by current hierarchy, rejects stale scope and preserves independent histories", () => {
+  const iframe = {}, origin = "https://preview.example";
+  const event = (scope, id, direction) => ({ source: iframe, origin, data: { type: "ORDER_SELECTION", payload: { scope, id, direction } } });
+  const before = structuredClone(usePageStore.getState().page);
+  expect(handleOrderingMessage(event("image", "a", "up"), iframe, origin)).toBe(true);
+  expect(usePageStore.getState().page.layout.contentOrder).toEqual(before.layout.contentOrder);
+  expect(usePageStore.getState().page.layout.compositions.canvas.placements).toEqual(before.layout.compositions.canvas.placements);
+  expect(handleOrderingMessage(event("image", "a", "up"), iframe, origin)).toBe(false);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  useWidgetStore.getState().setSelectedCompositionId("canvas");
+  expect(useWidgetStore.getState().selectedWidgetId).toBeNull();
+  expect(handleOrderingMessage(event("image", "a", "down"), iframe, origin)).toBe(false);
+  expect(handleOrderingMessage(event("composition", "canvas", "down"), iframe, origin)).toBe(true);
+  expect(usePageStore.getState().page.layout.compositions).toEqual({ canvas: { ...before.layout.compositions.canvas, stackOrder: ["b", "a"] } });
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(2);
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page.layout.contentOrder).toEqual(before.layout.contentOrder);
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); usePageStore.temporal.getState().redo();
+  const reloaded = JSON.parse(JSON.stringify(usePageStore.getState().page));
+  expect(reloaded.layout.compositions.canvas.stackOrder).toEqual(["b", "a"]);
+  expect(reloaded.layout.contentOrder[0].id).toBe("after");
+  useWidgetStore.getState().setSelectedWidgetId("a");
+  expect(useWidgetStore.getState().selectedCompositionId).toBeNull();
+  expect(handleOrderingMessage(event("composition", "canvas", "up"), iframe, origin)).toBe(false);
+  expect(handleOrderingMessage(event("image", "a", "down"), iframe, origin)).toBe(true);
 });

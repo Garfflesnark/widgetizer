@@ -107,8 +107,8 @@ it("outlines actual image bounds with a matching dashed border and keeps widget 
   expect(toolbar.firstElementChild.dataset.reorder).toBe("up");
   expect(toolbar.querySelector(".wz-widget-label")).not.toBeNull();
   expect(toolbar.lastElementChild.dataset.reorder).toBe("down");
-  expect(toolbar.firstElementChild.getAttribute("aria-label")).toBe("Move Block up");
-  expect(toolbar.lastElementChild.getAttribute("title")).toBe("Move Block down");
+  expect(toolbar.firstElementChild.getAttribute("aria-label")).toBe("Move Block Up");
+  expect(toolbar.lastElementChild.getAttribute("title")).toBe("Move Block Down");
   expect(getComputedStyle(toolbar.lastElementChild).color).toBe("rgb(224, 0, 109)");
   expect(toolbar.lastElementChild.querySelector("svg").getAttribute("stroke")).toBe("currentColor");
 });
@@ -173,4 +173,31 @@ it("keeps handles at their physical target size in a scaled design viewport and 
   expect(document.documentElement.style.getPropertyValue("--wz-editor-inverse-zoom")).toBe("2");
   message("EDITOR_ZOOM", 1);
   expect(document.querySelector(".wz-image-resize-handle").style.width).toBe("12px");
+});
+
+it("switches exclusive arrow ownership immediately between child and Composition background", () => {
+  const widget = document.querySelector('[data-widget-id="w1"]');
+  const area = document.createElement("section"), child = document.createElement("div");
+  Object.assign(area.dataset, { compositionId: "canvas", compositionWidth: "1000", compositionHeight: "800" });
+  child.dataset.compositionChild = "w1"; child.dataset.compositionFrame = JSON.stringify({ x: 0.2, y: 0.1, pivot: { x: 0, y: 0 } });
+  widget.before(area); area.append(child); child.append(widget);
+  area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 800 });
+  message("SET_WIDGET_METADATA", { metadata: { w1: "Image" }, widgetOrder: ["w1", "w2"], orderingInfo: {
+    widgets: { w1: { scope: "image", id: "w1", up: true, down: false, upLabel: "Bring Forward", downLabel: "Send Backward" } },
+    compositions: { canvas: { scope: "composition", id: "canvas", up: false, down: true } },
+  } });
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  let arrows = document.querySelectorAll('[data-order-scope]');
+  expect(arrows).toHaveLength(2); expect(arrows[0].title).toBe("Bring Forward"); expect(arrows[1].disabled).toBe(true);
+  sent.length = 0; arrows[0].click();
+  expect(sent).toEqual([{ type: "ORDER_SELECTION", payload: { scope: "image", id: "w1", direction: "up" } }]);
+  sent.length = 0; area.click();
+  expect(sent).toEqual([{ type: "COMPOSITION_SELECTED", payload: { compositionId: "canvas" } }]);
+  arrows = document.querySelectorAll('[data-order-scope]');
+  expect(arrows).toHaveLength(2); expect(arrows[0].title).toBe("Move Block Up"); expect(arrows[0].disabled).toBe(true);
+  expect(document.querySelectorAll('.wz-image-resize-handle')).toHaveLength(0);
+  sent.length = 0; arrows[1].click();
+  expect(sent).toEqual([{ type: "ORDER_SELECTION", payload: { scope: "composition", id: "canvas", direction: "down" } }]);
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  expect(document.querySelector('[data-order-scope]').title).toBe("Bring Forward");
 });

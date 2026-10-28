@@ -10,7 +10,7 @@ import {
   commitCompositionPage,
 } from "../../lib/compositionActions";
 
-export default function CompositionControls({ widgetId }) {
+export default function CompositionControls({ widgetId, blockSelected = false }) {
   const page = usePageStore((s) => s.page),
     schemas = useWidgetStore((s) => s.schemas);
   const context = useWidgetStore((s) => s.compositionContext);
@@ -52,20 +52,21 @@ export default function CompositionControls({ widgetId }) {
               Return to Desktop to edit image properties. Custom/Reflow authoring is not included yet.
             </p>
           )}
+          <button className={button} onClick={() => useWidgetStore.getState().setSelectedCompositionId(found[0])}>Select Composition Area</button>
           <p className="text-xs">Child reading order (copies enter normal flow):</p>
           <div className="flex flex-col gap-1">
             {found[1].childrenOrder.map((id) => (
               <button
                 key={id}
                 className={button}
-                aria-pressed={id === widgetId}
+                aria-pressed={!blockSelected && id === widgetId}
                 onClick={() => useWidgetStore.getState().setSelectedWidgetId(id)}
               >
                 {page.widgets[id].settings?.name || id}
               </button>
             ))}
           </div>
-          <div className="flex gap-1">
+          {!blockSelected && <div className="flex gap-1">
             <button
               className={button}
               disabled={found[1].stackOrder.at(-1) === widgetId}
@@ -80,7 +81,7 @@ export default function CompositionControls({ widgetId }) {
             >
               Send Backward
             </button>
-          </div>
+          </div>}
           <label className="block text-xs">
             Canvas height (px)
             <input
