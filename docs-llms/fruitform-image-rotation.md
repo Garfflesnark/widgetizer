@@ -1,4 +1,4 @@
-# Fruitform Composition Image rotation
+# Wyrmetizer Composition Image rotation
 
 ## Architecture and compatibility review
 

@@ -1,6 +1,6 @@
-# Fruitform Round 2 architecture amendment
+# Wyrmetizer Round 2 architecture amendment
 
-Status: the Creative Director has approved paired persistent layouts and the movable pivot. The paired-layout decisions below supersede the historical dormant proposal. No new-format writes are enabled yet; the older-writer safeguard described below requires resolution.
+Status: the Creative Director has approved paired persistent layouts, the movable pivot, separate converted copies, new-server downgrade protection, and keeping new-format copies out of older installations. Widgetizer core branding remains unchanged; Wyrmetizer names the branch-added work. New-format writes remain disabled until implementation and validation are complete.
 
 ## Final paired-layout decisions
 
@@ -18,7 +18,7 @@ The approved placement version 3 rotationPivot contract and compensation equatio
 
 Inspection of PR #2 head 817ba650 and the rotation baseline confirms that validateCompositionLayout rejects layout versions other than 1. However, pageController.savePageContent accepts an explicit layout:null when an existing layout is present; its guard rejects only omitted layout. updatePage likewise validates the submitted result rather than rejecting removal based on the stored version. Therefore an older server can erase new-format layout state through a stale or explicit null write. Version tags alone cannot satisfy an absolute guarantee that old application code cannot discard new records.
 
-Proposed safeguard: conversion creates a separately identified copy and leaves the source untouched; new servers reject stripping/downgrading existing new-format layouts, including stale editor requests. New-format copies must not be opened for writing by older installations. If stronger isolation from an independently running old server is mandatory, new-format storage needs a separate namespace/container inaccessible to old discovery and write routes. That deployment/storage boundary is unresolved; do not enable writes until resolved. This limitation cannot be corrected retroactively by changing only the new reader.
+Approved safeguard: conversion creates a separately identified copy and leaves the source untouched; new servers reject stripping/downgrading existing new-format layouts, including stale editor requests. New-format copies must not be opened for writing by older installations. This limitation cannot be corrected retroactively by changing only the new reader. The server now checks stored layout versions inside the content write lock and rejects null/version-1 replacements of newer stored layouts; real-storage tests exercise both content-save and page-update routes and assert byte-for-byte source preservation.
 
 Use the approved Open with Compatible Layout dialog wording verbatim. Cancel is default. Enable Convert only for a tested known source version, validate before creating a copy, and leave the original intact on cancellation or failure. Unknown/future formats disable Convert and explain the required compatible version. Application file compatibility and renderer capabilities remain separate checks.
 

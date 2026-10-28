@@ -1,6 +1,7 @@
 import { compositionContext, unrotatedCompositionRect } from "./compositionDOM.js";
 import { containedRect } from "./composition.js";
 import { normalizeAngle, rotatedPoint } from "./rotationGeometry.js";
+import { wyrmetizerHandlePlacement } from "./wyrmetizerHandlePlacement.js";
 
 export function createCompositionRotateController({ document, selected, getContext, onStart, onPreview, onCommit }) {
   const view = document.defaultView;
@@ -96,7 +97,11 @@ export function createCompositionRotateController({ document, selected, getConte
       svg.append(polygon); overlay.append(svg);
       if (!context.editable) return;
       const zoom = Number(view.getComputedStyle(document.documentElement).getPropertyValue("--wz-editor-inverse-zoom")) || 1;
-      const p = screen(0.5, -30 * zoom / (rect.height * context.scale));
+      const radians = angle * Math.PI / 180;
+      const targets = Array.from(overlay.querySelectorAll(".wz-image-controls, .wz-image-resize-handle"))
+        .map(element => element.getBoundingClientRect());
+      const p = wyrmetizerHandlePlacement(screen(0.5, -30 * zoom / (rect.height * context.scale)),
+        { x: Math.sin(radians), y: -Math.cos(radians) }, 10 * zoom, targets, 8 * zoom);
       const button = document.createElement("button");
       button.type = "button"; button.dataset.compositionRotate = widget.dataset.widgetId;
       button.textContent = "↻"; button.setAttribute("aria-label", "Rotate image");

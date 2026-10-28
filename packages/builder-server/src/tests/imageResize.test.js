@@ -79,6 +79,28 @@ before(async () => {
 });
 after(() => harness.cleanup());
 
+it("does not let stale saves strip or downgrade a stored newer layout", async () => {
+  const original = { id: "index", slug: "index", name: "Protected newer page", widgets: {}, widgetsOrder: [],
+    layout: { version: 2, contentOrder: [], compositions: {}, pairedLayoutSentinel: "preserve" } };
+  const file = path.join(harness.getProjectDir("resize-project"), "pages", "index.json");
+  const prior = await fs.pathExists(file) ? await fs.readFile(file) : null;
+  try {
+    await fs.outputJson(file, original);
+    const before = await fs.readFile(file, "utf8");
+    for (const layout of [null, { version: 1, contentOrder: [], compositions: {} }]) {
+      for (const action of [savePageContent, updatePage]) {
+        const res = response();
+        await action(request({ ...original, layout }), res);
+        assert.equal(res.code, 409, JSON.stringify(res.data));
+        assert.equal(await fs.readFile(file, "utf8"), before);
+      }
+    }
+  } finally {
+    if (prior) await fs.writeFile(file, prior);
+    else await fs.remove(file);
+  }
+});
+
 it("keeps real linked and unlinked images proportional inside either container mode", async () => {
   for (const fullwidth of [false, true]) {
     for (const link of [null, { href: "https://example.com" }]) {

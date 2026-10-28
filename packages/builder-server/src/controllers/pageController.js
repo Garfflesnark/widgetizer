@@ -254,7 +254,8 @@ async function persistPageInSection({ scope, storage, pageId, pageData, previous
       const buf = await storage.read(scope, pageKey(previousPageId || pageId, lang));
       if (buf != null) {
         const previous = JSON.parse(buf.toString("utf8"));
-        if (previous.layout && !Object.hasOwn(pageData, "layout")) {
+        if (previous.layout && (!Object.hasOwn(pageData, "layout") ||
+            (previous.layout.version !== 1 && pageData.layout?.version !== previous.layout.version))) {
           const error = new Error("This page requires a composition-aware editor.");
           error.code = "COMPOSITION_EDITOR_REQUIRED"; throw error;
         }
