@@ -8,6 +8,7 @@ import SettingsPanel from "../components/pageEditor/SettingsPanel";
 import EditorTopBar from "../components/pageEditor/EditorTopBar";
 import ThemeSelector from "../components/pageEditor/ThemeSelector";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import WyrmetizerCompatibility from "../components/pageEditor/WyrmetizerCompatibility";
 
 import usePageStore from "../stores/pageStore";
 import useThemeStore from "../stores/themeStore";
@@ -28,7 +29,7 @@ export default function PageEditor() {
   const previewIframeRef = useRef(null);
   const activeProject = useProjectStore((state) => state.activeProject);
 
-  const { page, loading, error } = usePageStore();
+  const { page, loading, error, incompatiblePage } = usePageStore();
   const themeSettings = useThemeStore((s) => s.settings);
   const {
     schemas: widgetSchemas,
@@ -133,6 +134,7 @@ export default function PageEditor() {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-red-500">{t("pageEditor.error", { message: error })}</p>
+        {incompatiblePage && <WyrmetizerCompatibility page={incompatiblePage} incompatible />}
       </div>
     );
   }

@@ -20,6 +20,7 @@ export default function ConfirmationModal({
   message,
   confirmText,
   cancelText,
+  confirmDisabled = false,
   variant = "danger", // or "warning", "info"
   // Where focus goes when the dialog closes: an element or a ref to one. Defaults
   // to whatever was focused when the dialog opened, which is wrong when the
@@ -102,7 +103,7 @@ export default function ConfirmationModal({
       }
       e.stopImmediatePropagation();
 
-      const focusable = dialogRef.current?.querySelectorAll("button");
+      const focusable = dialogRef.current?.querySelectorAll("button:not(:disabled)");
       if (!focusable?.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -178,6 +179,7 @@ export default function ConfirmationModal({
             {modalCancelText}
           </button>
           <button
+            disabled={confirmDisabled}
             onClick={() => {
               onConfirm();
               onClose();

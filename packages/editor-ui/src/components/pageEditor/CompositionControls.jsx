@@ -1,4 +1,5 @@
 import { useState } from "react";
+import WyrmetizerCompatibility from "./WyrmetizerCompatibility";
 import { compositionFor } from "@widgetizer/core/composition";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import usePageStore from "../../stores/pageStore";
@@ -48,6 +49,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
   return (
     <section className="p-3 border-b space-y-2" aria-label="Composition Area controls">
       <strong className="text-sm">{found ? "Composition Area" : "Create Composition Area"}</strong>
+      {found && !paired && <WyrmetizerCompatibility page={page} />}
       {found ? (
         <>
           <p className="text-xs">

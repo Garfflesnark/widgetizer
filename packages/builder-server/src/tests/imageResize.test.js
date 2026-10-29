@@ -22,7 +22,7 @@ const { LocalAssetStorageAdapter } = await import("@widgetizer/adapters-local");
 const assetStorage = new LocalAssetStorageAdapter({
   dataRoot: path.dirname(path.dirname(harness.getProjectDir("resize-project"))),
 });
-const { savePageContent, getPage, updatePage } = await import("../controllers/pageController.js");
+const { savePageContent, getPage, updatePage, convertWyrmetizerPage } = await import("../controllers/pageController.js");
 const { generatePreview } = await import("../controllers/previewController.js");
 const { renderWidget } = await import("../services/renderingService.js");
 const { writeMediaFile } = await import("../controllers/mediaController.js");
@@ -80,6 +80,54 @@ before(async () => {
   await fs.copy(source, path.join(harness.getProjectDir("resize-project"), "widgets", "image"));
 });
 after(() => harness.cleanup());
+
+it("converts only known source formats into separate copies and leaves sources byte-identical", async () => {
+  const transform = defaultImageTransform();
+  transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };
+  const source = createComposition({ id: "conversion-source", slug: "conversion-source", name: "Conversion source", updated: "revision-one", widgets: {
+    a: { type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: transform }, blocks: {}, blocksOrder: [] },
+  }, widgetsOrder: ["a"] }, "area", ["a"], { a: { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } } });
+  const file = path.join(harness.getProjectDir("resize-project"), "pages", "conversion-source.json");
+  await fs.outputJson(file, source);
+  const before = await fs.readFile(file, "utf8");
+  const req = page => ({ ...request({ page }), params: { id: "conversion-source" } });
+  const converted = response(); await convertWyrmetizerPage(req(source), converted);
+  assert.equal(converted.code, 201, JSON.stringify(converted.data));
+  assert.notEqual(converted.data.id, source.id);
+  assert.equal(converted.data.layout.version, 2);
+  assert.match(converted.data.name, /Wyrmetizer copy/);
+  assert.equal(await fs.readFile(file, "utf8"), before);
+  const files = await fs.readdir(path.dirname(file));
+  for (const invalid of [{ ...source, updated: "stale" }, { ...source, layout: { ...source.layout, version: 99 } }]) {
+    const failed = response(); await convertWyrmetizerPage(req(invalid), failed);
+    assert.equal(failed.code, 422);
+    assert.equal(await fs.readFile(file, "utf8"), before);
+    assert.deepEqual(await fs.readdir(path.dirname(file)), files);
+  }
+  await fs.outputJson(file, { ...source, layout: { ...source.layout, version: 99 } });
+  const unknownBefore = await fs.readFile(file, "utf8");
+  const unknown = response(); await convertWyrmetizerPage(req(source), unknown);
+  assert.equal(unknown.code, 422);
+  assert.equal(await fs.readFile(file, "utf8"), unknownBefore);
+  const newerPlacement = structuredClone(source);
+  newerPlacement.layout.compositions.area.placements.a.version = 99;
+  for (const bytes of [JSON.stringify(newerPlacement), "{invalid-json"]) {
+    await fs.writeFile(file, bytes);
+    const failed = response(); await convertWyrmetizerPage(req(source), failed);
+    assert.equal(failed.code, 422);
+    assert.equal(await fs.readFile(file, "utf8"), bytes);
+    assert.deepEqual(await fs.readdir(path.dirname(file)), files);
+  }
+  const rotatedSource = structuredClone(source);
+  rotatedSource.layout.compositions.area.placements.a.version = 2;
+  rotatedSource.layout.compositions.area.placements.a.frames.desktop.rotation = 10;
+  await fs.outputJson(file, rotatedSource);
+  const rotatedBefore = await fs.readFile(file, "utf8");
+  const downgrade = response(); await convertWyrmetizerPage(req(source), downgrade);
+  assert.equal(downgrade.code, 422);
+  assert.equal(await fs.readFile(file, "utf8"), rotatedBefore);
+  await fs.writeFile(file, before);
+});
 
 it("saves paired layouts to a separate page and reloads both arrangements exactly", async () => {
   const transform = defaultImageTransform();

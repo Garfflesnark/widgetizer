@@ -1,4 +1,4 @@
-import { reconcileCompositionCrud } from "@widgetizer/core/composition";
+import { reconcileCompositionCrud, validateCompositionLayout } from "@widgetizer/core/composition";
 import { openWyrmetizerEditorPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { create } from "zustand";
@@ -97,12 +97,13 @@ const usePageStore = create(
       activeLoadId: 0,
       loading: true,
       error: null,
+      incompatiblePage: null,
 
       // Actions
       loadPage: async (pageId, language) => {
         const projectId = getActiveProjectId();
         const nextLoadId = get().activeLoadId + 1;
-        set({ activeLoadId: nextLoadId });
+        set({ activeLoadId: nextLoadId, incompatiblePage: null });
 
         if (!pageId) {
           set({
@@ -131,7 +132,10 @@ const usePageStore = create(
 
         try {
           // Load page data (clean, no global widgets mixed in)
-          const pageData = openWyrmetizerEditorPage(await getPage(pageId, language), compositionAdapters);
+          const loadedPage = await getPage(pageId, language);
+          try { validateCompositionLayout(loadedPage, compositionAdapters); }
+          catch (error) { if (get().activeLoadId === nextLoadId) set({ incompatiblePage: loadedPage }); throw error; }
+          const pageData = openWyrmetizerEditorPage(loadedPage, compositionAdapters);
 
           // Filter out any header/footer widgets that might exist in page data
           const cleanWidgets = {};

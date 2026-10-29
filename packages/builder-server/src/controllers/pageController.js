@@ -1,5 +1,5 @@
 import { validateCompositionLayout } from "@widgetizer/core/composition";
-import { resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { resolveWyrmetizerPage, createWyrmetizerCopy } from "@widgetizer/core/wyrmetizerLayouts";
 import { getMediaFiles } from "../db/repositories/mediaRepository.js";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { randomUUID } from "crypto";
@@ -802,6 +802,44 @@ export async function createPage(req, res) {
     if (respondMissingMedia(res, error)) return;
     console.error("Error creating page:", error);
     res.status(500).json({ error: "Failed to create page" });
+  }
+}
+
+export async function convertWyrmetizerPage(req, res) {
+  const { scope } = req, { storage } = req.adapters;
+  const lang = requestLanguage(req, res);
+  if (!lang) return;
+  try {
+    const result = await withContentWriteLock(scope.projectId, async () => {
+      const sourceBytes = await storage.read(scope, pageKey(req.params.id, lang));
+      if (sourceBytes == null) throw new Error("Source page is missing.");
+      const source = JSON.parse(sourceBytes.toString("utf8"));
+      if (source.layout?.version !== 1) throw new Error("No validated conversion path exists for this format. Use a compatible application version.");
+      validateCompositionLayout(source, compositionAdapters);
+      const draft = req.body.page || source;
+      if (draft.id !== req.params.id || draft.updated !== source.updated) throw new Error("The source changed. Reload it before converting; the original remains unchanged.");
+      for (const [areaId, area] of Object.entries(source.layout.compositions)) {
+        for (const [childId, placement] of Object.entries(area.placements)) {
+          const proposed = draft.layout?.compositions?.[areaId]?.placements?.[childId];
+          if (proposed && proposed.version < placement.version) throw new Error("Conversion cannot downgrade newer placement data. Reload with a compatible editor.");
+        }
+      }
+      const converted = createWyrmetizerCopy(draft, compositionAdapters);
+      const cap = await req.adapters.limits?.getLimit?.(scope, LIMIT_KEYS.MAX_WIDGETS_PER_PAGE);
+      if (Object.keys(converted.widgets).length > (typeof cap === "number" && Number.isFinite(cap) ? cap : MAX_WIDGETS_PER_PAGE)) throw new Error("Too many Widgets to convert safely.");
+      await validateCompositionCapabilities(converted, storage, scope);
+      const slug = await generateUniqueSlug(`${req.params.id}-wyrmetizer`, pageSlugTaken(storage, scope, lang));
+      const uuid = randomUUID();
+      Object.assign(converted, { id: slug, slug, uuid, translationGroupId: uuid,
+        name: `${source.name || req.params.id} (Wyrmetizer copy)`, created: new Date().toISOString(), updated: new Date().toISOString() });
+      delete converted.wyrmetizerEditorLayout;
+      for (const widget of Object.values(converted.widgets)) if (widget.settings?.listing_anchor) widget.settings.listing_anchor = false;
+      await persistPageInSection({ scope, storage, pageId: slug, pageData: converted, lang, assetStorage: req.adapters.assetStorage });
+      return converted;
+    });
+    return res.status(201).json({ ...result, language: lang.language });
+  } catch (error) {
+    return res.status(422).json({ error: `Conversion failed: ${error.message} The source file was not overwritten. Reopen the original page to recover your work.` });
   }
 }
 

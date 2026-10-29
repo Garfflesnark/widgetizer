@@ -62,6 +62,8 @@ router.post(
 );
 
 // Duplicate a page
+router.post("/:id/convert-wyrmetizer", editorJsonParser, [segmentParam("id")], validateRequest, pageController.convertWyrmetizerPage);
+
 router.post(
   "/:id/duplicate",
   standardJsonParser,
