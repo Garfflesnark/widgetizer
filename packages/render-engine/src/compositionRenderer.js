@@ -1,6 +1,7 @@
 import { validateCompositionLayout, compositionRevision } from "@widgetizer/core/composition";
 import { compositionImageRenderer } from "./compositionImageRenderer.js";
 import { escapeHtml } from "@widgetizer/core/escapeHtml";
+import { resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 
 export const compositionRenderAdapters = { image: compositionImageRenderer };
 
@@ -8,6 +9,7 @@ export const compositionRenderAdapters = { image: compositionImageRenderer };
 // the planner has no filesystem, project resolver or storage dependency.
 export async function renderPageContent(page, renderWidget, adapters = compositionRenderAdapters) {
   validateCompositionLayout(page, adapters);
+  page = resolveWyrmetizerPage(page);
   let index = 0;
   if (!page.layout) {
     let html = "";

@@ -47,7 +47,8 @@
     "./orderingControls": "./src/runtime/orderingControls.js",
     "./composition": "./src/runtime/composition.js",
     "./compositionImage": "./src/runtime/compositionImage.js",
-    "./rotationGeometry": "./src/runtime/rotationGeometry.js"
+    "./rotationGeometry": "./src/runtime/rotationGeometry.js",
+    "./wyrmetizerLayouts": "./src/runtime/wyrmetizerLayouts.js"
   },
   "dependencies": {
     "liquidjs": "^10.26.0",

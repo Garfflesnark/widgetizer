@@ -1,4 +1,5 @@
 import { validateCompositionLayout } from "@widgetizer/core/composition";
+import { resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { getMediaFiles } from "../db/repositories/mediaRepository.js";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { randomUUID } from "crypto";
@@ -75,6 +76,12 @@ async function readWidgetSchema(storage, scope, type) {
 async function validateCompositionCapabilities(page, storage, scope) {
   validateCompositionLayout(page, compositionAdapters);
   if (!page.layout) return;
+  if (page.layout.version === 2) {
+    // Saved inactive geometry must remain valid against current shared media.
+    page = structuredClone(page);
+    for (const area of Object.values(page.layout.areas)) area.activeMode = "composition";
+    page = resolveWyrmetizerPage(page);
+  }
   const media = getMediaFiles(scope.projectId).files;
   const schemas = new Map();
   for (const c of Object.values(page.layout.compositions)) for (const child of c.childrenOrder) {
@@ -254,8 +261,9 @@ async function persistPageInSection({ scope, storage, pageId, pageData, previous
       const buf = await storage.read(scope, pageKey(previousPageId || pageId, lang));
       if (buf != null) {
         const previous = JSON.parse(buf.toString("utf8"));
-        if (previous.layout && (!Object.hasOwn(pageData, "layout") ||
-            (previous.layout.version !== 1 && pageData.layout?.version !== previous.layout.version))) {
+        if ((pageData.layout?.version === 2 && previous.layout?.version !== 2) ||
+            (previous.layout && (!Object.hasOwn(pageData, "layout") ||
+            (previous.layout.version !== 1 && pageData.layout?.version !== previous.layout.version)))) {
           const error = new Error("This page requires a composition-aware editor.");
           error.code = "COMPOSITION_EDITOR_REQUIRED"; throw error;
         }

@@ -5,7 +5,7 @@ export const imagePresentationKeys = Object.freeze([
   "top_spacing", "top_spacing_px", "bottom_spacing", "bottom_spacing_px",
 ]);
 const clone = value => structuredClone(value);
-const fail = message => { throw new Error(`Wyrmetizer layout: ${message}`); };
+const fail = message => { throw new Error(`Composition layout (Wyrmetizer): ${message}`); };
 const record = value => value && typeof value === "object" && !Array.isArray(value);
 const sameMembers = (a, b) => Array.isArray(a) && new Set(a).size === a.length &&
   a.length === b.length && a.every(id => b.includes(id));
@@ -40,6 +40,45 @@ export function resolveWyrmetizerPage(page) {
   }
   next.layout = { version: 1, contentOrder, compositions };
   next.widgetsOrder = contentOrder.flatMap(entry => entry.kind === "widget" ? [entry.id] : compositions[entry.id].childrenOrder);
+  return next;
+}
+
+// This editor-only projection lets established controls keep their view model.
+// Serialization removes it and routes presentation back to its single owner.
+export function openWyrmetizerEditorPage(page, adapters) {
+  if (page.layout?.version !== 2) return page;
+  validateWyrmetizerPage(page, adapters);
+  return { ...resolveWyrmetizerPage(page), wyrmetizerEditorLayout: clone(page.layout) };
+}
+
+export function serializeWyrmetizerEditorPage(page, adapters) {
+  if (!page?.wyrmetizerEditorLayout) return page;
+  const next = clone(page), layout = next.wyrmetizerEditorLayout;
+  delete next.wyrmetizerEditorLayout;
+  for (const [areaId, area] of Object.entries(layout.areas)) {
+    for (const id of area.members) {
+      if (!page.widgets[id]) fail("membership changes require an atomic Area operation");
+      const split = splitWidget(page.widgets[id]);
+      next.widgets[id] = split.content;
+      area[area.activeMode].presentation[id] = split.presentation;
+    }
+    if (area.activeMode === "composition") {
+      const geometry = page.layout?.compositions?.[areaId];
+      if (!geometry) fail("use mode switching to preserve the paired arrangement");
+      area.composition.geometry = clone(geometry);
+    } else {
+      area.flow.order = page.widgetsOrder.filter(id => area.members.includes(id));
+    }
+  }
+  next.layout = layout;
+  const members = new Set(Object.values(layout.areas).flatMap(area => area.members));
+  const listed = new Set(layout.contentOrder.filter(entry => entry.kind === "widget").map(entry => entry.id));
+  for (const id of page.widgetsOrder) if (!members.has(id) && !listed.has(id)) layout.contentOrder.push({ kind: "widget", id });
+  const rank = entry => entry.kind === "widget" ? page.widgetsOrder.indexOf(entry.id) :
+    Math.min(...layout.areas[entry.id].members.map(id => page.widgetsOrder.indexOf(id)));
+  layout.contentOrder.sort((a, b) => rank(a) - rank(b));
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  validateWyrmetizerPage(next, adapters);
   return next;
 }
 

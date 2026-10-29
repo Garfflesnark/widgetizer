@@ -6,6 +6,7 @@ export function isCompositionGeometryOnlyChange(before, after) {
   if (!before?.page?.layout || !after?.page?.layout) return false;
   const normalize = (state) => {
     const page = structuredClone(state.page);
+    delete page.wyrmetizerEditorLayout;
     for (const c of Object.values(page.layout.compositions)) {
       for (const p of Object.values(c.placements))
         if (p.frames?.desktop) {

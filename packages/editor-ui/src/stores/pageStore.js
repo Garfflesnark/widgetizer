@@ -1,4 +1,6 @@
 import { reconcileCompositionCrud } from "@widgetizer/core/composition";
+import { openWyrmetizerEditorPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { getPage } from "../queries/pageManager";
@@ -129,7 +131,7 @@ const usePageStore = create(
 
         try {
           // Load page data (clean, no global widgets mixed in)
-          const pageData = await getPage(pageId, language);
+          const pageData = openWyrmetizerEditorPage(await getPage(pageId, language), compositionAdapters);
 
           // Filter out any header/footer widgets that might exist in page data
           const cleanWidgets = {};
@@ -227,6 +229,10 @@ const usePageStore = create(
       beginHistoryStep: () => { lastEdit = null; },
 
       setPage: (page) => {
+        if (page?.wyrmetizerEditorLayout || page?.layout?.version === 2) {
+          set({ page: openWyrmetizerEditorPage(serializeWyrmetizerEditorPage(page, compositionAdapters), compositionAdapters) });
+          return;
+        }
         set({ page: reconcileCompositionCrud(page, get().page) });
       },
 

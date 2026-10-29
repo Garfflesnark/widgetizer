@@ -1,4 +1,5 @@
 import { rotatedBounds } from "./rotationGeometry.js";
+import { validateWyrmetizerPage } from "./wyrmetizerLayouts.js";
 // Composition membership and ordering are independent of each widget adapter.
 const finite = (v, min, max) => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
 const idOK = (v) =>
@@ -29,6 +30,7 @@ export function projectContentOrder(layout) {
 }
 export function validateCompositionLayout(page, adapters = {}) {
   if (page.layout === undefined || page.layout === null) return;
+  if (page.layout.version === 2) return validateWyrmetizerPage(page, adapters);
   const l = page.layout;
   if (l?.version !== 1) fail("unsupported version");
   if (

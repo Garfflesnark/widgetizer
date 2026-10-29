@@ -9,6 +9,7 @@ import {
   returnCompositionToFlow,
   commitCompositionPage,
   rotateCompositionImage,
+  switchPairedCompositionMode,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, blockSelected = false }) {
@@ -19,6 +20,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
     [height, setHeight] = useState(() => compositionFor(page, widgetId)?.[1].profiles.desktop.height.valuePx || 1000),
     [error, setError] = useState("");
   const found = compositionFor(page, widgetId);
+  const paired = Object.entries(page?.wyrmetizerEditorLayout?.areas || {}).find(([, area]) => area.members.includes(widgetId));
   const eligible = Object.entries(page?.widgets || {}).filter(
     ([id, w]) =>
       !compositionFor(page, id) &&
@@ -34,6 +36,14 @@ export default function CompositionControls({ widgetId, blockSelected = false })
     }
   };
   const button = "border rounded px-2 py-1 text-xs text-pink-700 hover:bg-pink-50 disabled:opacity-40";
+  if (paired && paired[1].activeMode === "flow") return (
+    <section className="p-3 border-b space-y-2" aria-label="Composition Area controls">
+      <strong className="text-sm">Composition Area</strong>
+      <p className="text-xs">Flow arrangement active. Your Composition arrangement is preserved.</p>
+      <button className={button} disabled={context !== "desktop"} onClick={() => run(() => switchPairedCompositionMode(paired[0], "composition"))}>Switch to Composition</button>
+      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+    </section>
+  );
   if (!found && !eligible.some(([id]) => id === widgetId)) return null;
   return (
     <section className="p-3 border-b space-y-2" aria-label="Composition Area controls">

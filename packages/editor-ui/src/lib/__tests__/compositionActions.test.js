@@ -1,4 +1,6 @@
 import { compositionRevision } from "@widgetizer/core/composition";
+import { createWyrmetizerCopy, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 import schema from "../../../../../themes/arch/widgets/image/schema.json";
 import { fixture } from "../../../../core/src/runtime/__tests__/compositionFixture.js";
@@ -20,6 +22,7 @@ import {
   getCompositionMovementLocks,
   returnCompositionToFlow,
   rotateCompositionImage,
+  switchPairedCompositionMode,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -37,6 +40,38 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+it("switches paired modes with one Undo step, independent geometry and preserved selection", () => {
+  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
+  const before = structuredClone(usePageStore.getState().page);
+  usePageStore.temporal.getState().clear();
+  expect(returnCompositionToFlow("canvas")).toBe(true);
+  expect(usePageStore.getState().page.layout.compositions).toEqual({});
+  expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(switchPairedCompositionMode("canvas", "flow")).toBe(false);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  usePageStore.temporal.getState().undo();
+  expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo();
+  const edited = structuredClone(usePageStore.getState().page);
+  edited.widgets.a.settings.image_transform.dimensions.width = { unit: "px", value: 177 };
+  usePageStore.getState().setPage(edited);
+  switchPairedCompositionMode("canvas", "composition");
+  expect(usePageStore.getState().page.widgets.a.settings.image_transform).toEqual(before.widgets.a.settings.image_transform);
+  const saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(saved.layout.areas.canvas.flow.presentation.a.image_transform.dimensions.width.value).toBe(177);
+});
+it("duplicates and deletes paired members through editor actions atomically", () => {
+  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
+  const id = useWidgetStore.getState().duplicateWidget("a");
+  let canonical = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(canonical.layout.areas.canvas.flow.order).toContain(id);
+  expect(canonical.layout.areas.canvas.composition.geometry.stackOrder).toContain(id);
+  useWidgetStore.getState().deleteWidget(id);
+  canonical = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(canonical.widgets[id]).toBeUndefined();
+  expect(canonical.layout.areas.canvas.members).not.toContain(id);
+});
 it("toggles a pin on a rotated image without changing its angle or allowing resize to inject rotation", () => {
   rotateCompositionImage("a", 30);
   usePageStore.temporal.getState().clear();

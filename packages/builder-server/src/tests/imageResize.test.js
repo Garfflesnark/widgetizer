@@ -1,5 +1,7 @@
 import { createComposition, dissolveComposition } from "@widgetizer/core/composition";
 import { defaultImageTransform } from "@widgetizer/core/imageTransform";
+import { createWyrmetizerCopy, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { after, before, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "fs-extra";
@@ -78,6 +80,37 @@ before(async () => {
   await fs.copy(source, path.join(harness.getProjectDir("resize-project"), "widgets", "image"));
 });
 after(() => harness.cleanup());
+
+it("saves paired layouts to a separate page and reloads both arrangements exactly", async () => {
+  const transform = defaultImageTransform();
+  transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };
+  const source = createComposition({ id: "paired", slug: "paired", name: "Paired copy", widgets: {
+    a: { type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: transform }, blocks: {}, blocksOrder: [] },
+  }, widgetsOrder: ["a"] }, "area", ["a"], { a: { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } } });
+  let page = createWyrmetizerCopy(source, compositionAdapters);
+  const savedComposition = structuredClone(page.layout.areas.area.composition);
+  page = switchWyrmetizerMode(page, "area", "flow", compositionAdapters);
+  const flowTransform = structuredClone(transform); flowTransform.dimensions.width.value = 173;
+  page = editWyrmetizerWidget(page, "a", { image_transform: flowTransform, top_spacing_px: 53 }, compositionAdapters);
+  const req = body => ({ ...request(body), params: { id: "paired" } });
+  const saved = response(); await savePageContent(req(page), saved);
+  assert.equal(saved.code, 200, JSON.stringify(saved.data));
+  const loaded = response(); await getPage(req(), loaded);
+  assert.equal(loaded.code, 200, JSON.stringify(loaded.data));
+  assert.deepEqual(loaded.data.layout, page.layout);
+  assert.deepEqual(loaded.data.layout.areas.area.composition, savedComposition);
+  const restored = switchWyrmetizerMode(loaded.data, "area", "composition", compositionAdapters);
+  const again = response(); await savePageContent(req(restored), again);
+  assert.equal(again.code, 200, JSON.stringify(again.data));
+  const preview = response(); await generatePreview(req({ pageData: restored, themeSettings, previewMode: "editor" }), preview);
+  assert.equal(preview.code, 200, JSON.stringify(preview.data));
+  assert.match(preview.html, /data-composition-id="area"/);
+  const exported = await harness.runExport();
+  assert.equal(exported._status, 200, JSON.stringify(exported._json));
+  const html = await fs.readFile(path.join(harness.latestExportDir(), "paired.html"), "utf8");
+  assert.match(html, /data-composition-id="area"/);
+  assert.deepEqual(restored.layout.areas.area.flow.presentation.a.image_transform, flowTransform);
+});
 
 it("does not let stale saves strip or downgrade a stored newer layout", async () => {
   const original = { id: "index", slug: "index", name: "Protected newer page", widgets: {}, widgetsOrder: [],

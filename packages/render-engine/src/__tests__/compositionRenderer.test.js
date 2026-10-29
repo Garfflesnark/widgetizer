@@ -1,11 +1,26 @@
 import { it, expect } from "vitest";
 import { renderPageContent } from "../compositionRenderer.js";
 import { fixture } from "../../../core/src/runtime/__tests__/compositionFixture.js";
+import { createWyrmetizerCopy, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 
 const render = (id, widget, index) =>
   widget.type === "image"
     ? `<section data-widget-id="${id}" data-widget-index="${index}" data-composition-capability="image.v1" data-image-natural-width="1600" data-image-natural-height="900"><img src="image.jpg"></section>`
     : `<p>${id}</p>`;
+it("renders only active paired geometry and preserves preview/export parity in both modes", async () => {
+  let page = createWyrmetizerCopy(fixture(), compositionAdapters);
+  const composition = await renderPageContent(page, render);
+  page = switchWyrmetizerMode(page, "canvas", "flow", compositionAdapters);
+  page = editWyrmetizerWidget(page, "a", { top_spacing_px: 72 }, compositionAdapters);
+  const seen = [];
+  const flow = await renderPageContent(page, (id, widget) => { seen.push(widget); return id; });
+  expect(flow).toBe("abafter");
+  expect(seen[0].settings.top_spacing_px).toBe(72);
+  expect(await renderPageContent(JSON.parse(JSON.stringify(page)), render)).not.toContain("data-composition-id");
+  page = switchWyrmetizerMode(page, "canvas", "composition", compositionAdapters);
+  expect(await renderPageContent(page, render)).toBe(composition);
+});
 it("shares deterministic preview/export geometry, reading order, independent stacks and no editor scripts", async () => {
   const p = fixture();
   p.layout.compositions.canvas.stackOrder.reverse();

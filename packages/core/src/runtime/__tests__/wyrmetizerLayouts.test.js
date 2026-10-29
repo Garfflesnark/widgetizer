@@ -4,8 +4,22 @@ import { compositionAdapters } from "../compositionImage.js";
 import { defaultImageTransform } from "../imageTransform.js";
 import { createWyrmetizerCopy, resolveWyrmetizerPage, switchWyrmetizerMode,
   editWyrmetizerWidget, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, validateWyrmetizerPage,
-  addWyrmetizerWidget, reorderWyrmetizerFlow } from "../wyrmetizerLayouts.js";
+  addWyrmetizerWidget, reorderWyrmetizerFlow, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage } from "../wyrmetizerLayouts.js";
 const adapters = compositionAdapters;
+it("round-trips the editor view and routes active edits without touching inactive presentation", () => {
+  const canonical = createWyrmetizerCopy(fixture(), adapters);
+  const view = openWyrmetizerEditorPage(canonical, adapters);
+  expect(serializeWyrmetizerEditorPage(view, adapters)).toEqual(canonical);
+  view.widgets.a.settings.image_transform.dimensions.width.value = 199;
+  view.widgets.a.settings.link = "/shared";
+  view.layout.compositions.area.placements.a.frames.desktop.x = 0.3;
+  const saved = serializeWyrmetizerEditorPage(view, adapters);
+  expect(saved.wyrmetizerEditorLayout).toBeUndefined();
+  expect(saved.layout.areas.area.flow).toEqual(canonical.layout.areas.area.flow);
+  expect(saved.layout.areas.area.composition.presentation.a.image_transform.dimensions.width.value).toBe(199);
+  expect(saved.widgets.a.settings.link).toBe("/shared");
+  expect(saved.widgets.a.settings.image_transform).toBeUndefined();
+});
 function fixture() {
   const transform = defaultImageTransform();
   transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };

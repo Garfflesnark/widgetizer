@@ -1,4 +1,6 @@
 import { compositionFor } from "@widgetizer/core/composition";
+import { serializeWyrmetizerEditorPage, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, addWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { applyCompositionGeometry } from "../lib/compositionActions";
 import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform, supportsImageUnits, defaultImageTransform } from "@widgetizer/core/imageTransform";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, isImageWidth, isImageHeight, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
@@ -219,6 +221,15 @@ const useWidgetStore = create((set, get) => ({
 
     const newWidgetId = get().generateWidgetId();
     const newWidget = buildDefaultWidget(schemas[widgetType], widgetType, () => get().generateBlockId());
+    const selectedArea = Object.entries(page.wyrmetizerEditorLayout?.areas || {}).find(([, area]) => area.members.includes(get().selectedWidgetId));
+    if (selectedArea && compositionAdapters[widgetType]?.supports(newWidget)) {
+      pageStore.beginHistoryStep();
+      pageStore.setPage(addWyrmetizerWidget(serializeWyrmetizerEditorPage(page, compositionAdapters), selectedArea[0], newWidgetId, newWidget, compositionAdapters));
+      pageStore.beginHistoryStep();
+      set(getWidgetSelectionState(newWidgetId));
+      markStructureChanged();
+      return newWidgetId;
+    }
     const currentOrder = page.widgetsOrder || Object.keys(page.widgets);
 
     pageStore.setPage({
@@ -239,6 +250,14 @@ const useWidgetStore = create((set, get) => ({
     if (!page || !page.widgets[widgetId]) return null;
 
     const newWidgetId = get().generateWidgetId();
+    if (page.wyrmetizerEditorLayout && Object.values(page.wyrmetizerEditorLayout.areas).some(area => area.members.includes(widgetId))) {
+      pageStore.beginHistoryStep();
+      pageStore.setPage(duplicateWyrmetizerWidget(serializeWyrmetizerEditorPage(page, compositionAdapters), widgetId, newWidgetId, compositionAdapters));
+      pageStore.beginHistoryStep();
+      set({ ...getWidgetSelectionState(newWidgetId), ...getClearedHoverState() });
+      markStructureChanged();
+      return newWidgetId;
+    }
     const newWidget = withoutListingFlags(
       cloneWidgetWithNewBlockIds(page.widgets[widgetId], () => get().generateBlockId()),
     );
@@ -294,6 +313,14 @@ const useWidgetStore = create((set, get) => ({
     const { selectedWidgetId } = get();
 
     if (!page || !widgetId) return;
+    if (page.wyrmetizerEditorLayout) {
+      pageStore.beginHistoryStep();
+      pageStore.setPage(deleteWyrmetizerWidget(serializeWyrmetizerEditorPage(page, compositionAdapters), widgetId, compositionAdapters));
+      pageStore.beginHistoryStep();
+      markStructureChanged();
+      if (selectedWidgetId === widgetId) set({ selectedWidgetId: getNextSelectedId(page.widgetsOrder, widgetId), selectedBlockId: null, ...getClearedHoverState() });
+      return;
+    }
 
     const { [widgetId]: _, ...remainingWidgets } = page.widgets;
     const currentOrder = page.widgetsOrder || Object.keys(page.widgets);

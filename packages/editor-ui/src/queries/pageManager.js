@@ -1,4 +1,6 @@
 import { editorFetchJson, rethrowQueryError } from "../lib/apiFetch";
+import { serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 
 /**
  * @typedef {Object} Page
@@ -97,7 +99,7 @@ export async function updatePage(id, pageData) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(pageData),
+      body: JSON.stringify(serializeWyrmetizerEditorPage(pageData, compositionAdapters)),
     }, { fallbackMessage: "Failed to update page" });
   } catch (error) {
     console.error("Error updating page:", error);
@@ -123,7 +125,7 @@ export async function createPage(pageData) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(pageData),
+      body: JSON.stringify(serializeWyrmetizerEditorPage(pageData, compositionAdapters)),
     }, { fallbackMessage: "Failed to create page" });
   } catch (error) {
     rethrowQueryError(error, "Failed to create page");
@@ -147,7 +149,7 @@ export async function savePageContent(pageId, pageData) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(pageData),
+      body: JSON.stringify(serializeWyrmetizerEditorPage(pageData, compositionAdapters)),
     }, { fallbackMessage: "Failed to save page content" });
   } catch (error) {
     if (error.code === "PROJECT_MISMATCH") throw error;

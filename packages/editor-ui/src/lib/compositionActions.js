@@ -1,5 +1,6 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle } from "@widgetizer/core/rotationGeometry";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
   compositionFor,
@@ -126,7 +127,17 @@ export function layerImage(id, direction) {
   return commitCompositionPage(changeStack(usePageStore.getState().page, id, direction));
 }
 export function returnCompositionToFlow(id) {
+  if (usePageStore.getState().page?.wyrmetizerEditorLayout) return switchPairedCompositionMode(id, "flow");
   return commitCompositionPage(dissolveComposition(usePageStore.getState().page, id));
+}
+export function switchPairedCompositionMode(id, mode) {
+  const store = usePageStore.getState();
+  const canonical = serializeWyrmetizerEditorPage(store.page, compositionAdapters);
+  const next = switchWyrmetizerMode(canonical, id, mode, compositionAdapters);
+  if (next === canonical) return false;
+  store.beginHistoryStep(); store.setPage(next); store.beginHistoryStep();
+  useAutoSave.getState().setStructureModified(true);
+  return true;
 }
 export function reorderContentBlock(widgetId, direction) {
   const { page } = usePageStore.getState();
