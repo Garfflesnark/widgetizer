@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createWyrmetizerPivotController } from "../wyrmetizerPivot.js";
 import { rebaseRotationPivot, rotatedPoint, hitRotatedRect, rotatedResizeRect } from "../rotationGeometry.js";
-import { compositionContext, unrotatedCompositionRect } from "../compositionDOM.js";
+import { compositionContext, unrotatedCompositionRect, applyCompositionRect } from "../compositionDOM.js";
 let controller, child, overlay, commit;
 const frame = { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 }, rotation: 30 };
 function pointer(type, x, y, target = document, pointerId = 1) {
@@ -47,6 +47,48 @@ it("releases pointer zero when cancelling a drag", () => {
   controller.cancel();
   expect(overlay.releasePointerCapture).toHaveBeenCalledWith(0);
   expect(commit).not.toHaveBeenCalled();
+});
+it("commits the dragged pivot through the native confirmation click sequence without moving the image", () => {
+  let captured = false;
+  overlay.setPointerCapture.mockImplementation(() => { captured = true; });
+  overlay.hasPointerCapture = () => captured;
+  overlay.releasePointerCapture.mockImplementation(() => { captured = false; });
+  const originalRect = { left: 240, top: 240, width: 200, height: 100 };
+  commit.mockImplementation(({ rotationPivot }) => {
+    const rect = rebaseRotationPivot(originalRect, frame.rotation, undefined, rotationPivot);
+    const saved = { ...frame, x: rect.left / 1200, y: rect.top / 1200, rotationPivot };
+    child.dataset.compositionFrame = JSON.stringify(saved);
+    applyCompositionRect({ ...compositionContext(document.querySelector("[data-widget-id]")), frame: saved }, rect);
+  });
+  double();
+  pointer("pointerdown", 340, 290, pivotButton());
+  pointer("pointermove", 370, 300); pointer("pointerup", 370, 300, overlay);
+  const edited = JSON.parse(child.dataset.compositionFrame).rotationPivot;
+  expect(edited).not.toEqual({ x: 0.5, y: 0.5 });
+  const click = () => {
+    const button = pivotButton();
+    const x = parseFloat(button.style.left) + 10, y = parseFloat(button.style.top) + 10;
+    pointer("pointerdown", x, y, button);
+    const upTarget = captured ? overlay : button;
+    pointer("pointerup", x, y, upTarget);
+    // Capture or removal of the pressed button makes the overlay the click target.
+    const target = upTarget === button && button.isConnected ? button : overlay;
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    return target;
+  };
+  click();
+  click().dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(commit.mock.calls[0][0].rotationPivot).toEqual(edited);
+  expect(controller.active).toBe(false);
+  const savedContext = compositionContext(document.querySelector("[data-widget-id]"));
+  expect(savedContext.frame.rotationPivot).toEqual(edited);
+  expect(pivotButton().getAttribute("aria-pressed")).toBe("false");
+  for (const [x, y] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+    const before = rotatedPoint(originalRect, x, y, frame.rotation);
+    const after = rotatedPoint(unrotatedCompositionRect(savedContext), x, y, frame.rotation, edited);
+    expect(after.x).toBeCloseTo(before.x, 8); expect(after.y).toBeCloseTo(before.y, 8);
+  }
 });
 it("shows pink/green edit states and resets an unconfirmed edit to the centre", () => {
   expect(pivotButton().style.background).toBe("rgb(224, 0, 109)");

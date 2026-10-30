@@ -43,14 +43,21 @@ export function createWyrmetizerPivotController({ document, selected, getContext
     event.preventDefault(); event.stopImmediatePropagation();
     if (!session || !event.target.closest("[data-rotation-pivot]")) return;
     session.drag = event.pointerId;
-    try {
-      if (!session.capture.setPointerCapture) { finish(false); return; }
-      session.capture.setPointerCapture(event.pointerId);
-    } catch { finish(false); }
+    session.startX = event.clientX; session.startY = event.clientY; session.moved = false;
   };
   const move = event => {
     const s = session;
     if (!s || s.drag !== event.pointerId) return;
+    if (!s.moved) {
+      // Keep click targets intact for double-click confirmation; capture and
+      // redraw only once this press becomes a drag.
+      if (Math.hypot(event.clientX - s.startX, event.clientY - s.startY) < 3) return;
+      try {
+        if (!s.capture.setPointerCapture) { finish(false); return; }
+        s.capture.setPointerCapture(event.pointerId);
+      } catch { finish(false); return; }
+      s.moved = true;
+    }
     const box = s.context.area.getBoundingClientRect(), pivot = s.context.frame.rotationPivot || centerRotationPivot;
     const local = rotateVector((event.clientX - box.left) / s.context.scale - s.rect.left - pivot.x * s.rect.width,
       (event.clientY - box.top) / s.context.scale - s.rect.top - pivot.y * s.rect.height, -(s.context.frame.rotation || 0));
@@ -60,6 +67,7 @@ export function createWyrmetizerPivotController({ document, selected, getContext
   const up = event => {
     if (session?.drag !== event.pointerId) return;
     move(event);
+    if (!session) return;
     const s = session; s.drag = null;
     if (s.capture.hasPointerCapture?.(event.pointerId)) s.capture.releasePointerCapture(event.pointerId);
   };
