@@ -1,6 +1,7 @@
 import { useState } from "react";
+import CompositionNumberInput from "./CompositionNumberInput";
 import WyrmetizerCompatibility from "./WyrmetizerCompatibility";
-import { compositionFor } from "@widgetizer/core/composition";
+import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import usePageStore from "../../stores/pageStore";
 import useWidgetStore from "../../stores/widgetStore";
@@ -11,6 +12,7 @@ import {
   commitCompositionPage,
   rotateCompositionImage,
   switchPairedCompositionMode,
+  compositionInteractionContext,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, blockSelected = false }) {
@@ -30,11 +32,20 @@ export default function CompositionControls({ widgetId, blockSelected = false })
   );
   const run = (action) => {
     try {
-      action();
+      const result = action();
       setError("");
+      return result;
     } catch (e) {
       setError(e.message);
+      return false;
     }
+  };
+  const preview = (field, value) => {
+    if (!found) return;
+    window.dispatchEvent(new CustomEvent("wyrmetizer:numeric-preview", { detail: {
+      field, value, phase: value === null ? "cancel" : "preview", widgetId,
+      context: compositionInteractionContext(), revision: compositionRevision(page.widgets[widgetId], found[1].placements[widgetId].frames.desktop),
+    } }));
   };
   const button = "border rounded px-2 py-1 text-xs text-pink-700 hover:bg-pink-50 disabled:opacity-40";
   if (paired && paired[1].activeMode === "flow") return (
@@ -97,40 +108,20 @@ export default function CompositionControls({ widgetId, blockSelected = false })
           </div>}
           {!blockSelected && <label className="block text-xs">
             Rotation (° clockwise)
-            <input key={`${widgetId}:${found[1].placements[widgetId].frames.desktop.rotation || 0}`}
-              aria-label="Image rotation angle" className="border w-full" type="number" step="0.1"
-              disabled={context !== "desktop"}
-              defaultValue={found[1].placements[widgetId].frames.desktop.rotation || 0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") { e.currentTarget.value = found[1].placements[widgetId].frames.desktop.rotation || 0; e.currentTarget.blur(); }
-              }}
-              onBlur={(e) => {
-                const angle = e.currentTarget.valueAsNumber;
-                const accepted = rotateCompositionImage(widgetId, angle);
-                if (!accepted) e.currentTarget.value = found[1].placements[widgetId].frames.desktop.rotation || 0;
-              }} />
+            <CompositionNumberInput key={`${widgetId}:${context}:${found[1].placements[widgetId].frames.desktop.rotation || 0}`}
+              label="Image rotation angle" value={found[1].placements[widgetId].frames.desktop.rotation || 0} step={0.1} disabled={context !== "desktop"}
+              onPreview={value => preview("rotation", value)} onCommit={angle => rotateCompositionImage(widgetId, angle)} />
             Drag the circular handle; Shift snaps to 15°. Rotation rebases retained pins.
           </label>}
           <label className="block text-xs">
             Canvas height (px)
-            <input
-              aria-label="Canvas height"
-              className="border w-full"
-              type="number"
-              min="1"
-              max="10000"
-              value={height}
-              disabled={context !== "desktop"}
-              onChange={(e) => setHeight(Number(e.target.value))}
-              onBlur={() =>
-                run(() => {
-                  const next = structuredClone(page);
-                  next.layout.compositions[found[0]].profiles.desktop.height.valuePx = height;
-                  commitCompositionPage(next);
-                })
-              }
-            />
+            <CompositionNumberInput key={`${found[0]}:${context}:${found[1].profiles.desktop.height.valuePx}`}
+              label="Canvas height" value={found[1].profiles.desktop.height.valuePx} min={1} max={10000} disabled={context !== "desktop"}
+              onPreview={value => preview("height", value)} onCommit={value => run(() => {
+                const next = structuredClone(usePageStore.getState().page);
+                next.layout.compositions[found[0]].profiles.desktop.height.valuePx = value;
+                return commitCompositionPage(next);
+              })} />
           </label>
           <p className="text-xs text-slate-500">
             Image flow spacing is retained for Return to Flow. It does not position composition children.

@@ -1,3 +1,4 @@
+import { createWyrmetizerNumericPreview } from "./wyrmetizerNumericPreview.js";
 import { createWyrmetizerPivotController } from "./wyrmetizerPivot.js";
 import { overlayToolbarPlacement } from "./overlayToolbarPlacement.js";
 import { compositionImageAdapter } from "./compositionImage.js";
@@ -344,7 +345,7 @@ function setupScrollBoundsReporting() {
 function updateSelection(widgetId, blockId, compositionId = null) {
   widgetId = widgetId || null; blockId = blockId || null;
   if (compositionId) { widgetId = null; blockId = null; }
-  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); }
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }
   currentSelectedCompositionId = compositionId;
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
@@ -701,6 +702,7 @@ let imageResizeController = null;
 let compositionMoveController = null;
 let compositionRotateController = null;
 let compositionPivotController = null;
+let compositionNumericPreview = null;
 let compositionInteractionContext = null;
 let compositionMovementLocks = {};
 let imageAlignmentMenuFor = null;
@@ -964,10 +966,15 @@ function handleMessage(event) {
     const zoom = event.data.payload;
     if (typeof zoom !== "number" || !Number.isFinite(zoom) || zoom <= 0 || zoom > 1) return;
     document.documentElement.style.setProperty("--wz-editor-inverse-zoom", String(1 / zoom));
-    imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); renderOverlay(); return;
+    imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); renderOverlay(); return;
+  }
+  if (event.data?.type === "COMPOSITION_NUMERIC_PREVIEW") {
+    if (event.source === window.parent && PARENT_ORIGIN && event.origin === PARENT_ORIGIN) compositionNumericPreview?.preview(event.data.payload);
+    return;
   }
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    compositionNumericPreview?.cancel();
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionRotateController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionPivotController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
@@ -1203,7 +1210,7 @@ function trackWidgetObserver(widgetId, observer) {
 }
 
 function morphWidget(widgetId, newHtml) {
-  if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); }
+  if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }
   const existingElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
   if (!existingElement) {
     console.warn(`[PreviewRuntime] Widget ${widgetId} not found for morphing`);
@@ -1353,13 +1360,15 @@ function ensureHeaderScrollListener() {
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
+    compositionNumericPreview = createWyrmetizerNumericPreview({ document, selected: () => currentSelectedWidgetId, getContext: () => compositionInteractionContext, onPreview: renderOverlay });
+    document.addEventListener("pointerdown", () => compositionNumericPreview?.cancel(), true);
     compositionPivotController = createWyrmetizerPivotController({ document, selected: () => currentSelectedWidgetId, getContext: () => compositionInteractionContext,
       onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); },
       onPreview: renderOverlay, onCommit: payload => postToParent({ type: "COMPOSITION_PIVOT", payload }) });
     compositionRotateController = createCompositionRotateController({ document, selected: () => currentSelectedWidgetId,
-      getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); },
+      getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); },
       onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_ROTATE", payload }) });
-    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
+    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
     imageResizeController = createImageResizeController({
       document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
     });
@@ -1377,7 +1386,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); renderOverlay(); });
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

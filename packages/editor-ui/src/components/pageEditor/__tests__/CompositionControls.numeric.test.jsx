@@ -1,0 +1,50 @@
+// @vitest-environment jsdom
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { fixture } from "../../../../../core/src/runtime/__tests__/compositionFixture.js";
+import { serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import schema from "../../../../../../themes/arch/widgets/image/schema.json";
+vi.mock("../../../queries/pageManager", () => ({ getPage: vi.fn() }));
+vi.mock("../../../queries/previewManager", () => ({ getGlobalWidgets: vi.fn(), getProjectWidgets: vi.fn() }));
+vi.mock("../../../stores/themeStore", () => ({ default: { getState: () => ({ settings: {} }) } }));
+vi.mock("../WyrmetizerCompatibility", () => ({ default: () => null }));
+import CompositionControls from "../CompositionControls";
+import usePageStore from "../../../stores/pageStore";
+import useWidgetStore from "../../../stores/widgetStore";
+import useAutoSave from "../../../stores/saveStore";
+
+beforeEach(() => {
+  const page = fixture();
+  usePageStore.setState({ page, originalPage: structuredClone(page), globalWidgets: {} });
+  usePageStore.temporal.getState().clear();
+  useWidgetStore.setState({ compositionContext: "desktop", compositionMovementLocks: {}, schemas: { image: schema },
+    selectedWidgetId: "a", selectedBlockId: null, selectedCompositionId: null,
+    imageGeometry: { a: { containerWidth: 1200, width: 1200, height: 675, imageSource: "" } } });
+});
+afterEach(() => { cleanup(); useAutoSave.getState().stopAutoSave(); });
+
+it.each([
+  ["Image rotation angle", "rotation", "20", "30", page => page.layout.compositions.canvas.placements.a.frames.desktop.rotation],
+  ["Canvas height", "height", "1000", "1200", page => page.layout.compositions.canvas.profiles.desktop.height.valuePx],
+])("previews %s outside saved state and commits one reversible history step", (label, field, first, last, read) => {
+  const before = structuredClone(usePageStore.getState().page);
+  const saved = JSON.stringify(serializeWyrmetizerEditorPage(before));
+  const preview = vi.fn();
+  window.addEventListener("wyrmetizer:numeric-preview", preview);
+  try {
+    render(<CompositionControls widgetId="a" />);
+    const input = screen.getByLabelText(label);
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: first } });
+    fireEvent.change(input, { target: { value: last } });
+    expect(preview.mock.lastCall[0].detail).toMatchObject({ field, value: Number(last), phase: "preview" });
+    expect(JSON.stringify(serializeWyrmetizerEditorPage(usePageStore.getState().page))).toBe(saved);
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+    fireEvent.keyDown(input, { key: "Enter" }); fireEvent.blur(input);
+    const after = structuredClone(usePageStore.getState().page);
+    expect(read(after)).toBe(Number(last));
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+    act(() => usePageStore.temporal.getState().undo()); expect(usePageStore.getState().page).toEqual(before);
+    act(() => usePageStore.temporal.getState().redo()); expect(usePageStore.getState().page).toEqual(after);
+  } finally { window.removeEventListener("wyrmetizer:numeric-preview", preview); }
+});

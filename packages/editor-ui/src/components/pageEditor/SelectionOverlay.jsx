@@ -41,6 +41,11 @@ export default function SelectionOverlay({
   editorZoom = 1,
 }) {
   useEffect(() => {
+    const preview = event => iframeRef?.current?.contentWindow?.postMessage({ type: "COMPOSITION_NUMERIC_PREVIEW", payload: event.detail }, getPreviewTargetOrigin());
+    window.addEventListener("wyrmetizer:numeric-preview", preview);
+    return () => window.removeEventListener("wyrmetizer:numeric-preview", preview);
+  }, [iframeRef]);
+  useEffect(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
     const sync = () => iframe.contentWindow?.postMessage({ type: "EDITOR_ZOOM", payload: editorZoom }, getPreviewTargetOrigin());
