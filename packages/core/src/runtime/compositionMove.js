@@ -67,7 +67,7 @@ export function createCompositionMoveController({
       e.button !== 0 ||
       gesture ||
       e.target.closest(
-        ".wz-image-resize-handle,[data-composition-rotate],[data-image-align-menu],.wz-image-menu,[data-widget-reorder],[data-order-scope],[data-select-composition],[data-composition-lock],input,textarea,select",
+        ".wz-image-resize-handle,[data-composition-rotate],[data-rotation-pivot],[data-reset-rotation-pivot],[data-image-align-menu],.wz-image-menu,[data-widget-reorder],[data-order-scope],[data-select-composition],[data-composition-lock],input,textarea,select",
       )
     )
       return;
@@ -122,7 +122,7 @@ export function createCompositionMoveController({
       g.capture.setPointerCapture?.(e.pointerId);
     }
     const box = g.context.area.getBoundingClientRect();
-    const rotated = rotatedBounds(g.start, g.context.frame.rotation);
+    const rotated = rotatedBounds(g.start, g.context.frame.rotation, g.context.frame.rotationPivot);
     const insetX = rotated.left - g.start.left, insetY = rotated.top - g.start.top;
     g.rect.left = Math.max(
       -insetX,

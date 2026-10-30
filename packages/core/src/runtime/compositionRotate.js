@@ -27,16 +27,16 @@ export function createCompositionRotateController({ document, selected, getConte
     const g = gesture, box = g.context.area.getBoundingClientRect();
     if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 3) return;
     g.moved = true;
-    const cx = box.left + (g.rect.left + g.rect.width / 2) * g.context.scale;
-    const cy = box.top + (g.rect.top + g.rect.height / 2) * g.context.scale;
+    const cx = box.left + (g.rect.left + g.rect.width * (g.context.frame.rotationPivot?.x ?? 0.5)) * g.context.scale;
+    const cy = box.top + (g.rect.top + g.rect.height * (g.context.frame.rotationPivot?.y ?? 0.5)) * g.context.scale;
     const raw = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
     let angle = normalizeAngle((g.context.frame.rotation || 0) + normalizeAngle(raw - g.startPointerAngle));
     if (e.shiftKey) angle = normalizeAngle(Math.round(angle / 15) * 15);
     g.lastEvent = e;
-    if (containedRect(g.rect, g.context.width, g.context.height, angle)) {
+    if (containedRect(g.rect, g.context.width, g.context.height, angle, g.context.frame.rotationPivot)) {
       g.angle = angle;
       g.context.child.style.transform = `rotate(${angle}deg)`;
-      g.context.child.style.transformOrigin = "50% 50%";
+      g.context.child.style.transformOrigin = `${100 * (g.context.frame.rotationPivot?.x ?? 0.5)}% ${100 * (g.context.frame.rotationPivot?.y ?? 0.5)}%`;
       onPreview();
     }
     e.preventDefault();
@@ -51,8 +51,8 @@ export function createCompositionRotateController({ document, selected, getConte
     if (!context?.editable || !getContext() || !(context.scale > 0)) return;
     onStart();
     const rect = unrotatedCompositionRect(context), box = context.area.getBoundingClientRect();
-    const cx = box.left + (rect.left + rect.width / 2) * context.scale;
-    const cy = box.top + (rect.top + rect.height / 2) * context.scale;
+    const cx = box.left + (rect.left + rect.width * (context.frame.rotationPivot?.x ?? 0.5)) * context.scale;
+    const cy = box.top + (rect.top + rect.height * (context.frame.rotationPivot?.y ?? 0.5)) * context.scale;
     const capture = document.getElementById("wz-selection-overlay");
     gesture = { context, rect, id: selected(), interactionContext: getContext(),
       revision: context.child.dataset.compositionRevision, pointerId: e.pointerId, capture,
@@ -87,7 +87,7 @@ export function createCompositionRotateController({ document, selected, getConte
       if (!context || blockId) return;
       const rect = gesture?.id === widget.dataset.widgetId ? gesture.rect : unrotatedCompositionRect(context);
       const angle = this.angle(widget), box = context.area.getBoundingClientRect();
-      const screen = (x, y) => { const p = rotatedPoint(rect, x, y, angle); return { x: box.left + p.x * context.scale, y: box.top + p.y * context.scale }; };
+      const screen = (x, y) => { const p = rotatedPoint(rect, x, y, angle, context.frame.rotationPivot); return { x: box.left + p.x * context.scale, y: box.top + p.y * context.scale }; };
       const points = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([x, y]) => screen(x, y));
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("style", "position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none");

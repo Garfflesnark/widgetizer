@@ -15,6 +15,7 @@ export function isCompositionGeometryOnlyChange(before, after) {
           delete p.frames.desktop.y;
           delete p.frames.desktop.pivot;
           delete p.frames.desktop.rotation;
+          delete p.frames.desktop.rotationPivot;
         }
       delete c.stackOrder;
     }

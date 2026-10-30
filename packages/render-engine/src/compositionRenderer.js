@@ -39,7 +39,7 @@ export async function renderPageContent(page, renderWidget, adapters = compositi
       const r = rendered.rect,
         selector = `#${prefix} > [data-composition-child="${id}"]`;
       rules += `${selector}{left:${(100 * r.left) / w}%;top:${(100 * r.top) / h}%;width:${(100 * r.width) / w}%;height:${(100 * r.height) / h}%;z-index:${c.stackOrder.indexOf(id) + 1}}`;
-      if (frame.rotation) rules += `${selector}{transform:rotate(${frame.rotation}deg);transform-origin:50% 50%}`;
+      if (frame.rotation) rules += `${selector}{transform:rotate(${frame.rotation}deg);transform-origin:${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%}`;
       const effectiveMode =
         c.placements[id].responsive.mode === "inherit" ? c.responsive.defaultMode : c.placements[id].responsive.mode;
       children += `<div data-responsive-mode="${effectiveMode}" ${effectiveMode === "custom" ? 'data-responsive-fallback="proportional"' : ""} data-composition-child="${escapeHtml(id)}" data-composition-revision="${escapeHtml(compositionRevision(widget, frame))}" data-composition-frame="${escapeHtml(JSON.stringify(frame))}">${rendered.html}</div>`;

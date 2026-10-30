@@ -1,5 +1,5 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
-import { normalizeAngle } from "@widgetizer/core/rotationGeometry";
+import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
 import { serializeWyrmetizerEditorPage, switchWyrmetizerMode } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
@@ -32,6 +32,20 @@ export function rotateCompositionImage(widgetId, angle) {
   const rotation = normalizeAngle(angle);
   if ((frame.rotation || 0) === rotation) return false;
   return applyCompositionGeometry(widgetId, { frame: { ...frame, rotation }, startFrame: frame });
+}
+export function setCompositionRotationPivot(widgetId, pivot) {
+  if (!validRotationPivot(pivot)) return false;
+  const page = usePageStore.getState().page, found = compositionFor(page, widgetId);
+  const geometry = useWidgetStore.getState().imageGeometry[widgetId];
+  if (!found || !geometry) return false;
+  const frame = found[1].placements[widgetId].frames.desktop, previous = frame.rotationPivot || centerRotationPivot;
+  if (previous.x === pivot.x && previous.y === pivot.y) return false;
+  const width = found[1].profiles.desktop.referenceWidthPx;
+  const size = transformRect(page.widgets[widgetId].settings.image_transform, geometry);
+  const rect = rebaseRotationPivot(compositionRect(frame, size.width, size.height, width), frame.rotation || 0, previous, pivot);
+  return applyCompositionGeometry(widgetId, { startFrame: frame, frame: { ...frame,
+    x: (rect.left + frame.pivot.x * rect.width) / width,
+    y: (rect.top + frame.pivot.y * rect.height) / width, rotationPivot: { ...pivot } } });
 }
 
 // Interaction locks survive preview replacement and selection/context changes,
@@ -78,7 +92,7 @@ export function commitCompositionPage(next) {
           compositionRect(c.placements[id].frames.desktop, size.width, size.height, basis.containerWidth),
           basis.containerWidth,
           c.profiles.desktop.height.valuePx,
-          c.placements[id].frames.desktop.rotation,
+          c.placements[id].frames.desktop.rotation, c.placements[id].frames.desktop.rotationPivot,
         )
       )
         throw new Error("Image exceeds the Composition Area. Increase its height or resize the image first.");
@@ -174,7 +188,8 @@ export function applyCompositionGeometry(widgetId, { frame, startFrame, transfor
   if (transform) next.widgets[widgetId].settings.image_transform = transform;
   if (typeof additionalSettings.fullwidth === "boolean") next.widgets[widgetId].settings.fullwidth = additionalSettings.fullwidth;
   target.frames.desktop = frame || target.frames.desktop;
-  if (target.frames.desktop.rotation !== undefined) target.version = 2;
+  if (target.frames.desktop.rotationPivot !== undefined) target.version = 3;
+  else if (target.frames.desktop.rotation !== undefined) target.version = 2;
   try {
     validateCompositionLayout(next, compositionAdapters);
   } catch {
@@ -198,7 +213,7 @@ export function applyCompositionGeometry(widgetId, { frame, startFrame, transfor
     };
     target.frames.desktop = { ...target.frames.desktop, ...frameFromRect(rect, target.frames.desktop.pivot, width) };
   }
-  if (!containedRect(rect, width, height, target.frames.desktop.rotation)) {
+  if (!containedRect(rect, width, height, target.frames.desktop.rotation, target.frames.desktop.rotationPivot)) {
     useToastStore.getState().showToast("Image exceeds the Composition Area. Increase its height or resize the image first.", "error");
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("widgetizer:composition-reconcile"));
     return false;
@@ -215,7 +230,7 @@ export function handleCompositionMessage(event, iframe, origin) {
     event.source !== iframe ||
     origin === "*" ||
     event.origin !== origin ||
-    !["COMPOSITION_MOVE", "COMPOSITION_ROTATE"].includes(event.data?.type)
+    !["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(event.data?.type)
   )
     return false;
   const p = event.data.payload,
@@ -233,11 +248,17 @@ export function handleCompositionMessage(event, iframe, origin) {
     return false;
   const current = usePageStore.getState().page;
   const original = found[1].placements[p.widgetId].frames.desktop;
+  if (event.data.type === "COMPOSITION_PIVOT") {
+    if (p.startRevision !== compositionRevision(current.widgets[p.widgetId], original) ||
+        JSON.stringify(p.startFrame) !== JSON.stringify(original)) return false;
+    return setCompositionRotationPivot(p.widgetId, p.rotationPivot);
+  }
   // Each bridge authorizes only its own geometry channel.
   if (event.data.type === "COMPOSITION_ROTATE") {
     if (!p.frame || !Number.isFinite(p.frame.rotation) ||
         JSON.stringify({ ...p.frame, rotation: undefined }) !== JSON.stringify({ ...original, rotation: undefined })) return false;
-  } else if ((p.frame?.rotation || 0) !== (original.rotation || 0)) return false;
+  } else if ((p.frame?.rotation || 0) !== (original.rotation || 0) ||
+      JSON.stringify(p.frame?.rotationPivot) !== JSON.stringify(original.rotationPivot)) return false;
   if (
     p.startRevision !== compositionRevision(current.widgets[p.widgetId], found[1].placements[p.widgetId].frames.desktop)
   )

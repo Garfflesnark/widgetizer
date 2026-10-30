@@ -68,3 +68,13 @@ it("renders persisted clockwise rotation identically in preview/export without c
   expect(preview).toContain("left:37.5%;top:22.5%;width:25%;height:25%;z-index:1");
   expect(preview).not.toMatch(/composition-rotate|wz-image/);
 });
+it("shares the saved off-centre pivot with proportional preview/export geometry", async () => {
+  const page = fixture(), placement = page.layout.compositions.canvas.placements.a;
+  placement.version = 3;
+  placement.frames.desktop.rotation = 20;
+  placement.frames.desktop.rotationPivot = { x: 0.2, y: 0.8 };
+  const html = await renderPageContent(page, render);
+  expect(html).toContain("transform:rotate(20deg);transform-origin:20% 80%");
+  expect(html).toBe(await renderPageContent(JSON.parse(JSON.stringify(page)), render));
+  expect(html).toContain("aspect-ratio:1200/800");
+});

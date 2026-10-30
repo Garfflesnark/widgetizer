@@ -1,3 +1,4 @@
+import { createWyrmetizerPivotController } from "./wyrmetizerPivot.js";
 import { overlayToolbarPlacement } from "./overlayToolbarPlacement.js";
 import { compositionImageAdapter } from "./compositionImage.js";
 import { createCompositionMoveController } from "./compositionMove.js";
@@ -343,7 +344,7 @@ function setupScrollBoundsReporting() {
 function updateSelection(widgetId, blockId, compositionId = null) {
   widgetId = widgetId || null; blockId = blockId || null;
   if (compositionId) { widgetId = null; blockId = null; }
-  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); }
+  if (widgetId !== currentSelectedWidgetId || blockId !== currentSelectedBlockId || compositionId !== currentSelectedCompositionId) { imageAlignmentMenuFor = null; imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); }
   currentSelectedCompositionId = compositionId;
   const prevWidgetId = currentSelectedWidgetId;
   const prevBlockId = currentSelectedBlockId;
@@ -699,6 +700,7 @@ let overlayContainer = null;
 let imageResizeController = null;
 let compositionMoveController = null;
 let compositionRotateController = null;
+let compositionPivotController = null;
 let compositionInteractionContext = null;
 let compositionMovementLocks = {};
 let imageAlignmentMenuFor = null;
@@ -833,7 +835,7 @@ function renderOverlay() {
           const locked = compositionMovementLocks[currentSelectedWidgetId] === composition.area.dataset.compositionId;
           const label = locked ? "Unlock Image Position" : "Lock Image Position";
           const icon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="${locked ? "M8 10V6a4 4 0 0 1 8 0v4" : "M8 10V6a4 4 0 0 1 8 0"}"/></svg>`;
-          html += composition.editable ? `<button type="button" class="wz-reorder-btn" data-composition-lock="${currentSelectedWidgetId}" title="${label}" aria-label="${label}" aria-pressed="${locked}">${icon}Move</button><button type="button" class="wz-reorder-btn" data-composition-move="${currentSelectedWidgetId}" title="Drag Image" aria-label="Drag Image" ${locked ? "disabled" : ""}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg></button>` : `<span class="wz-widget-label">Mobile: generated Proportional</span>`;
+          html += composition.editable ? `<button type="button" class="wz-reorder-btn" data-composition-lock="${currentSelectedWidgetId}" title="${label}" aria-label="${label}" aria-pressed="${locked}">${icon}Move</button><button type="button" class="wz-reorder-btn" data-composition-move="${currentSelectedWidgetId}" title="Drag Image" aria-label="Drag Image" ${locked ? "disabled" : ""}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg></button><button type="button" class="wz-reorder-btn" data-reset-rotation-pivot="${currentSelectedWidgetId}" aria-label="Reset Pivot" title="Reset rotation pivot to center without moving the image">Reset Pivot</button>` : `<span class="wz-widget-label">Mobile: generated Proportional</span>`;
         }
         if (units && imageAlignmentMenuFor === currentSelectedWidgetId) {
           html += `<div class="wz-image-menu" role="menu" aria-label="Image alignment">`;
@@ -880,7 +882,8 @@ function renderOverlay() {
   const selected = Array.from(document.querySelectorAll("[data-widget-id]")).find(
     (element) => element.dataset.widgetId === currentSelectedWidgetId,
   );
-  if (!compositionRotateController?.active) imageResizeController?.renderHandle(overlayContainer, selected, currentSelectedBlockId);
+  if (!compositionRotateController?.active && !compositionPivotController?.active) imageResizeController?.renderHandle(overlayContainer, selected, currentSelectedBlockId);
+  compositionPivotController?.render(overlayContainer, selected, currentSelectedBlockId);
   compositionRotateController?.render(overlayContainer, selected, currentSelectedBlockId);
 }
 
@@ -961,12 +964,13 @@ function handleMessage(event) {
     const zoom = event.data.payload;
     if (typeof zoom !== "number" || !Number.isFinite(zoom) || zoom <= 0 || zoom > 1) return;
     document.documentElement.style.setProperty("--wz-editor-inverse-zoom", String(1 / zoom));
-    imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); renderOverlay(); return;
+    imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); renderOverlay(); return;
   }
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionRotateController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
+    compositionPivotController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     if (typeof event.data.context === "string") compositionInteractionContext = event.data.context;
     compositionMovementLocks = Object.fromEntries(Object.entries(event.data.movementLocks || {}).filter(([id, area]) =>
       typeof area === "string" && event.data.payload?.compositions?.[area]?.childrenOrder?.includes(id)));
@@ -976,10 +980,11 @@ function handleMessage(event) {
       for (const child of area.querySelectorAll(":scope > [data-composition-child]")) {
         const widgetId = child.dataset.compositionChild, frame = c.placements?.[widgetId]?.frames?.desktop;
         if (!frame || !Number.isFinite(frame.x) || !Number.isFinite(frame.y)) continue;
+        if (compositionPivotController?.active && widgetId === currentSelectedWidgetId) continue;
         child.dataset.compositionFrame = JSON.stringify(frame);
         if (!compositionRotateController?.active) {
           child.style.transform = `rotate(${frame.rotation || 0}deg)`;
-          child.style.transformOrigin = "50% 50%";
+          child.style.transformOrigin = `${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%`;
         }
         if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
         child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
@@ -1198,7 +1203,7 @@ function trackWidgetObserver(widgetId, observer) {
 }
 
 function morphWidget(widgetId, newHtml) {
-  if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); }
+  if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); }
   const existingElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
   if (!existingElement) {
     console.warn(`[PreviewRuntime] Widget ${widgetId} not found for morphing`);
@@ -1348,12 +1353,15 @@ function ensureHeaderScrollListener() {
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
+    compositionPivotController = createWyrmetizerPivotController({ document, selected: () => currentSelectedWidgetId, getContext: () => compositionInteractionContext,
+      onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); },
+      onPreview: renderOverlay, onCommit: payload => postToParent({ type: "COMPOSITION_PIVOT", payload }) });
     compositionRotateController = createCompositionRotateController({ document, selected: () => currentSelectedWidgetId,
-      getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); },
+      getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); },
       onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_ROTATE", payload }) });
-    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
+    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
     imageResizeController = createImageResizeController({
-      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
+      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
     });
   }
   if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
@@ -1369,7 +1377,7 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Re-render overlay on window resize
-  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); renderOverlay(); });
+  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); renderOverlay(); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

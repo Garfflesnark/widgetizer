@@ -143,7 +143,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       if (!state.composition.frame.rotation) {
         placed.left = Math.max(0, Math.min(state.composition.width - placed.width, placed.left));
         placed.top = Math.max(0, Math.min(state.composition.height - placed.height, placed.top));
-      } else if (!containedRect(placed, state.composition.width, state.composition.height, state.composition.frame.rotation)) return;
+      } else if (!containedRect(placed, state.composition.width, state.composition.height, state.composition.frame.rotation, state.composition.frame.rotationPivot)) return;
       applyCompositionRect(state.composition, placed);
       return;
     }
@@ -247,8 +247,8 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       if (angle) Object.assign(bounds, { left: -Infinity, top: -Infinity, right: Infinity, bottom: Infinity, maxTop: Infinity });
       const rect = gesture.model ? resizePinnedRect(gesture.rect, gesture.direction, dx, dy, bounds,
         { proportional: gesture.shift, pins: gesture.model.anchors || [] }) : resizeAnchoredRect(gesture.rect, gesture.direction, dx, dy, bounds);
-      const placed = angle ? rotatedResizeRect(gesture.rect, rect, angle) : rect;
-      if (angle && !containedRect(placed, gesture.composition.width, gesture.composition.height, angle)) { event.preventDefault(); return; }
+      const placed = angle ? rotatedResizeRect(gesture.rect, rect, angle, gesture.composition.frame.rotationPivot) : rect;
+      if (angle && !containedRect(placed, gesture.composition.width, gesture.composition.height, angle, gesture.composition.frame.rotationPivot)) { event.preventDefault(); return; }
       gesture.transform = rectTransform(rect, gesture.basis, gesture.model, gesture.everProportional ? "nsew" : gesture.direction);
       gesture.lastRect = transformRect(gesture.transform, gesture.basis);
       if (gesture.composition) {
@@ -438,7 +438,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         if (composition?.frame.rotation) {
           const local = unrotatedCompositionRect(composition), area = composition.area.getBoundingClientRect();
           point = rotatedPoint(local, direction.includes("w") ? 0 : direction.includes("e") ? 1 : 0.5,
-            direction.includes("n") ? 0 : direction.includes("s") ? 1 : 0.5, composition.frame.rotation);
+            direction.includes("n") ? 0 : direction.includes("s") ? 1 : 0.5, composition.frame.rotation, composition.frame.rotationPivot);
           point = { x: area.left + point.x * composition.scale, y: area.top + point.y * composition.scale };
         }
         Object.assign(handle.style, {

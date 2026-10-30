@@ -25,7 +25,7 @@ export function applyCompositionRect(context, rect) {
     width: `${(100 * rect.width) / width}%`,
     height: `${(100 * rect.height) / height}%`,
     transform: `rotate(${context.frame.rotation || 0}deg)`,
-    transformOrigin: "50% 50%",
+    transformOrigin: `${100 * (context.frame.rotationPivot?.x ?? 0.5)}% ${100 * (context.frame.rotationPivot?.y ?? 0.5)}%`,
   });
 }
 export function resolvedCompositionRect(context, size) {

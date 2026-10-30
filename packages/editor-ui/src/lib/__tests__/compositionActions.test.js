@@ -1,4 +1,6 @@
-import { compositionRevision } from "@widgetizer/core/composition";
+import { compositionRevision, compositionRect } from "@widgetizer/core/composition";
+import { rotatedPoint } from "@widgetizer/core/rotationGeometry";
+import { transformRect } from "@widgetizer/core/imageTransform";
 import { createWyrmetizerCopy, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
@@ -23,6 +25,7 @@ import {
   returnCompositionToFlow,
   rotateCompositionImage,
   switchPairedCompositionMode,
+  setCompositionRotationPivot,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -40,6 +43,30 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+it("persists pivot edits and Reset Pivot without moving corners, with atomic Undo/Redo", () => {
+  rotateCompositionImage("a", 30);
+  const before = structuredClone(usePageStore.getState().page);
+  const size = transformRect(before.widgets.a.settings.image_transform, useWidgetStore.getState().imageGeometry.a);
+  const corners = page => {
+    const frame = page.layout.compositions.canvas.placements.a.frames.desktop;
+    const rect = compositionRect(frame, size.width, size.height, 1200);
+    return [[0, 0], [1, 0], [1, 1], [0, 1]].map(([x, y]) => rotatedPoint(rect, x, y, frame.rotation, frame.rotationPivot));
+  };
+  const originalCorners = corners(before);
+  usePageStore.temporal.getState().clear();
+  expect(setCompositionRotationPivot("a", { x: 0.2, y: 0.8 })).toBe(true);
+  const after = structuredClone(usePageStore.getState().page);
+  expect(after.layout.compositions.canvas.placements.a.version).toBe(3);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  corners(after).forEach((point, i) => { expect(point.x).toBeCloseTo(originalCorners[i].x, 8); expect(point.y).toBeCloseTo(originalCorners[i].y, 8); });
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); expect(usePageStore.getState().page).toEqual(after);
+  expect(setCompositionRotationPivot("a", { x: 0.5, y: 0.5 })).toBe(true);
+  const reset = JSON.parse(JSON.stringify(usePageStore.getState().page));
+  corners(reset).forEach((point, i) => { expect(point.x).toBeCloseTo(originalCorners[i].x, 8); expect(point.y).toBeCloseTo(originalCorners[i].y, 8); });
+  expect(setCompositionRotationPivot("a", { x: 0.5, y: 0.5 })).toBe(false);
+  expect(setCompositionRotationPivot("a", { x: -1, y: 0.5 })).toBe(false);
+});
 it("switches paired modes with one Undo step, independent geometry and preserved selection", () => {
   usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
   const before = structuredClone(usePageStore.getState().page);

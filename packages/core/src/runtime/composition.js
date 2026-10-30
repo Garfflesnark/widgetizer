@@ -1,4 +1,4 @@
-import { rotatedBounds } from "./rotationGeometry.js";
+import { rotatedBounds, validRotationPivot } from "./rotationGeometry.js";
 import { validateWyrmetizerPage } from "./wyrmetizerLayouts.js";
 // Composition membership and ordering are independent of each widget adapter.
 const finite = (v, min, max) => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
@@ -81,13 +81,14 @@ export function validateCompositionLayout(page, adapters = {}) {
         const p = c.placements[id],
           f = p?.frames?.desktop;
         if (
-          ![1, 2].includes(p?.version) ||
+          ![1, 2, 3].includes(p?.version) ||
           !["inherit", "proportional", "custom"].includes(p.responsive?.mode) ||
           !f ||
           (f.rotation !== undefined && !finite(f.rotation, -180, 180)) ||
-          (f.rotation !== undefined && p.version !== 2) ||
-          !finite(f.x, 0, 1) ||
-          !finite(f.y, 0, profile.height.valuePx / profile.referenceWidthPx) ||
+          (f.rotation !== undefined && p.version < 2) ||
+          (f.rotationPivot !== undefined && (p.version !== 3 || !validRotationPivot(f.rotationPivot))) ||
+          !finite(f.x, p.version === 3 ? -10 : 0, p.version === 3 ? 10 : 1) ||
+          !finite(f.y, p.version === 3 ? -10 : 0, p.version === 3 ? 10 : profile.height.valuePx / profile.referenceWidthPx) ||
           !finite(f.pivot?.x, 0, 1) ||
           !finite(f.pivot?.y, 0, 1)
         )
@@ -126,8 +127,8 @@ export function frameFromRect(rect, pivot, referenceWidth) {
     pivot: { ...pivot },
   };
 }
-export function containedRect(rect, width, height, rotation = 0) {
-  rect = rotatedBounds(rect, rotation);
+export function containedRect(rect, width, height, rotation = 0, rotationPivot) {
+  rect = rotatedBounds(rect, rotation, rotationPivot);
   return (
     rect.width <= width + 0.02 &&
     rect.height <= height + 0.02 &&

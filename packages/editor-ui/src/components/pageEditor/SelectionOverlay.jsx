@@ -155,7 +155,7 @@ export default function SelectionOverlay({
       if (event.data?.type === "COMPOSITION_LOCK") {
         handleCompositionLockMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }
-      if (["COMPOSITION_MOVE", "COMPOSITION_ROTATE"].includes(event.data?.type)) {
+      if (["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(event.data?.type)) {
         handleCompositionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }
       if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {

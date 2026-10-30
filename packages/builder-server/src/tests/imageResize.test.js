@@ -136,6 +136,9 @@ it("saves paired layouts to a separate page and reloads both arrangements exactl
     a: { type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: transform }, blocks: {}, blocksOrder: [] },
   }, widgetsOrder: ["a"] }, "area", ["a"], { a: { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } } });
   let page = createWyrmetizerCopy(source, compositionAdapters);
+  page.layout.areas.area.composition.geometry.placements.a.version = 3;
+  page.layout.areas.area.composition.geometry.placements.a.frames.desktop.rotation = 30;
+  page.layout.areas.area.composition.geometry.placements.a.frames.desktop.rotationPivot = { x: 0.2, y: 0.8 };
   const savedComposition = structuredClone(page.layout.areas.area.composition);
   page = switchWyrmetizerMode(page, "area", "flow", compositionAdapters);
   const flowTransform = structuredClone(transform); flowTransform.dimensions.width.value = 173;
@@ -157,6 +160,8 @@ it("saves paired layouts to a separate page and reloads both arrangements exactl
   assert.equal(exported._status, 200, JSON.stringify(exported._json));
   const html = await fs.readFile(path.join(harness.latestExportDir(), "paired.html"), "utf8");
   assert.match(html, /data-composition-id="area"/);
+  assert.match(preview.html, /transform-origin:20% 80%/);
+  assert.match(html, /transform-origin:\s*20% 80%/);
   assert.deepEqual(restored.layout.areas.area.flow.presentation.a.image_transform, flowTransform);
 });
 
