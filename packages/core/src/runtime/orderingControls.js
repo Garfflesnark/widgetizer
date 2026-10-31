@@ -14,10 +14,12 @@ export function orderingControls(page, { widgetId, compositionId } = {}) {
       downLabel: "Send Backward",
     };
   }
+  const paired = page?.wyrmetizerEditorLayout;
+  const flowArea = widgetId && Object.values(paired?.areas || {}).find(area => area.activeMode === "flow" && area.members.includes(widgetId));
   const scope = compositionId ? "composition" : "widget",
     id = compositionId || widgetId;
-  if (!id || (compositionId ? !page?.layout?.compositions?.[id] : !page?.widgets?.[id])) return null;
-  const order = page.layout?.contentOrder?.map((entry) => entry.id) || page.widgetsOrder || [],
+  if (!id || (compositionId ? !paired?.areas[id] && !page?.layout?.compositions?.[id] : !page?.widgets?.[id])) return null;
+  const order = flowArea?.flow.order || (paired?.contentOrder || page.layout?.contentOrder)?.map((entry) => entry.id) || page.widgetsOrder || [],
     index = order.indexOf(id);
   if (index < 0) return null;
   return {

@@ -1,7 +1,9 @@
+// @vitest-environment jsdom
 import { it, expect } from "vitest";
 import { renderPageContent } from "../compositionRenderer.js";
 import { fixture } from "../../../core/src/runtime/__tests__/compositionFixture.js";
-import { createWyrmetizerCopy, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { createWyrmetizerCopy, switchWyrmetizerMode, editWyrmetizerWidget, openWyrmetizerEditorPage,
+  createEmptyWyrmetizerComposition, removeWyrmetizerWidget, createWyrmetizerComposition } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 
 const render = (id, widget, index) =>
@@ -15,11 +17,58 @@ it("renders only active paired geometry and preserves preview/export parity in b
   page = editWyrmetizerWidget(page, "a", { top_spacing_px: 72 }, compositionAdapters);
   const seen = [];
   const flow = await renderPageContent(page, (id, widget) => { seen.push(widget); return id; });
-  expect(flow).toBe("abafter");
+  expect(flow).toContain('data-composition-mode="flow"');
+  expect(flow).toContain('>ab</section>after');
   expect(seen[0].settings.top_spacing_px).toBe(72);
-  expect(await renderPageContent(JSON.parse(JSON.stringify(page)), render)).not.toContain("data-composition-id");
+  expect(await renderPageContent(JSON.parse(JSON.stringify(page)), render)).not.toContain("data-composition-child");
   page = switchWyrmetizerMode(page, "canvas", "composition", compositionAdapters);
   expect(await renderPageContent(page, render)).toBe(composition);
+});
+const parse = html => new DOMParser().parseFromString(html, "text/html");
+it("nests authored Flow children once at the Area position, preserving order and every presentation field", async () => {
+  let page = createWyrmetizerCopy(fixture(), compositionAdapters);
+  page = switchWyrmetizerMode(page, "canvas", "flow", compositionAdapters);
+  page.layout.areas.canvas.flow.order.reverse();
+  page.widgetsOrder = ["b", "a", "after"];
+  page = editWyrmetizerWidget(page, "a", { top_spacing: "px", top_spacing_px: 72, bottom_spacing_px: 43,
+    image_transform: { ...page.layout.areas.canvas.flow.presentation.a.image_transform, alignment: "right" } }, compositionAdapters);
+  const before = structuredClone(page), calls = [];
+  const html = await renderPageContent(page, (id, widget, index) => { calls.push({ id, widget, index }); return render(id, widget, index); });
+  const document = parse(html), area = document.querySelector('[data-composition-id="canvas"]');
+  expect([...area.querySelectorAll("[data-widget-id]")].map(el => el.dataset.widgetId)).toEqual(["b", "a"]);
+  expect(area.querySelector('[data-widget-id="a"]').parentElement).toBe(area);
+  expect(document.querySelectorAll('[data-widget-id="a"]')).toHaveLength(1);
+  expect(area.nextElementSibling.textContent).toBe("after");
+  expect(calls.map(({ id, index }) => [id, index])).toEqual([["b", 1], ["a", 2], ["after", 3]]);
+  expect(calls[1].widget.settings).toEqual({ ...page.widgets.a.settings, ...page.layout.areas.canvas.flow.presentation.a });
+  expect(area.getAttribute("style")).not.toMatch(/aspect-ratio|overflow|position:absolute|max-width/);
+  expect(html).not.toMatch(/data-composition-child|transform:rotate/);
+  expect(page).toEqual(before);
+  expect(await renderPageContent(openWyrmetizerEditorPage(page, compositionAdapters), render)).toBe(await renderPageContent(JSON.parse(JSON.stringify(page)), render));
+});
+it("keeps mixed Flow and Composition Areas as siblings without nesting other Areas or independent Widgets", async () => {
+  let page = createWyrmetizerCopy(fixture(), compositionAdapters);
+  page = removeWyrmetizerWidget(page, "canvas", "b", compositionAdapters);
+  page = createWyrmetizerComposition(page, "other", ["b"], { b: { x: 0.4, y: 0.2, pivot: { x: 0, y: 0 } } }, 1200, 800, compositionAdapters);
+  page = switchWyrmetizerMode(page, "canvas", "flow", compositionAdapters);
+  const document = parse(await renderPageContent(page, render));
+  const flow = document.querySelector('[data-composition-id="canvas"]'), composition = document.querySelector('[data-composition-id="other"]');
+  expect(flow.parentElement).toBe(composition.parentElement);
+  expect(flow.querySelectorAll("[data-widget-id]")).toHaveLength(1);
+  expect(composition.querySelectorAll("[data-composition-child]")).toHaveLength(1);
+  expect(flow.querySelector('[data-widget-id="b"]')).toBeNull();
+  expect(flow.contains(document.querySelector("p"))).toBe(false);
+});
+it.each(["flow", "composition"])("renders a safe empty %s Area identically from canonical and editor pages", async mode => {
+  let page = createEmptyWyrmetizerComposition(createWyrmetizerCopy(fixture(), compositionAdapters), "empty", compositionAdapters, { index: 1 });
+  page = switchWyrmetizerMode(page, "empty", mode, compositionAdapters);
+  const before = structuredClone(page), canonical = await renderPageContent(page, render);
+  expect(await renderPageContent(openWyrmetizerEditorPage(page, compositionAdapters), render)).toBe(canonical);
+  const empty = parse(canonical).querySelector('[data-composition-id="empty"]');
+  expect(empty).not.toBeNull();
+  expect(empty.querySelector("[data-widget-id]")).toBeNull();
+  if (mode === "flow") { expect(empty.style.minHeight).toBe("48px"); expect(empty.style.aspectRatio).toBe(""); }
+  expect(page).toEqual(before);
 });
 it("shares deterministic preview/export geometry, reading order, independent stacks and no editor scripts", async () => {
   const p = fixture();

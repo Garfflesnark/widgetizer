@@ -157,7 +157,7 @@ async function generatePreviewHtml(pageData, rawThemeSettings, previewMode, coll
   // Render page widgets in the middle
   const widgetOrder = pageData.widgetsOrder || Object.keys(pageData.widgets || {});
 
-  if (widgetOrder.length > 0 && pageData.widgets) {
+  if ((widgetOrder.length > 0 || pageData.layout?.contentOrder?.length > 0) && pageData.widgets) {
     mainContent = await renderPageContent(pageData, (id, widget, index) => renderWidget(
       activeProjectId, id, widget, rawThemeSettings, "preview", sharedGlobals, index, collectionDeps,
     ));

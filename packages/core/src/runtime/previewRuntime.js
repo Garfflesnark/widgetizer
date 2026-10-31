@@ -994,7 +994,7 @@ function handleMessage(event) {
       typeof area === "string" && event.data.payload?.compositions?.[area]?.childrenOrder?.includes(id)));
     for (const [id, c] of Object.entries(event.data.payload?.compositions || {})) {
       const area = Array.from(document.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id);
-      if (!area) continue;
+      if (!area || area.dataset.compositionMode === "flow") continue;
       if (c.profiles?.desktop) {
         area.dataset.compositionHeight = String(c.profiles.desktop.height.valuePx);
         area.style.aspectRatio = `${c.profiles.desktop.referenceWidthPx}/${c.profiles.desktop.height.valuePx}`;

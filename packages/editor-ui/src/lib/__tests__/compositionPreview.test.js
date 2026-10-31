@@ -1,11 +1,20 @@
 import { expect, it } from "vitest";
 import { fixture } from "../../../../core/src/runtime/__tests__/compositionFixture.js";
 import { isCompositionGeometryOnlyChange } from "../compositionPreview";
+import { createEmptyWyrmetizerComposition, initializeWyrmetizerPage, openWyrmetizerEditorPage, switchWyrmetizerMode } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 
 const state = () => {
   const page = fixture();
   return { page, widgets: page.widgets, globalWidgets: {}, themeSettings: {} };
 };
+it("renders an empty Area mode switch instead of treating it as a geometry-only update", () => {
+  const page = createEmptyWyrmetizerComposition(initializeWyrmetizerPage({ widgets: {} }, compositionAdapters), "empty", compositionAdapters);
+  const before = { page: openWyrmetizerEditorPage(page, compositionAdapters) };
+  const after = { page: openWyrmetizerEditorPage(switchWyrmetizerMode(page, "empty", "flow", compositionAdapters), compositionAdapters) };
+  expect(before.page.layout).toEqual(after.page.layout);
+  expect(isCompositionGeometryOnlyChange(before, after)).toBe(false);
+});
 it.each(["move", "layer", "resize", "alignment", "height", "rotation"])(
   "reconciles %s directly without a morph/reload that could snap geometry",
   (action) => {

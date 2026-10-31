@@ -33,7 +33,7 @@ function detectChangeType(newState, oldState) {
   // Check for reordering
   const orderChanged = JSON.stringify(newState.page?.widgetsOrder) !== JSON.stringify(oldState.page?.widgetsOrder);
 
-  const structure = (page) => page?.layout ? [page.layout.version, page.layout.contentOrder, Object.entries(page.layout.compositions).map(([id, c]) => [id, c.childrenOrder, c.profiles, c.responsive])] : null;
+  const structure = (page) => page?.layout ? [page.layout.version, page.layout.contentOrder, Object.entries(page.layout.compositions).map(([id, c]) => [id, c.childrenOrder, c.profiles, c.responsive]), Object.entries(page.wyrmetizerEditorLayout?.areas || {}).map(([id, area]) => [id, area.activeMode])] : null;
   const layoutChanged = JSON.stringify(structure(newState.page)) !== JSON.stringify(structure(oldState.page));
   const compositionSettingsChanged = [...newWidgetIds].some((id) => compositionFor(newState.page, id) && JSON.stringify(newState.widgets?.[id]) !== JSON.stringify(oldState.widgets?.[id]));
   const isStructural = addedWidgets.length > 0 || removedWidgets.length > 0 || orderChanged || layoutChanged || compositionSettingsChanged;
@@ -284,7 +284,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
     const widgetOrder = page?.widgetsOrder || [];
 
     iframeRef.current.contentWindow.postMessage(
-      { type: "SET_WIDGET_METADATA", payload: { metadata, widgetOrder, orderingInfo: { widgets: Object.fromEntries(widgetOrder.map(id => [id, orderingControls(page, { widgetId: id })])), compositions: Object.fromEntries(Object.keys(page?.layout?.compositions || {}).map(id => [id, orderingControls(page, { compositionId: id })])) }, reorderInfo: page?.layout ? Object.fromEntries(widgetOrder.map((id) => {
+      { type: "SET_WIDGET_METADATA", payload: { metadata, widgetOrder, orderingInfo: { widgets: Object.fromEntries(widgetOrder.map(id => [id, orderingControls(page, { widgetId: id })])), compositions: Object.fromEntries(Object.keys(page?.wyrmetizerEditorLayout?.areas || page?.layout?.compositions || {}).map(id => [id, orderingControls(page, { compositionId: id })])) }, reorderInfo: page?.layout ? Object.fromEntries(widgetOrder.map((id) => {
         const parent = compositionFor(page, id), index = page.layout.contentOrder.findIndex((entry) => entry.id === (parent?.[0] || id));
         return [id, { up: index > 0, down: index < page.layout.contentOrder.length - 1 }];
       })) : null } },

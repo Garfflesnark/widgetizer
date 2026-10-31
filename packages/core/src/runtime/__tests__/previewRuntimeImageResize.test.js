@@ -55,6 +55,38 @@ beforeAll(async () => {
   await import("../previewRuntime.js");
 });
 
+it("selects genuine Flow containers and their nested children separately without applying canvas geometry", () => {
+  const area = document.createElement("section");
+  Object.assign(area.dataset, { compositionId: "flow-area", compositionMode: "flow" });
+  area.style.cssText = "display:flow-root;min-height:48px";
+  area.innerHTML = '<section data-widget-id="flow-member" data-widget-type="image"><div>Child</div></section>';
+  area.getBoundingClientRect = () => ({ top: 20, left: 0, width: 800, height: 48, right: 800, bottom: 68 });
+  document.body.append(area);
+  message("SET_WIDGET_METADATA", { widgetOrder: ["flow-member"], orderingInfo: { widgets: {}, compositions: {
+    "flow-area": { scope: "composition", id: "flow-area", up: false, down: true },
+  } } });
+  sent.length = 0;
+  area.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  expect(sent.at(-1)).toMatchObject({ type: "COMPOSITION_SELECTED", payload: { compositionId: "flow-area" } });
+  expect(document.querySelector('[data-select-composition="flow-area"]')).not.toBeNull();
+  const style = area.getAttribute("style");
+  message("COMPOSITION_SYNC", { compositions: { "flow-area": {
+    profiles: { desktop: { referenceWidthPx: 1200, height: { valuePx: 800 } } }, childrenOrder: [], placements: {}, stackOrder: [],
+  } } });
+  expect(area.getAttribute("style")).toBe(style);
+  sent.length = 0;
+  area.firstChild.firstChild.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  expect(sent.at(-1)).toMatchObject({ type: "WIDGET_SELECTED", payload: { widgetId: "flow-member" } });
+  message("MORPH_WIDGET", { widgetId: "flow-member", html: '<section data-widget-id="flow-member" data-widget-type="image"><div>Updated child</div></section>' });
+  expect(document.querySelector('[data-widget-id="flow-member"]').parentElement).toBe(area);
+  expect(area.textContent).toBe("Updated child");
+  area.firstChild.remove();
+  area.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  expect(sent.at(-1)).toMatchObject({ type: "COMPOSITION_SELECTED", payload: { compositionId: "flow-area" } });
+  area.remove();
+  message("UPDATE_SELECTION", { widgetId: null, compositionId: null });
+});
+
 it("Ctrl+Click on a Flow Image toggles composition checks while ordinary clicks still edit widgets", () => {
   const widget = document.createElement("section");
   Object.assign(widget.dataset, { widgetId: "flow-select", widgetType: "image" });

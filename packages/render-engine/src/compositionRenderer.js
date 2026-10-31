@@ -1,14 +1,16 @@
 import { validateCompositionLayout, compositionRevision } from "@widgetizer/core/composition";
 import { compositionImageRenderer } from "./compositionImageRenderer.js";
 import { escapeHtml } from "@widgetizer/core/escapeHtml";
-import { resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { resolveWyrmetizerPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 
 export const compositionRenderAdapters = { image: compositionImageRenderer };
 
 // Both preview and publish call this composer. The callback owns theme rendering;
 // the planner has no filesystem, project resolver or storage dependency.
 export async function renderPageContent(page, renderWidget, adapters = compositionRenderAdapters) {
+  page = serializeWyrmetizerEditorPage(page, adapters);
   validateCompositionLayout(page, adapters);
+  const pairedLayout = page.layout?.version === 2 ? page.layout : null;
   page = resolveWyrmetizerPage(page);
   let index = 0;
   if (!page.layout) {
@@ -20,9 +22,16 @@ export async function renderPageContent(page, renderWidget, adapters = compositi
     return html;
   }
   let html = "";
-  for (const entry of page.layout.contentOrder) {
+  for (const entry of pairedLayout?.contentOrder || page.layout.contentOrder) {
     if (entry.kind === "widget") {
       html += await renderWidget(entry.id, page.widgets[entry.id], ++index);
+      continue;
+    }
+    const area = pairedLayout?.areas[entry.id];
+    if (area?.activeMode === "flow") {
+      let children = "";
+      for (const id of area.flow.order) children += await renderWidget(id, page.widgets[id], ++index);
+      html += `<section data-composition-id="${escapeHtml(entry.id)}" data-composition-mode="flow" aria-label="Composition Area" id="fruitform-${entry.id}" style="display:flow-root;min-height:${area.members.length ? 0 : 48}px">${children}</section>`;
       continue;
     }
     const c = page.layout.compositions[entry.id],

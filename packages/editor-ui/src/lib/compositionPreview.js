@@ -4,6 +4,8 @@ import { compositionFor } from "@widgetizer/core/composition";
 // Morphing them would replace the manipulated DOM and restore an old frame.
 export function isCompositionGeometryOnlyChange(before, after) {
   if (!before?.page?.layout || !after?.page?.layout) return false;
+  const modes = state => Object.entries(state.page.wyrmetizerEditorLayout?.areas || {}).map(([id, area]) => [id, area.activeMode]);
+  if (JSON.stringify(modes(before)) !== JSON.stringify(modes(after))) return false;
   const normalize = (state) => {
     const page = structuredClone(state.page);
     delete page.wyrmetizerEditorLayout;

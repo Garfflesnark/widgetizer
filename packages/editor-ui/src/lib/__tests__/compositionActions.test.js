@@ -49,6 +49,34 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+it("orders a Flow parent as one root and its children within the Area with atomic history and persisted rendering", async () => {
+  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
+  switchPairedCompositionMode("canvas", "flow");
+  const before = structuredClone(usePageStore.getState().page);
+  usePageStore.temporal.getState().clear();
+  const iframe = {}, origin = "https://preview.example";
+  const event = (scope, id, direction) => ({ source: iframe, origin, data: { type: "ORDER_SELECTION", payload: { scope, id, direction } } });
+  useWidgetStore.getState().setSelectedWidgetId("b");
+  expect(handleOrderingMessage(event("widget", "b", "down"), iframe, origin)).toBe(false);
+  expect(handleOrderingMessage(event("widget", "b", "up"), iframe, origin)).toBe(true);
+  useWidgetStore.getState().setSelectedCompositionId("canvas");
+  expect(handleOrderingMessage(event("composition", "canvas", "down"), iframe, origin)).toBe(true);
+  const after = structuredClone(usePageStore.getState().page);
+  const saved = serializeWyrmetizerEditorPage(after, compositionAdapters);
+  expect(saved.layout.contentOrder).toEqual([{ kind: "widget", id: "after" }, { kind: "area", id: "canvas" }]);
+  expect(saved.layout.areas.canvas.flow.order).toEqual(["b", "a"]);
+  expect(saved.layout.areas.canvas.composition).toEqual(before.wyrmetizerEditorLayout.areas.canvas.composition);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(2);
+  const html = await renderPageContent(after, id => `<div data-widget-id="${id}"></div>`);
+  expect(html).toContain('<div data-widget-id="after"></div><section data-composition-id="canvas"');
+  expect(html.indexOf('data-widget-id="b"')).toBeLessThan(html.indexOf('data-widget-id="a"'));
+  usePageStore.temporal.getState().undo(); usePageStore.temporal.getState().undo();
+  expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); usePageStore.temporal.getState().redo();
+  expect(usePageStore.getState().page).toEqual(after);
+  usePageStore.getState().setPage(JSON.parse(JSON.stringify(saved)));
+  expect(await renderPageContent(usePageStore.getState().page, id => `<div data-widget-id="${id}"></div>`)).toBe(html);
+});
 it("records each container lifecycle and membership operation atomically and persists the full sequence", () => {
   const flow = fixture();
   delete flow.layout;

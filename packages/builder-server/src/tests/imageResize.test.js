@@ -1,6 +1,6 @@
 import { createComposition, dissolveComposition } from "@widgetizer/core/composition";
 import { defaultImageTransform } from "@widgetizer/core/imageTransform";
-import { initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget, switchWyrmetizerMode, editWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget, switchWyrmetizerMode, editWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget, openWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { after, before, it } from "node:test";
 import assert from "node:assert/strict";
@@ -8,6 +8,7 @@ import fs from "fs-extra";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExportHarness } from "./helpers/exportHarness.js";
+import { JSDOM, VirtualConsole } from "jsdom";
 
 const harness = await createExportHarness({
   rootPrefix: "widgetizer-image-resize",
@@ -178,6 +179,97 @@ it("saves a newly initialized paired area and reloads both arrangements exactly"
   assert.match(preview.html, /transform-origin:20% 80%/);
   assert.match(html, /transform-origin:\s*20% 80%/);
   assert.deepEqual(restored.layout.areas.area.flow.presentation.a.image_transform, flowTransform);
+});
+
+it("renders genuine Flow containers through storage, nested editor preview and published export without changing either arrangement", async () => {
+  const transform = defaultImageTransform();
+  transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };
+  const image = () => ({ type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: structuredClone(transform) }, blocks: {}, blocksOrder: [] });
+  let page = initializeWyrmetizerPage({ id: "flow-container", slug: "flow-container", name: "Flow container",
+    widgets: { a: image(), b: image(), c: image(), outside: image() }, widgetsOrder: ["a", "b", "c", "outside"] }, compositionAdapters);
+  const frame = { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } };
+  page = createWyrmetizerComposition(page, "area", ["a", "b"], { a: frame, b: { ...frame, x: 0.4 } }, 1200, 800, compositionAdapters);
+  page = createWyrmetizerComposition(page, "other", ["c"], { c: frame }, 1200, 800, compositionAdapters);
+  page = createEmptyWyrmetizerComposition(page, "empty", compositionAdapters, { index: 2 });
+  page.layout.areas.area.composition.geometry.placements.a.version = 3;
+  Object.assign(page.layout.areas.area.composition.geometry.placements.a.frames.desktop, { rotation: 30, rotationPivot: { x: 0.2, y: 0.8 } });
+  page.layout.areas.area.composition.geometry.stackOrder.reverse();
+  page.layout.areas.area.flow.order.reverse();
+  page = switchWyrmetizerMode(page, "area", "flow", compositionAdapters);
+  page = switchWyrmetizerMode(page, "empty", "flow", compositionAdapters);
+  const flowTransform = structuredClone(transform); flowTransform.dimensions.width.value = 173; flowTransform.alignment = "right";
+  page = editWyrmetizerWidget(page, "a", { image_transform: flowTransform, top_spacing: "px", top_spacing_px: 53,
+    bottom_spacing: "px", bottom_spacing_px: 29 }, compositionAdapters);
+  const before = structuredClone(page), req = body => ({ ...request(body), params: { id: page.id } });
+  const saved = response(); await savePageContent(req(page), saved);
+  assert.equal(saved.code, 200, JSON.stringify(saved.data));
+  const loaded = response(); await getPage(req(), loaded);
+  assert.equal(loaded.code, 200, JSON.stringify(loaded.data));
+  assert.deepEqual(loaded.data.layout, before.layout);
+  const parse = html => new JSDOM(html, { virtualConsole: new VirtualConsole() }).window.document;
+  const summaries = [];
+  for (const [input, mode] of [[openWyrmetizerEditorPage(loaded.data, compositionAdapters), "editor"], [loaded.data, "preview"]]) {
+    const preview = response(); await generatePreview(req({ pageData: input, themeSettings, previewMode: mode }), preview);
+    assert.equal(preview.code, 200, JSON.stringify(preview.data));
+    summaries.push(parse(preview.html));
+  }
+  const exported = await harness.runExport();
+  assert.equal(exported._status, 200, JSON.stringify(exported._json));
+  const html = await fs.readFile(path.join(harness.latestExportDir(), "flow-container.html"), "utf8");
+  summaries.push(parse(html));
+  for (const document of summaries) {
+    const area = document.querySelector('[data-composition-id="area"]');
+    assert.equal(area.dataset.compositionMode, "flow");
+    assert.deepEqual([...area.querySelectorAll("[data-widget-id]")].map(el => el.dataset.widgetId), ["b", "a"]);
+    assert.equal(document.querySelectorAll('[data-widget-id="a"]').length, 1);
+    assert.equal(document.querySelector('[data-widget-id="a"]').parentElement, area);
+    assert.equal(area.contains(document.querySelector('[data-widget-id="outside"]')), false);
+    assert.deepEqual([...document.querySelector("main").children].map(el => el.dataset.compositionId || el.dataset.widgetId), ["area", "other", "empty", "outside"]);
+    assert.equal(area.querySelector("[data-composition-child]"), null);
+    assert.equal(area.style.aspectRatio, "");
+    assert.equal(document.querySelector('[data-composition-id="empty"]').style.minHeight, "48px");
+    const child = area.querySelector('[data-widget-id="a"]');
+    assert.deepEqual(JSON.parse(child.dataset.imageTransform), flowTransform);
+    assert.match(child.textContent, /--image-requested-width:\s*173px/);
+    assert.match(child.textContent, /padding-block-start:\s*53px/);
+    assert.match(child.textContent, /padding-block-end:\s*29px/);
+  }
+  assert.doesNotMatch(html, /previewRuntime\.js|wz-selection/);
+  for (let i = 0; i < 3; i++) {
+    page = switchWyrmetizerMode(JSON.parse(JSON.stringify(page)), "area", "composition", compositionAdapters);
+    const preview = response(); await generatePreview(req({ pageData: page, themeSettings, previewMode: "editor" }), preview);
+    assert.equal(preview.code, 200, JSON.stringify(preview.data));
+    assert.match(preview.html, /transform:rotate\(30deg\);transform-origin:20% 80%/);
+    page = switchWyrmetizerMode(page, "area", "flow", compositionAdapters);
+    assert.deepEqual(page.layout, before.layout);
+    assert.deepEqual(page.widgets, before.widgets);
+  }
+});
+
+it("renders empty-only Areas in both arrangements in real preview and export after reload", async () => {
+  for (const mode of ["flow", "composition"]) {
+    const id = `empty-only-${mode}`;
+    let page = createEmptyWyrmetizerComposition(initializeWyrmetizerPage({ id, slug: id, name: id, widgets: {} }, compositionAdapters), "empty", compositionAdapters);
+    page = switchWyrmetizerMode(page, "empty", mode, compositionAdapters);
+    const req = body => ({ ...request(body), params: { id } });
+    const saved = response(); await savePageContent(req(page), saved);
+    assert.equal(saved.code, 200, JSON.stringify(saved.data));
+    const loaded = response(); await getPage(req(), loaded);
+    assert.deepEqual(loaded.data.layout, page.layout);
+    const preview = response(); await generatePreview(req({ pageData: openWyrmetizerEditorPage(loaded.data, compositionAdapters), themeSettings, previewMode: "editor" }), preview);
+    assert.equal(preview.code, 200, JSON.stringify(preview.data));
+    assert.match(preview.html, /data-composition-id="empty"/);
+    assert.doesNotMatch(preview.html, /<div class="preview-empty-state">/);
+    const exported = await harness.runExport();
+    assert.equal(exported._status, 200, JSON.stringify(exported._json));
+    const html = await fs.readFile(path.join(harness.latestExportDir(), `${id}.html`), "utf8");
+    assert.match(html, /data-composition-id="empty"/);
+    if (mode === "flow") {
+      assert.match(preview.html, /data-composition-mode="flow"/);
+      assert.match(html, /data-composition-mode="flow"/);
+      assert.doesNotMatch(html, /aspect-ratio/);
+    }
+  }
 });
 
 it("saves added existing Image Widgets without duplicating members or changing inactive geometry", async () => {

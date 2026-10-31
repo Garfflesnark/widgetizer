@@ -1,6 +1,6 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget, resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
   compositionFor,
@@ -257,10 +257,21 @@ export function switchPairedCompositionMode(id, mode) {
   useAutoSave.getState().setStructureModified(true);
   return true;
 }
-export function reorderContentBlock(widgetId, direction) {
+export function reorderContentBlock(widgetId, direction, kind) {
   const { page } = usePageStore.getState();
   if (!page?.layout || !["up", "down"].includes(direction)) return false;
   if (compositionFor(page, widgetId)) return false;
+  if (page.wyrmetizerEditorLayout) {
+    const next = serializeWyrmetizerEditorPage(page, compositionAdapters);
+    const flowArea = kind !== "area" && Object.values(next.layout.areas).find(area => area.activeMode === "flow" && area.members.includes(widgetId));
+    const order = flowArea ? flowArea.flow.order : next.layout.contentOrder;
+    const index = flowArea ? order.indexOf(widgetId) : order.findIndex(entry => entry.id === widgetId && entry.kind === (kind || (page.widgets[widgetId] ? "widget" : "area")));
+    const target = index + (direction === "up" ? -1 : 1);
+    if (index < 0 || target < 0 || target >= order.length) return false;
+    [order[index], order[target]] = [order[target], order[index]];
+    next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+    return commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+  }
   const id = widgetId;
   const order = page.layout.contentOrder,
     index = order.findIndex((entry) => entry.id === id),
@@ -376,7 +387,7 @@ export function handleOrderingMessage(event, iframe, origin) {
   const control = orderingControls(pageStore.page, { compositionId: state.selectedCompositionId, widgetId: state.selectedWidgetId });
   if (!p || !control || state.selectedBlockId || control.scope !== p.scope || control.id !== p.id || !["up", "down"].includes(p.direction) || !control[p.direction]) return false;
   if (control.scope === "image") return layerImage(control.id, p.direction === "up" ? "forward" : "backward");
-  if (pageStore.page.layout) return reorderContentBlock(control.id, p.direction);
+  if (pageStore.page.layout) return reorderContentBlock(control.id, p.direction, control.scope === "composition" ? "area" : "widget");
   const order = [...pageStore.page.widgetsOrder], i = order.indexOf(control.id), j = i + (p.direction === "up" ? -1 : 1);
   [order[i], order[j]] = [order[j], order[i]];
   pageStore.beginHistoryStep(); state.reorderWidgets(order); pageStore.beginHistoryStep(); return true;
