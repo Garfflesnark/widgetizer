@@ -38,7 +38,8 @@ export default function SettingsPanel({
   const showToast = useToastStore((state) => state.showToast);
 
   const selectedCompositionId = useWidgetStore((state) => state.selectedCompositionId);
-  const selectedComposition = page?.layout?.compositions?.[selectedCompositionId];
+  const selectedComposition = page?.wyrmetizerEditorLayout?.areas?.[selectedCompositionId]?.composition.geometry ||
+    page?.layout?.compositions?.[selectedCompositionId];
 
   const isGlobalWidget = !!selectedGlobalWidgetId;
   const isThemeSettings = !!selectedThemeGroup;

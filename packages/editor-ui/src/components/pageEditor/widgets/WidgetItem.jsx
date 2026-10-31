@@ -31,6 +31,7 @@ export default function WidgetItem({
   onHover,
   onRenameWidget,
   isCollapsed = false,
+  draggable = true,
 }) {
   const { t } = useTranslation();
   const { tTheme } = useThemeLocale();
@@ -102,10 +103,21 @@ export default function WidgetItem({
     >
       <div
         className={`flex items-center p-1 cursor-pointer group widget-item ${isSelected ? "bg-pink-50" : ""} rounded-sm`}
+        role="button"
+        tabIndex={0}
+        aria-label={widgetName}
+        aria-pressed={isSelected}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            e.stopPropagation();
+            onWidgetSelect?.(widgetId, e);
+          }
+        }}
         onClick={(e) => {
           e.stopPropagation();
           if (!isEditing) {
-            onWidgetSelect(widgetId);
+            onWidgetSelect(widgetId, e);
           }
         }}
         onContextMenu={(e) => {
@@ -117,9 +129,9 @@ export default function WidgetItem({
         }}
         {...dragHandleProps}
       >
-        <div className="text-slate-400 hover:text-slate-600 transition-colors">
+        {draggable && <div className="text-slate-400 hover:text-slate-600 transition-colors">
           <GripVertical size={16} />
-        </div>
+        </div>}
         <div className="flex-grow min-w-0 flex items-center gap-2">
           {isEditing ? (
             <input

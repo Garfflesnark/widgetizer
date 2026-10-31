@@ -1,5 +1,5 @@
 import { compositionFor } from "@widgetizer/core/composition";
-import { serializeWyrmetizerEditorPage, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, addWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, resolveWyrmetizerPage, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, addWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { applyCompositionGeometry, compositionImageForCreation } from "../lib/compositionActions";
 import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform, supportsImageUnits, defaultImageTransform } from "@widgetizer/core/imageTransform";
@@ -25,6 +25,17 @@ import {
 } from "./widgetStoreHelpers";
 
 export { hasReachedMaxBlocks };
+
+// Sidebar insertion positions count whole Areas, including empty ones.
+function insertFlowWidget(page, id, widget, index) {
+  const next = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  if (!Number.isSafeInteger(index) || index < 0 || index > next.layout.contentOrder.length)
+    throw new Error("Invalid Flow insertion position.");
+  next.widgets[id] = widget;
+  next.layout.contentOrder.splice(index, 0, { kind: "widget", id });
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  return next;
+}
 
 // ---------------------------------------------------------------------------
 // Widget data access helpers
@@ -171,7 +182,8 @@ const useWidgetStore = create((set, get) => ({
   },
 
   setSelectedCompositionId: (id) => {
-    if (id && !usePageStore.getState().page?.layout?.compositions?.[id]) return;
+    const page = usePageStore.getState().page;
+    if (id && !page?.wyrmetizerEditorLayout?.areas?.[id] && !page?.layout?.compositions?.[id]) return;
     set({ ...getWidgetSelectionState(null), selectedCompositionId: id });
   },
   setSelectedWidgetId: (id) => set(getWidgetSelectionState(id)),
@@ -235,7 +247,7 @@ const useWidgetStore = create((set, get) => ({
 
   // --- Widget CRUD ---
 
-  addWidget: (widgetType, position) => {
+  addWidget: (widgetType, position, { contentIndex } = {}) => {
     const { schemas } = get();
     const pageStore = usePageStore.getState();
     const { page } = pageStore;
@@ -244,6 +256,13 @@ const useWidgetStore = create((set, get) => ({
 
     const newWidgetId = get().generateWidgetId();
     const newWidget = buildDefaultWidget(schemas[widgetType], widgetType, () => get().generateBlockId());
+    if (page.wyrmetizerEditorLayout && contentIndex !== undefined) {
+      const next = insertFlowWidget(page, newWidgetId, newWidget, contentIndex);
+      pageStore.beginHistoryStep(); pageStore.setPage(next); pageStore.beginHistoryStep();
+      set(getWidgetSelectionState(newWidgetId));
+      markStructureChanged();
+      return newWidgetId;
+    }
     const selectedArea = Object.entries(page.wyrmetizerEditorLayout?.areas || {}).find(([, area]) => area.members.includes(get().selectedWidgetId));
     if (selectedArea && compositionAdapters[widgetType]?.supports(newWidget)) {
       pageStore.beginHistoryStep();
@@ -307,7 +326,7 @@ const useWidgetStore = create((set, get) => ({
     return true;
   },
 
-  pasteWidget: (position) => {
+  pasteWidget: (position, { contentIndex } = {}) => {
     const { widgetClipboard } = get();
     if (!widgetClipboard) return null;
 
@@ -317,6 +336,13 @@ const useWidgetStore = create((set, get) => ({
 
     const newWidgetId = get().generateWidgetId();
     const newWidget = withoutListingFlags(cloneWidgetWithNewBlockIds(widgetClipboard, () => get().generateBlockId()));
+    if (page.wyrmetizerEditorLayout && contentIndex !== undefined) {
+      const next = insertFlowWidget(page, newWidgetId, newWidget, contentIndex);
+      pageStore.beginHistoryStep(); pageStore.setPage(next); pageStore.beginHistoryStep();
+      set({ ...getWidgetSelectionState(newWidgetId), ...getClearedHoverState() });
+      markStructureChanged();
+      return newWidgetId;
+    }
     const currentOrder = page.widgetsOrder || Object.keys(page.widgets);
 
     pageStore.setPage({

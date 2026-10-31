@@ -184,8 +184,11 @@ export function createEmptyCompositionArea(options = {}) {
   if (!page?.wyrmetizerEditorLayout)
     throw new Error("Create a paired-layout copy before creating a Composition Area on this older page.");
   const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
-  const next = createEmptyWyrmetizerComposition(canonical, `composition_${crypto.randomUUID()}`, compositionAdapters, options);
-  return commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+  const id = `composition_${crypto.randomUUID()}`;
+  const next = createEmptyWyrmetizerComposition(canonical, id, compositionAdapters, options);
+  const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+  if (changed) useWidgetStore.getState().setSelectedCompositionId(id);
+  return changed;
 }
 export function deleteCompositionArea(areaId) {
   if (useWidgetStore.getState().compositionContext !== "desktop") return false;

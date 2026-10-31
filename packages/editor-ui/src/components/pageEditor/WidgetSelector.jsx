@@ -14,6 +14,7 @@ export default function WidgetSelector({
   onPasteWidget,
   position,
   triggerRef,
+  canAddComposition = false,
 }) {
   const { t } = useTranslation();
   const { tTheme } = useThemeLocale();
@@ -31,7 +32,8 @@ export default function WidgetSelector({
     setFocusedIndex(-1);
   }, []);
 
-  const availableWidgets = Object.values(widgetSchemas)
+  const availableWidgets = [...Object.values(widgetSchemas),
+    ...(canAddComposition ? [{ type: "composition-area", displayName: "Composition Area" }] : [])]
     .filter((schema) => schema.type !== "header" && schema.type !== "footer")
     .sort((a, b) => (tTheme(a.displayName) || a.type).localeCompare(tTheme(b.displayName) || b.type));
 

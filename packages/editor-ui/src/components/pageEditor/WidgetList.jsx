@@ -29,6 +29,9 @@ import { scrollElementIntoView } from "../../queries/previewManager";
 import WidgetSelector from "./WidgetSelector";
 import WidgetContextMenu from "./WidgetContextMenu";
 import BlockSelector from "./blocks/BlockSelector";
+import CompositionWidgetHierarchy from "./CompositionWidgetHierarchy";
+import { createEmptyCompositionArea } from "../../lib/compositionActions";
+import useToastStore from "../../stores/toastStore";
 
 export default function WidgetList({
   page,
@@ -74,6 +77,8 @@ export default function WidgetList({
     setHoveredWidget,
     updateWidgetSettings,
     widgetClipboard,
+    selectedCompositionId,
+    compositionContext,
   } = useWidgetStore();
   const { setStructureModified, markWidgetModified } = useAutoSave();
   const { header: headerWidget, footer: footerWidget } = globalWidgets;
@@ -148,14 +153,21 @@ export default function WidgetList({
 
   // Handle widget paste (inserts the clipboard widget at the given position)
   const handlePasteWidget = (position) => {
-    pasteWidget(position);
+    pasteWidget(position, page.wyrmetizerEditorLayout ? { contentIndex: position } : {});
     setStructureModified(true);
   };
 
   // Paste from the context menu: insert immediately after the target widget.
   // Reads live order from the store to avoid a stale-closure position.
   const handlePasteAfter = (widgetId) => {
-    const order = usePageStore.getState().page?.widgetsOrder || [];
+    const current = usePageStore.getState().page;
+    const layout = current?.wyrmetizerEditorLayout;
+    if (layout) {
+      const index = layout.contentOrder.findIndex(entry => entry.kind === "widget" ? entry.id === widgetId : layout.areas[entry.id].members.includes(widgetId));
+      pasteWidget(null, { contentIndex: index < 0 ? layout.contentOrder.length : index + 1 });
+      return;
+    }
+    const order = current?.widgetsOrder || [];
     const idx = order.indexOf(widgetId);
     pasteWidget(idx === -1 ? order.length : idx + 1);
     setStructureModified(true);
@@ -219,9 +231,9 @@ export default function WidgetList({
 
   // Scroll selected widget into view in sidebar (without scrolling main page)
   useEffect(() => {
-    const targetId = selectedWidgetId || selectedGlobalWidgetId;
+    const targetId = selectedCompositionId || selectedWidgetId || selectedGlobalWidgetId;
     if (targetId) {
-      const el = document.getElementById(`sidebar-widget-${targetId}`);
+      const el = document.getElementById(selectedCompositionId ? `sidebar-area-${targetId}` : `sidebar-widget-${targetId}`);
       if (el) {
         // Find the scrollable sidebar container
         const scrollContainer = el.closest(".overflow-y-auto");
@@ -239,7 +251,7 @@ export default function WidgetList({
         }
       }
     }
-  }, [selectedWidgetId, selectedGlobalWidgetId]);
+  }, [selectedWidgetId, selectedGlobalWidgetId, selectedCompositionId]);
 
   // Keep externally selected content widgets expanded so their blocks remain accessible.
   useEffect(() => {
@@ -285,7 +297,20 @@ export default function WidgetList({
 
         {headerWidget && <div className="my-4 border-t border-slate-200" />}
 
-        {sortableWidgets.length > 0 ? (
+        {page.wyrmetizerEditorLayout ? <WidgetSection>
+          <CompositionWidgetHierarchy page={page} widgetSchemas={widgetSchemas}
+            modifiedWidgets={modifiedWidgets} onAddWidgetClick={handleAddWidgetClick}
+            isWidgetSelectorOpen={isWidgetSelectorOpen} activeWidgetTriggerPosition={activeWidgetTriggerPosition}
+            onWidgetSelect={onWidgetSelect} onOpenContextMenu={openWidgetContextMenu}
+            selectedBlockId={selectedBlockId} onBlockSelect={onBlockSelect} onBlocksReorder={reorderBlocks}
+            onAddBlockClick={handleAddBlockClick} isBlockSelectorOpen={isBlockSelectorOpen}
+            activeWidgetId={activeWidgetId} activeBlockTriggerKey={activeBlockTriggerKey}
+            onHover={handleHover} onRenameWidget={handleRenameWidget} />
+          <button className="w-full py-2 text-xs font-medium text-pink-600 hover:bg-pink-50"
+            onClick={event => handleAddWidgetClick(page.wyrmetizerEditorLayout.contentOrder.length, { current: event.currentTarget })}>
+            <Plus size={12} className="inline mr-2" />{t("pageEditor.actions.addWidget")}
+          </button>
+        </WidgetSection> : sortableWidgets.length > 0 ? (
           <WidgetSection>
             <DndContext
               sensors={sensors}
@@ -440,10 +465,16 @@ export default function WidgetList({
           setActiveWidgetTriggerPosition(null);
         }}
         widgetSchemas={widgetSchemas}
+        canAddComposition={!!page.wyrmetizerEditorLayout && compositionContext === "desktop"}
         onSelectWidget={(type, position) => {
-          const { addWidget } = useWidgetStore.getState();
-          addWidget(type, position);
-          setStructureModified(true);
+          try {
+            if (type === "composition-area") createEmptyCompositionArea({ index: position });
+            else {
+              const { addWidget } = useWidgetStore.getState();
+              addWidget(type, position, page.wyrmetizerEditorLayout ? { contentIndex: position } : {});
+              setStructureModified(true);
+            }
+          } catch (error) { useToastStore.getState().showToast(error.message, "error"); }
         }}
         hasClipboard={!!widgetClipboard}
         onPasteWidget={handlePasteWidget}

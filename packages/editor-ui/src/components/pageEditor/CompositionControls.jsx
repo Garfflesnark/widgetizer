@@ -16,6 +16,7 @@ import {
   rotateCompositionImage,
   switchPairedCompositionMode,
   compositionInteractionContext,
+  deleteCompositionArea,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, compositionId, blockSelected = false }) {
@@ -75,6 +76,11 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
   const removeMember = paired && !blockSelected && paired[1].members.includes(widgetId) &&
     <button className={button} disabled={context !== "desktop"}
       onClick={() => run(() => removeImageFromComposition(paired[0], widgetId))}>Remove from Composition</button>;
+  const deleteArea = paired && compositionId && <div className="space-y-2 border-t border-slate-200 pt-4">
+    <p className="form-description">Deleting this area releases its children as independent Flow Widgets.</p>
+    <button className={button} disabled={context !== "desktop"}
+      onClick={() => run(() => deleteCompositionArea(paired[0]))}>Delete Composition Area</button>
+  </div>;
   if (paired && paired[1].activeMode === "flow")
     return (
       <section
@@ -92,6 +98,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
         </button>
         {addMembers}
         {removeMember}
+        {deleteArea}
         {error && (
           <p role="alert" className="text-xs text-red-700">
             {error}
@@ -114,7 +121,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
           <p className="form-description">
             {context === "desktop"
               ? "Desktop source · Proportional"
-              : `${context}: generated Proportional${found[1].placements[widgetId].responsive.mode === "custom" || found[1].responsive.defaultMode === "custom" ? " (Custom not initialized)" : ""} · geometry read-only`}
+              : `${context}: generated Proportional${found[1].placements[widgetId]?.responsive.mode === "custom" || found[1].responsive.defaultMode === "custom" ? " (Custom not initialized)" : ""} · geometry read-only`}
           </p>
           <p className="form-description">
             Dimensions are desktop design units. Proportional scales both dimensions and positions on smaller screens.
@@ -206,6 +213,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
           </div>}
           {addMembers}
           {removeMember}
+          {deleteArea}
         </>
       ) : page?.wyrmetizerEditorLayout ? (
         <>

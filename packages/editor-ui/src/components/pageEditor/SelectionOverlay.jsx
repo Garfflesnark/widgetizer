@@ -108,7 +108,8 @@ export default function SelectionOverlay({
   const selectedCompositionId = useWidgetStore((state) => state.selectedCompositionId);
   const effectiveWidgetId = selectedCompositionId ? null : selectedWidgetId || selectedGlobalWidgetId;
   useEffect(() => {
-    if (selectedCompositionId && !page?.layout?.compositions?.[selectedCompositionId]) useWidgetStore.getState().setSelectedCompositionId(null);
+    if (selectedCompositionId && !page?.wyrmetizerEditorLayout?.areas?.[selectedCompositionId] &&
+        !page?.layout?.compositions?.[selectedCompositionId]) useWidgetStore.getState().setSelectedCompositionId(null);
   }, [page, selectedCompositionId]);
 
   // Send message to iframe
