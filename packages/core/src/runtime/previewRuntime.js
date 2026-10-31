@@ -984,6 +984,10 @@ function handleMessage(event) {
     for (const [id, c] of Object.entries(event.data.payload?.compositions || {})) {
       const area = Array.from(document.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id);
       if (!area) continue;
+      if (c.profiles?.desktop) {
+        area.dataset.compositionHeight = String(c.profiles.desktop.height.valuePx);
+        area.style.aspectRatio = `${c.profiles.desktop.referenceWidthPx}/${c.profiles.desktop.height.valuePx}`;
+      }
       for (const child of area.querySelectorAll(":scope > [data-composition-child]")) {
         const widgetId = child.dataset.compositionChild, frame = c.placements?.[widgetId]?.frames?.desktop;
         if (!frame || !Number.isFinite(frame.x) || !Number.isFinite(frame.y)) continue;

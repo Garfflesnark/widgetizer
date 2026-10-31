@@ -24,3 +24,18 @@ it("previews angle and canvas height locally and restores exact styles on cancel
   expect(child.style.transformOrigin).toBe("20% 80%");
   controller.cancel(); expect(document.body.innerHTML).toBe(withPivot);
 });
+
+it("clamps the height preview to rotated bounds and retains styles on commit", () => {
+  document.body.innerHTML = `<section data-composition-id="c" data-composition-width="1200" data-composition-height="800"><div data-composition-child="a" data-composition-revision="r" data-composition-frame='{"x":0.2,"y":0.2,"pivot":{"x":0,"y":0},"rotation":90,"rotationPivot":{"x":0,"y":0}}' style="left:240px;top:240px;width:200px;height:100px"><section data-widget-id="a"></section></div></section>`;
+  const area = document.querySelector("[data-composition-id]"), child = document.querySelector("[data-composition-child]");
+  area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1200, height: Number(area.dataset.compositionHeight) });
+  const controller = createWyrmetizerNumericPreview({ document, selected: () => "a", getContext: () => "desktop", onPreview: vi.fn() });
+  const payload = { widgetId: "a", context: "desktop", revision: "r", field: "height", value: 50 };
+  controller.preview(payload);
+  expect(Number(area.dataset.compositionHeight)).toBeCloseTo(440);
+  expect(parseFloat(child.style.top) * 440 / 100).toBeCloseTo(240);
+  const committed = document.body.innerHTML;
+  controller.preview({ ...payload, phase: "commit" });
+  controller.cancel();
+  expect(document.body.innerHTML).toBe(committed);
+});

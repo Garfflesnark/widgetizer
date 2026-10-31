@@ -138,6 +138,14 @@ export function containedRect(rect, width, height, rotation = 0, rotationPivot) 
     rect.top + rect.height <= height + 0.02
   );
 }
+export function minimumCompositionHeight(items, referenceWidth) {
+  return Math.max(1, ...items.map(({ rect, frame, version }) => {
+    const bounds = rotatedBounds(rect, frame.rotation, frame.rotationPivot);
+    // Older placements also require the retained anchor to lie inside the canvas.
+    const anchor = version === 3 || frame.rotationPivot ? 0 : frame.y * referenceWidth;
+    return Math.max(bounds.top + bounds.height, anchor);
+  }));
+}
 export function changeStack(page, widgetId, direction) {
   const found = compositionFor(page, widgetId);
   if (!found || !["forward", "backward"].includes(direction)) return page;

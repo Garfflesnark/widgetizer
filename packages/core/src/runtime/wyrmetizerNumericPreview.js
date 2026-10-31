@@ -1,5 +1,5 @@
 import { compositionContext, unrotatedCompositionRect } from "./compositionDOM.js";
-import { containedRect } from "./composition.js";
+import { containedRect, minimumCompositionHeight } from "./composition.js";
 import { normalizeAngle } from "./rotationGeometry.js";
 
 export function createWyrmetizerNumericPreview({ document, selected, getContext, onPreview }) {
@@ -18,6 +18,9 @@ export function createWyrmetizerNumericPreview({ document, selected, getContext,
     preview(payload) {
       if (payload?.phase === "cancel") { cancel(); return; }
       if (!payload || payload.widgetId !== selected() || payload.context !== getContext()) return;
+      // Retain the final styles until the canonical sync arrives; cancellation
+      // here would paint the original geometry between preview and commit.
+      if (payload.phase === "commit") { if (draft?.revision === payload.revision) draft = null; return; }
       const widget = Array.from(document.querySelectorAll("[data-widget-id]")).find(el => el.dataset.widgetId === selected());
       if (!draft) {
         const context = compositionContext(widget);
@@ -35,12 +38,13 @@ export function createWyrmetizerNumericPreview({ document, selected, getContext,
         context.child.style.transformOrigin = `${100 * (context.frame.rotationPivot?.x ?? 0.5)}% ${100 * (context.frame.rotationPivot?.y ?? 0.5)}%`;
         context.child.dataset.compositionFrame = JSON.stringify({ ...context.frame, rotation: angle });
       } else if (payload.field === "height" && payload.value >= 1 && payload.value <= 10000) {
-        if (rects.some(({ rect, frame }) => !containedRect(rect, context.width, payload.value, frame.rotation, frame.rotationPivot))) return;
-        context.area.style.aspectRatio = `${context.width}/${payload.value}`;
-        context.area.dataset.compositionHeight = String(payload.value);
+        const height = Math.max(payload.value, minimumCompositionHeight(rects, context.width));
+        if (height > 10000 || rects.some(({ rect, frame }) => !containedRect(rect, context.width, height, frame.rotation, frame.rotationPivot))) return;
+        context.area.style.aspectRatio = `${context.width}/${height}`;
+        context.area.dataset.compositionHeight = String(height);
         for (const { child, rect } of rects) {
-          child.style.top = `${100 * rect.top / payload.value}%`;
-          child.style.height = `${100 * rect.height / payload.value}%`;
+          child.style.top = `${100 * rect.top / height}%`;
+          child.style.height = `${100 * rect.height / height}%`;
         }
       } else return;
       onPreview();

@@ -48,3 +48,24 @@ it.each([
     act(() => usePageStore.temporal.getState().redo()); expect(usePageStore.getState().page).toEqual(after);
   } finally { window.removeEventListener("wyrmetizer:numeric-preview", preview); }
 });
+
+it.each([["Enter", "50"], ["blur", "0"], ["blur", "-10"]])("clamps undersized height including rotated siblings on %s (%s) without moving frames", (confirmation, value) => {
+  const page = structuredClone(usePageStore.getState().page);
+  const c = page.layout.compositions.canvas;
+  c.placements.b.version = 3;
+  c.placements.b.frames.desktop.rotation = 90;
+  c.placements.b.frames.desktop.rotationPivot = { x: 0, y: 0 };
+  usePageStore.setState({ page });
+  const frames = structuredClone(c.placements);
+  render(<CompositionControls widgetId="a" />);
+  const input = screen.getByLabelText("Canvas height");
+  act(() => input.focus());
+  fireEvent.change(input, { target: { value } });
+  if (confirmation === "Enter") fireEvent.keyDown(input, { key: "Enter" });
+  else fireEvent.blur(input);
+  const committed = usePageStore.getState().page.layout.compositions.canvas;
+  expect(committed.profiles.desktop.height.valuePx).toBeCloseTo(540);
+  expect(committed.placements).toEqual(frames);
+  expect(committed.profiles.desktop.overflow).toBe("clip");
+  expect(screen.getByLabelText("Canvas height").value).toBe("540");
+});

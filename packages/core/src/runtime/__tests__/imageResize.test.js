@@ -368,3 +368,17 @@ it("composition Shift resize preserves a green pin and cancellation restores the
   expect(size.width / size.height).toBeCloseTo(2, 2); expect(p.transform.anchors).toEqual(model.anchors);
   expect(p.frame.x).toBeCloseTo(0.2); expect(p.frame.y).toBeCloseTo(0.1);
 });
+
+it("reconciles canvas height alone without moving or resizing composition images", () => {
+  const { area, child, model } = compositionFixture("px", "px");
+  const sizes = { w1: { width: 100, height: 0, transform: model } };
+  const image = widget.querySelector("img");
+  for (const height of [1000, 600, 800]) {
+    area.dataset.compositionHeight = String(height);
+    controller.setSizes(sizes);
+    expect(parseFloat(child.style.top) * height / 100).toBeCloseTo(100);
+    expect(parseFloat(child.style.height) * height / 100).toBeCloseTo(250);
+    expect(child.style.left).toBe("20%");
+    expect(widget.querySelector("img")).toBe(image);
+  }
+});

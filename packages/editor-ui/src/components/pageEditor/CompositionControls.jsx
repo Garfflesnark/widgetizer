@@ -9,7 +9,8 @@ import {
   convertImages,
   layerImage,
   returnCompositionToFlow,
-  commitCompositionPage,
+  compositionHeightValue,
+  setCompositionHeight,
   rotateCompositionImage,
   switchPairedCompositionMode,
   compositionInteractionContext,
@@ -40,10 +41,10 @@ export default function CompositionControls({ widgetId, blockSelected = false })
       return false;
     }
   };
-  const preview = (field, value) => {
+  const preview = (field, value, phase = value === null ? "cancel" : "preview") => {
     if (!found) return;
     window.dispatchEvent(new CustomEvent("wyrmetizer:numeric-preview", { detail: {
-      field, value, phase: value === null ? "cancel" : "preview", widgetId,
+      field, value: field === "height" && value !== null ? compositionHeightValue(found[0], value) : value, phase, widgetId,
       context: compositionInteractionContext(), revision: compositionRevision(page.widgets[widgetId], found[1].placements[widgetId].frames.desktop),
     } }));
   };
@@ -110,18 +111,14 @@ export default function CompositionControls({ widgetId, blockSelected = false })
             Rotation (° clockwise)
             <CompositionNumberInput key={`${widgetId}:${context}:${found[1].placements[widgetId].frames.desktop.rotation || 0}`}
               label="Image rotation angle" value={found[1].placements[widgetId].frames.desktop.rotation || 0} step={0.1} disabled={context !== "desktop"}
-              onPreview={value => preview("rotation", value)} onCommit={angle => rotateCompositionImage(widgetId, angle)} />
+              onPreview={(value, phase) => preview("rotation", value, phase)} onCommit={angle => rotateCompositionImage(widgetId, angle)} />
             Drag the circular handle; Shift snaps to 15°. Rotation rebases retained pins.
           </label>}
           <label className="block text-xs">
             Canvas height (px)
             <CompositionNumberInput key={`${found[0]}:${context}:${found[1].profiles.desktop.height.valuePx}`}
-              label="Canvas height" value={found[1].profiles.desktop.height.valuePx} min={1} max={10000} disabled={context !== "desktop"}
-              onPreview={value => preview("height", value)} onCommit={value => run(() => {
-                const next = structuredClone(usePageStore.getState().page);
-                next.layout.compositions[found[0]].profiles.desktop.height.valuePx = value;
-                return commitCompositionPage(next);
-              })} />
+              label="Canvas height" value={found[1].profiles.desktop.height.valuePx} min={1} max={10000} clampMin disabled={context !== "desktop"}
+              onPreview={(value, phase) => preview("height", value, phase)} onCommit={value => run(() => setCompositionHeight(found[0], value))} />
           </label>
           <p className="text-xs text-slate-500">
             Image flow spacing is retained for Return to Flow. It does not position composition children.

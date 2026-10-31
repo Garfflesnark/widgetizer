@@ -11,6 +11,7 @@ import {
   frameFromRect,
   containedRect,
   compositionRect,
+  minimumCompositionHeight,
 } from "@widgetizer/core/composition";
 import { compositionAdapters, compositionImageRect } from "@widgetizer/core/compositionImage";
 import { transformRect, imageReference } from "@widgetizer/core/imageTransform";
@@ -104,6 +105,25 @@ export function commitCompositionPage(next) {
   store.beginHistoryStep();
   useAutoSave.getState().setStructureModified(true);
   return true;
+}
+export function compositionHeightValue(id, requested) {
+  const page = usePageStore.getState().page, c = page.layout?.compositions[id];
+  if (!c || !Number.isFinite(requested)) return null;
+  const items = c.childrenOrder.map(child => {
+    const placement = c.placements[child], frame = placement.frames.desktop;
+    const geometry = useWidgetStore.getState().imageGeometry[child];
+    return { frame, version: placement.version, rect: compositionImageRect(page.widgets[child], c, frame,
+      geometry?.naturalWidth, geometry?.naturalHeight) };
+  });
+  return Math.max(1, requested, minimumCompositionHeight(items, c.profiles.desktop.referenceWidthPx));
+}
+export function setCompositionHeight(id, requested) {
+  if (useWidgetStore.getState().compositionContext !== "desktop") return false;
+  const value = compositionHeightValue(id, requested);
+  if (value === null || value > 10000) return false;
+  const next = structuredClone(usePageStore.getState().page);
+  next.layout.compositions[id].profiles.desktop.height.valuePx = value;
+  return commitCompositionPage(next);
 }
 export function convertImages(ids, height = 1000) {
   if (useWidgetStore.getState().compositionContext !== "desktop")

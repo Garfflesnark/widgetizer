@@ -8,6 +8,7 @@ export function isCompositionGeometryOnlyChange(before, after) {
     const page = structuredClone(state.page);
     delete page.wyrmetizerEditorLayout;
     for (const c of Object.values(page.layout.compositions)) {
+      delete c.profiles.desktop.height.valuePx;
       for (const p of Object.values(c.placements))
         if (p.frames?.desktop) {
           delete p.version;

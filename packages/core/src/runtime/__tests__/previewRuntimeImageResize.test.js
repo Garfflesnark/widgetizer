@@ -280,3 +280,37 @@ it("keeps toolbar and all handle hit areas on negative image coordinates after n
   expect(document.querySelectorAll('[data-composition-move]')).toHaveLength(1);
   message("EDITOR_ZOOM", 1);
 });
+
+it("numeric height confirmation sync preserves image geometry through commit and undo", () => {
+  const area = document.createElement("section"), child = document.createElement("div");
+  Object.assign(area.dataset, { compositionId: "numeric", compositionWidth: "1200", compositionHeight: "800" });
+  const frame = { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } };
+  Object.assign(child.dataset, { compositionChild: "numeric-image", compositionRevision: "numeric-r", compositionFrame: JSON.stringify(frame) });
+  child.innerHTML = `<section data-widget-id="numeric-image" data-widget-type="image" data-image-transform-version="2" data-image-natural-width="1200" data-image-natural-height="600"><div><div data-image-resize-target><img></div></div></section>`;
+  document.body.append(area); area.append(child);
+  area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1200, height: Number(area.dataset.compositionHeight) });
+  const image = child.querySelector("img");
+  const model = { version: 2, reference: "intrinsic-fit", alignment: "center", anchors: [],
+    dimensions: { width: { unit: "px", value: 200 }, height: { unit: "px", value: 100 } }, flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  const sizes = { "numeric-image": { width: 100, height: 0, transform: model } };
+  message("SET_IMAGE_RESIZE_SUPPORT", { widgetIds: ["numeric-image"], stretchWidgetIds: ["numeric-image"], transformWidgetIds: ["numeric-image"], sizes });
+  const sync = height => window.dispatchEvent(new MessageEvent("message", { source: window.parent, origin,
+    data: { type: "COMPOSITION_SYNC", context: "numeric-context", sizes, revisions: { "numeric-image": "numeric-r" },
+      payload: { compositions: { numeric: { profiles: { desktop: { referenceWidthPx: 1200, height: { valuePx: height } } },
+        childrenOrder: ["numeric-image"], stackOrder: ["numeric-image"], placements: { "numeric-image": { frames: { desktop: frame } } } } } } } }));
+  sync(800);
+  message("UPDATE_SELECTION", { widgetId: "numeric-image" });
+  const payload = { widgetId: "numeric-image", context: "numeric-context", revision: "numeric-r", field: "height", value: 1000 };
+  message("COMPOSITION_NUMERIC_PREVIEW", payload);
+  expect(child.style.top).toBe("24%");
+  message("COMPOSITION_NUMERIC_PREVIEW", { ...payload, phase: "commit" });
+  expect(area.dataset.compositionHeight).toBe("1000");
+  for (const height of [1000, 800, 1000]) {
+    sync(height);
+    expect(area.dataset.compositionHeight).toBe(String(height));
+    expect(area.style.aspectRatio).toBe(`1200/${height}`);
+    expect(parseFloat(child.style.top) * height / 100).toBeCloseTo(240);
+    expect(parseFloat(child.style.height) * height / 100).toBeCloseTo(100);
+    expect(child.querySelector("img")).toBe(image);
+  }
+});

@@ -335,7 +335,8 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         if (twoAxes && !isImageHeight(size.height)) continue;
         if (size.transform !== undefined && size.transform !== null && (!transforms.has(widgetId) || !isImageTransform(size.transform))) continue;
         canonicalValues.set(widgetId, size);
-        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing, compositionContext(widget)?.frame]);
+        const composition = compositionContext(widget);
+        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing, composition?.frame, composition?.height]);
         if (!force && canonicalSizes.get(widgetId) === key) continue;
         if (gesture?.widgetId === widgetId) finish(false);
         if (draft?.widgetId === widgetId || spacingDraft?.widgetId === widgetId) cancelDraft();

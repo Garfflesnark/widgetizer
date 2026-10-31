@@ -14,7 +14,8 @@ it("previews valid values immediately, keeps incomplete text and commits only on
   fireEvent.change(input, { target: { value: "-30" } });
   expect(preview).toHaveBeenLastCalledWith(-30); expect(commit).not.toHaveBeenCalled();
   fireEvent.blur(input); fireEvent.blur(input);
-  expect(commit).toHaveBeenCalledExactlyOnceWith(-30); expect(preview).toHaveBeenLastCalledWith(null);
+  expect(commit).toHaveBeenCalledExactlyOnceWith(-30); expect(preview).toHaveBeenLastCalledWith(-30, "commit");
+  expect(preview).not.toHaveBeenCalledWith(null);
 });
 it("Escape and unmount cancel preview without committing", () => {
   const preview = vi.fn(), commit = vi.fn();
@@ -63,4 +64,23 @@ it("retains numeric arrow stepping without committing until blur", () => {
   fireEvent.keyDown(input, { key: "ArrowDown" });
   expect(input.value).toBe("10"); expect(commit).not.toHaveBeenCalled();
   fireEvent.blur(input); expect(commit).not.toHaveBeenCalled();
+});
+
+it("clickable steppers preview repeatedly and commit on confirmation", () => {
+  const preview = vi.fn(), commit = vi.fn();
+  render(<CompositionNumberInput label="Angle" value={10} step={0.1} onPreview={preview} onCommit={commit} />);
+  fireEvent.click(screen.getByRole("button", { name: "Increase Angle" }));
+  fireEvent.click(screen.getByRole("button", { name: "Increase Angle" }));
+  expect(screen.getByLabelText("Angle").value).toBe("10.2");
+  fireEvent.click(screen.getByRole("button", { name: "Decrease Angle" }));
+  expect(preview).toHaveBeenLastCalledWith(10.1);
+  expect(commit).not.toHaveBeenCalled();
+  fireEvent.keyDown(screen.getByLabelText("Angle"), { key: "Enter" });
+  expect(commit).toHaveBeenCalledExactlyOnceWith(10.1);
+  expect(preview).toHaveBeenLastCalledWith(10.1, "commit");
+});
+it("disables visible steppers with the input", () => {
+  render(<CompositionNumberInput label="Height" value={800} disabled onPreview={vi.fn()} onCommit={vi.fn()} />);
+  expect(screen.getByRole("button", { name: "Increase Height" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Decrease Height" })).toBeDisabled();
 });
