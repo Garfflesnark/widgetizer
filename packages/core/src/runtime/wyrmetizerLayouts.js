@@ -1,4 +1,4 @@
-import { validateCompositionLayout } from "./composition.js";
+import { createComposition, validateCompositionLayout } from "./composition.js";
 
 export const imagePresentationKeys = Object.freeze([
   "image_transform", "fullwidth", "image_width_percent", "image_height_px",
@@ -21,6 +21,45 @@ function splitWidget(widget) {
 }
 function presented(widget, presentation) {
   return { ...clone(widget), settings: { ...clone(widget.settings || {}), ...clone(presentation) } };
+}
+
+// Only creation entry points call this; opening an existing page never upgrades it.
+export function initializeWyrmetizerPage(page, adapters) {
+  if (page.layout?.version === 1 && Object.keys(page.layout.compositions).length)
+    return createWyrmetizerCopy(page, adapters);
+  if (page.layout != null && page.layout.version !== 1) {
+    validateWyrmetizerPage(page, adapters);
+    return page;
+  }
+  const next = clone(page);
+  next.widgetsOrder ??= Object.keys(next.widgets || {});
+  next.layout = { version: 2, areas: {}, contentOrder: next.widgetsOrder.map(id => ({ kind: "widget", id })) };
+  validateWyrmetizerPage(next, adapters);
+  return next;
+}
+
+export function createWyrmetizerComposition(page, areaId, ids, frames, width, height, adapters) {
+  validateWyrmetizerPage(page, adapters);
+  if (Object.hasOwn(page.layout.areas, areaId)) fail("Area already exists");
+  if (ids.some(id => Object.values(page.layout.areas).some(area => area.members.includes(id))))
+    fail("member already has a paired arrangement");
+  const projected = createComposition(resolveWyrmetizerPage(page), areaId, ids, frames, width, height);
+  const next = clone(page), presentation = {};
+  for (const id of ids) {
+    const split = splitWidget(page.widgets[id]);
+    next.widgets[id] = split.content;
+    presentation[id] = split.presentation;
+  }
+  const order = next.layout.contentOrder;
+  const first = order.findIndex(entry => entry.kind === "widget" && ids.includes(entry.id));
+  next.layout.contentOrder = order.filter(entry => entry.kind !== "widget" || !ids.includes(entry.id));
+  next.layout.contentOrder.splice(first, 0, { kind: "area", id: areaId });
+  next.layout.areas[areaId] = { version: 1, activeMode: "composition", members: [...ids],
+    flow: { order: page.widgetsOrder.filter(id => ids.includes(id)), presentation: clone(presentation) },
+    composition: { geometry: clone(projected.layout.compositions[areaId]), presentation: clone(presentation) } };
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  validateWyrmetizerPage(next, adapters);
+  return next;
 }
 
 // The resolver is a disposable adapter for existing renderers, never persisted.
@@ -127,7 +166,9 @@ export function validateWyrmetizerPage(page, adapters) {
 
 export function createWyrmetizerCopy(page, adapters) {
   validateCompositionLayout(page, adapters);
-  if (page.layout?.version !== 1 || !Object.keys(page.layout.compositions).length) fail("no supported Composition to initialize");
+  if (page.layout == null || (page.layout.version === 1 && !Object.keys(page.layout.compositions).length))
+    return initializeWyrmetizerPage(page, adapters);
+  if (page.layout.version !== 1) fail("no supported Composition to initialize");
   const next = clone(page), areas = {};
   for (const [id, geometry] of Object.entries(page.layout.compositions)) {
     const presentation = {};

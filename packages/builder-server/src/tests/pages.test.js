@@ -210,6 +210,8 @@ describe("createPage", () => {
     assert.equal(page.slug, "my-new-page");
     assert.equal(page.id, "my-new-page");
     assert.deepEqual(page.widgets, {});
+    assert.deepEqual(page.widgetsOrder, []);
+    assert.deepEqual(page.layout, { version: 2, areas: {}, contentOrder: [] });
     assert.ok(page.created);
     assert.ok(page.updated);
   });
@@ -221,6 +223,7 @@ describe("createPage", () => {
 
     const onDisk = await fs.readJson(filePath);
     assert.equal(onDisk.name, "Disk Write");
+    assert.deepEqual(onDisk.layout, { version: 2, areas: {}, contentOrder: [] });
   });
 
   it("generates slug from name", async () => {

@@ -1,5 +1,7 @@
 # Wyrmetizer copy-first conversion
 
+New projects' template pages and newly created pages now start with the existing version-2 paired-layout envelope, including Flow-only and empty pages. First-time Composition creation captures Flow order and presentation separately from Composition geometry. Existing Areas expose Switch to Flow / Switch to Composition; neither action dissolves or recreates the Area. Existing files are not upgraded when opened. Older Flow-only pages and version-1 Composition pages use the explicit, separate-copy conversion below; the editor no longer offers the destructive legacy Return to Flow action.
+
 Recovered baseline: `e119c288` on `feature/fruitform-image-rotation`. The existing conversion endpoint/dialog was uncommitted together with independent pivot and numeric-editing changes. This delivery commits conversion only; the other work remains in the working tree.
 
 The explicit Convert action posts to `POST /pages/:id/convert-wyrmetizer`. Under the existing project content write lock, the server reads and validates the source and draft, checks the source revision, rejects placement downgrades, validates the paired copy against current media/theme capabilities, and writes a unique `*-wyrmetizer` page with a new UUID and a visible `(Wyrmetizer copy)` name. It never overwrites the source. Existing duplication conventions clear listing-anchor claims on the copy. Unknown layout/placement versions and malformed sources fail closed with recovery information.

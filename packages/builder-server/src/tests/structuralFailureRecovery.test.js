@@ -656,10 +656,30 @@ describe("a theme or preset name that steps outside its folder", () => {
       assert.equal(res._status, 201, JSON.stringify(res._json));
       const dir = getProjectDir(res._json.folderName);
       assert.equal(await fs.pathExists(path.join(dir, "pages", "about.json")), true, "written under its file name");
+      const page = await fs.readJson(path.join(dir, "pages", "about.json"));
+      assert.deepEqual(page.layout, { version: 2, areas: {}, contentOrder: [] });
       // pages/../../../ is two folders above the project.
       for (const outside of [dir, path.dirname(dir), path.dirname(path.dirname(dir))].map((d) => path.join(d, "escaped-template.json"))) {
         assert.equal(await fs.pathExists(outside), false, outside);
       }
+    } finally {
+      await fs.remove(template);
+      invalidateThemeSourceCache(THEME);
+    }
+  });
+
+  it("initializes a new project's authored Flow template as paired without converting its content", async () => {
+    const template = path.join(getThemeDir(THEME), "templates", "flow.json");
+    const widgets = { intro: { type: "text", settings: { title: "Authored intro" } } };
+    await fs.writeJson(template, { name: "Flow", slug: "flow", widgets, widgetsOrder: ["intro"] });
+    invalidateThemeSourceCache(THEME);
+    try {
+      const res = await create("Paired Flow Project");
+      assert.equal(res._status, 201, JSON.stringify(res._json));
+      const page = await fs.readJson(path.join(getProjectDir(res._json.folderName), "pages", "flow.json"));
+      assert.deepEqual(page.widgets, widgets);
+      assert.deepEqual(page.widgetsOrder, ["intro"]);
+      assert.deepEqual(page.layout, { version: 2, areas: {}, contentOrder: [{ kind: "widget", id: "intro" }] });
     } finally {
       await fs.remove(template);
       invalidateThemeSourceCache(THEME);

@@ -7,6 +7,16 @@ import { editorFetchJson } from "../../../lib/apiFetch";
 vi.mock("../../../lib/apiFetch", () => ({ editorFetchJson: vi.fn() }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: key => key }) }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
+it("offers explicit copy-first conversion for older Flow-only pages without converting on open", () => {
+  const page = fixture();
+  delete page.layout;
+  render(<WyrmetizerCompatibility page={page} />);
+  expect(editorFetchJson).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText("Create a paired-layout copy"));
+  expect(screen.getByRole("button", { name: "Convert" }).disabled).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(editorFetchJson).not.toHaveBeenCalled();
+});
 it("defaults to Cancel and makes no request when cancelled", () => {
   render(<WyrmetizerCompatibility page={{ ...fixture(), id: "test" }} />);
   fireEvent.click(screen.getByText("Create a paired-layout copy"));

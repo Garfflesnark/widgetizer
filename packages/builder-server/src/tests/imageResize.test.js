@@ -1,6 +1,6 @@
 import { createComposition, dissolveComposition } from "@widgetizer/core/composition";
 import { defaultImageTransform } from "@widgetizer/core/imageTransform";
-import { createWyrmetizerCopy, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { initializeWyrmetizerPage, createWyrmetizerComposition, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { after, before, it } from "node:test";
 import assert from "node:assert/strict";
@@ -129,13 +129,28 @@ it("converts only known source formats into separate copies and leaves sources b
   await fs.writeFile(file, before);
 });
 
-it("saves paired layouts to a separate page and reloads both arrangements exactly", async () => {
+it("converts an older Flow-only page only into a separate paired copy", async () => {
+  const source = { id: "old-flow", slug: "old-flow", name: "Old Flow", updated: "flow-revision", widgets: {}, widgetsOrder: [] };
+  const file = path.join(harness.getProjectDir("resize-project"), "pages", "old-flow.json");
+  await fs.outputJson(file, source);
+  const before = await fs.readFile(file, "utf8");
+  const converted = response();
+  await convertWyrmetizerPage({ ...request({ page: source }), params: { id: source.id } }, converted);
+  assert.equal(converted.code, 201, JSON.stringify(converted.data));
+  assert.notEqual(converted.data.id, source.id);
+  assert.deepEqual(converted.data.layout, { version: 2, areas: {}, contentOrder: [] });
+  assert.equal(await fs.readFile(file, "utf8"), before);
+});
+
+it("saves a newly initialized paired area and reloads both arrangements exactly", async () => {
   const transform = defaultImageTransform();
   transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };
   const source = createComposition({ id: "paired", slug: "paired", name: "Paired copy", widgets: {
     a: { type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: transform }, blocks: {}, blocksOrder: [] },
   }, widgetsOrder: ["a"] }, "area", ["a"], { a: { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } } });
-  let page = createWyrmetizerCopy(source, compositionAdapters);
+  const fresh = initializeWyrmetizerPage({ ...source, layout: null }, compositionAdapters);
+  let page = createWyrmetizerComposition(fresh, "area", ["a"],
+    { a: source.layout.compositions.area.placements.a.frames.desktop }, 1200, 800, compositionAdapters);
   page.layout.areas.area.composition.geometry.placements.a.version = 3;
   page.layout.areas.area.composition.geometry.placements.a.frames.desktop.rotation = 30;
   page.layout.areas.area.composition.geometry.placements.a.frames.desktop.rotationPivot = { x: 0.2, y: 0.8 };

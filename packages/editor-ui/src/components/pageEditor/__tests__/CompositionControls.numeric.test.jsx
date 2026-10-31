@@ -5,7 +5,7 @@ import { compositionRevision } from "@widgetizer/core/composition";
 import { createWyrmetizerNumericPreview } from "../../../../../core/src/runtime/wyrmetizerNumericPreview.js";
 import { compositionInteractionContext } from "../../../lib/compositionActions";
 import { fixture } from "../../../../../core/src/runtime/__tests__/compositionFixture.js";
-import { serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import schema from "../../../../../../themes/arch/widgets/image/schema.json";
 vi.mock("../../../queries/pageManager", () => ({ getPage: vi.fn() }));
 vi.mock("../../../queries/previewManager", () => ({ getGlobalWidgets: vi.fn(), getProjectWidgets: vi.fn() }));
@@ -25,6 +25,31 @@ beforeEach(() => {
     imageGeometry: { a: { containerWidth: 1200, width: 1200, height: 675, imageSource: "" } } });
 });
 afterEach(() => { cleanup(); useAutoSave.getState().stopAutoSave(); vi.useRealTimers(); });
+
+it("offers Create once, then switches the existing paired arrangement in both directions", () => {
+  const page = fixture();
+  delete page.layout;
+  usePageStore.getState().setPage(initializeWyrmetizerPage(page, {}));
+  render(<CompositionControls widgetId="a" />);
+  expect(screen.getByRole("button", { name: "Create Composition Area" })).toBeTruthy();
+  fireEvent.click(screen.getAllByRole("checkbox")[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
+  expect(screen.queryByRole("button", { name: "Create Composition Area" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Switch to Flow" }));
+  expect(screen.queryByRole("button", { name: "Create Composition Area" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Switch to Composition" }));
+  expect(screen.getByRole("button", { name: "Switch to Flow" })).toBeTruthy();
+});
+it("does not offer destructive legacy dissolve or recreation controls", () => {
+  const { rerender } = render(<CompositionControls widgetId="a" />);
+  expect(screen.queryByRole("button", { name: /Return Composition to Flow|Switch to Flow/ })).toBeNull();
+  const page = fixture();
+  delete page.layout;
+  act(() => usePageStore.setState({ page }));
+  rerender(<CompositionControls widgetId="a" />);
+  expect(screen.queryByRole("button", { name: "Create Composition Area" })).toBeNull();
+  expect(screen.getByText(/original page stays unchanged/)).toBeTruthy();
+});
 
 it.each([
   ["Image rotation angle", "rotation", "20", "30", page => page.layout.compositions.canvas.placements.a.frames.desktop.rotation],

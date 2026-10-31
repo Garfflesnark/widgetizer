@@ -6,6 +6,8 @@ import { processTemplatesRecursive } from "./templateHelpers.js";
 import { isSafePathSegment } from "./pathSecurity.js";
 import { enrichNewProjectReferences } from "./linkEnrichment.js";
 import { applyPresetSettings } from "./presetSettings.js";
+import { initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 
 /**
  * Scaffold a new project's on-disk content into an explicit directory.
@@ -102,7 +104,9 @@ export async function scaffoldProjectContent({ projectDir, theme, preset }) {
             }
           : {}),
       };
-      await fs.outputFile(targetPath, JSON.stringify(initializedPage, null, 2));
+      const page = template.type === "header" || template.type === "footer" ? initializedPage :
+        initializeWyrmetizerPage(initializedPage, compositionAdapters);
+      await fs.outputFile(targetPath, JSON.stringify(page, null, 2));
     });
 
     await enrichNewProjectReferences(pagesDir, menusDir);

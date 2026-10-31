@@ -4,8 +4,40 @@ import { compositionAdapters } from "../compositionImage.js";
 import { defaultImageTransform } from "../imageTransform.js";
 import { createWyrmetizerCopy, resolveWyrmetizerPage, switchWyrmetizerMode,
   editWyrmetizerWidget, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, validateWyrmetizerPage,
-  addWyrmetizerWidget, reorderWyrmetizerFlow, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage } from "../wyrmetizerLayouts.js";
+  addWyrmetizerWidget, reorderWyrmetizerFlow, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage,
+  initializeWyrmetizerPage, createWyrmetizerComposition } from "../wyrmetizerLayouts.js";
 const adapters = compositionAdapters;
+it("initializes new empty and Flow-only pages with the paired envelope without altering Flow", () => {
+  for (const source of [{ widgets: {} }, { widgets: fixture().widgets, widgetsOrder: ["a"] }]) {
+    const before = structuredClone(source);
+    const page = initializeWyrmetizerPage(source, adapters);
+    expect(page.layout).toEqual({ version: 2, areas: {}, contentOrder: (source.widgetsOrder || []).map(id => ({ kind: "widget", id })) });
+    expect(page.widgets).toEqual(source.widgets);
+    expect(source).toEqual(before);
+    expect(openWyrmetizerEditorPage(page, adapters).wyrmetizerEditorLayout.version).toBe(2);
+  }
+});
+it("creates a first paired area without replacing Flow presentation or an existing inactive area", () => {
+  let page = initializeWyrmetizerPage({ widgets: { ...fixture().widgets, b: structuredClone(fixture().widgets.a) }, widgetsOrder: ["b", "a"] }, adapters);
+  const original = structuredClone(page);
+  page = createWyrmetizerComposition(page, "first", ["a"], { a: { x: 0.3, y: 0.2, pivot: { x: 0, y: 0 } } }, 1200, 800, adapters);
+  page = switchWyrmetizerMode(page, "first", "flow", adapters);
+  const first = structuredClone(page.layout.areas.first);
+  expect(resolveWyrmetizerPage(page).widgets).toEqual(original.widgets);
+  expect(page.widgetsOrder).toEqual(original.widgetsOrder);
+  expect(() => createWyrmetizerComposition(page, "other", ["a"], {}, 1200, 800, adapters)).toThrow(/already has/);
+  expect(() => createWyrmetizerComposition(page, "first", ["b"], {}, 1200, 800, adapters)).toThrow(/already exists/);
+  page = createWyrmetizerComposition(page, "second", ["b"], { b: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } } }, 1200, 800, adapters);
+  expect(page.layout.areas.first).toEqual(first);
+  expect(page.layout.areas.second.flow.presentation.b).toEqual(first.flow.presentation.a);
+});
+it("opens legacy Flow without upgrading, and explicitly converts only a separate copy", () => {
+  const legacy = { widgets: fixture().widgets, widgetsOrder: ["a"] };
+  expect(openWyrmetizerEditorPage(legacy, adapters)).toBe(legacy);
+  const before = structuredClone(legacy);
+  expect(createWyrmetizerCopy(legacy, adapters).layout.version).toBe(2);
+  expect(legacy).toEqual(before);
+});
 it("round-trips the editor view and routes active edits without touching inactive presentation", () => {
   const canonical = createWyrmetizerCopy(fixture(), adapters);
   const view = openWyrmetizerEditorPage(canonical, adapters);

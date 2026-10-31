@@ -7,7 +7,7 @@ import { editorFetchJson } from "../../lib/apiFetch";
 export default function WyrmetizerCompatibility({ page, incompatible = false }) {
   const [open, setOpen] = useState(incompatible), [busy, setBusy] = useState(false), [result, setResult] = useState(null), [error, setError] = useState("");
   let supported = false;
-  try { if (page?.layout?.version === 1) { createWyrmetizerCopy(page, compositionAdapters); supported = true; } } catch { /* Invalid files have no conversion path. */ }
+  try { if (page && (page.layout == null || page.layout.version === 1)) { createWyrmetizerCopy(page, compositionAdapters); supported = true; } } catch { /* Invalid files have no conversion path. */ }
   const convert = async () => {
     if (!supported || busy) return;
     setBusy(true); setError("");

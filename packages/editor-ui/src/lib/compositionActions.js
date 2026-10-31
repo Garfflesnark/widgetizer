@@ -1,12 +1,10 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
   compositionFor,
   compositionRevision,
-  createComposition,
-  dissolveComposition,
   validateCompositionLayout,
   frameFromRect,
   containedRect,
@@ -130,6 +128,8 @@ export function convertImages(ids, height = 1000) {
     throw new Error("Switch to Desktop to create a Composition Area.");
   const { page } = usePageStore.getState(),
     { schemas } = useWidgetStore.getState();
+  if (!page.wyrmetizerEditorLayout)
+    throw new Error("Create a paired-layout copy before creating a Composition Area on this older page.");
   if (ids.some((id) => schemas[page.widgets[id]?.type]?.compositionCapability !== "image.v1"))
     throw new Error("Update the project's approved image theme files before conversion.");
   const width = 1200,
@@ -153,16 +153,16 @@ export function convertImages(ids, height = 1000) {
     const rect = { ...size, left: Math.min(40 * i, width - size.width), top: Math.min(40 * i, height - size.height) };
     frames[id] = frameFromRect(rect, { x: 0, y: 0 }, width);
   }
-  return commitCompositionPage(
-    createComposition(page, `composition_${crypto.randomUUID()}`, ids, frames, width, height),
-  );
+  const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  const next = createWyrmetizerComposition(canonical, `composition_${crypto.randomUUID()}`, ids, frames, width, height, compositionAdapters);
+  return commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
 }
 export function layerImage(id, direction) {
   return commitCompositionPage(changeStack(usePageStore.getState().page, id, direction));
 }
 export function returnCompositionToFlow(id) {
   if (usePageStore.getState().page?.wyrmetizerEditorLayout) return switchPairedCompositionMode(id, "flow");
-  return commitCompositionPage(dissolveComposition(usePageStore.getState().page, id));
+  throw new Error("Create a paired-layout copy before switching this older page to Flow.");
 }
 export function switchPairedCompositionMode(id, mode) {
   const store = usePageStore.getState();
@@ -170,6 +170,7 @@ export function switchPairedCompositionMode(id, mode) {
   const next = switchWyrmetizerMode(canonical, id, mode, compositionAdapters);
   if (next === canonical) return false;
   store.beginHistoryStep(); store.setPage(next); store.beginHistoryStep();
+  pruneCompositionMovementLocks();
   useAutoSave.getState().setStructureModified(true);
   return true;
 }

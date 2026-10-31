@@ -1,8 +1,9 @@
 import { compositionRevision, compositionRect } from "@widgetizer/core/composition";
 import { rotatedPoint } from "@widgetizer/core/rotationGeometry";
 import { transformRect } from "@widgetizer/core/imageTransform";
-import { createWyrmetizerCopy, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { createWyrmetizerCopy, serializeWyrmetizerEditorPage, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
+import { renderPageContent } from "../../../../render-engine/src/compositionRenderer.js";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 import schema from "../../../../../themes/arch/widgets/image/schema.json";
 import { fixture } from "../../../../core/src/runtime/__tests__/compositionFixture.js";
@@ -26,6 +27,7 @@ import {
   rotateCompositionImage,
   switchPairedCompositionMode,
   setCompositionRotationPivot,
+  convertImages,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -43,6 +45,68 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+it("creates paired Composition from authored Flow and retains independent edits across reloads", () => {
+  const flow = fixture();
+  delete flow.layout;
+  flow.widgets.a.settings.top_spacing_px = 71;
+  usePageStore.getState().setPage(initializeWyrmetizerPage(flow, compositionAdapters));
+  expect(convertImages(["a", "b"], 1000)).toBe(true);
+  let page = usePageStore.getState().page;
+  const areaId = Object.keys(page.layout.compositions)[0];
+  const initial = page.layout.compositions[areaId].placements.a.frames.desktop;
+  expect(applyCompositionGeometry("a", { startFrame: initial, frame: { ...initial, x: 0.4, y: 0.2 } })).toBe(true);
+  expect(rotateCompositionImage("a", 25)).toBe(true);
+  expect(setCompositionRotationPivot("a", { x: 0.2, y: 0.8 })).toBe(true);
+  page = usePageStore.getState().page;
+  const startFrame = page.layout.compositions[areaId].placements.a.frames.desktop;
+  expect(applyCompositionGeometry("a", { startFrame, frame: { ...startFrame, x: 0.5, y: 0.3 } })).toBe(true);
+  expect(layerImage("a", "forward")).toBe(true);
+  const composition = structuredClone(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.areas[areaId].composition);
+  expect(returnCompositionToFlow(areaId)).toBe(true);
+  expect(usePageStore.getState().page.widgets).toEqual(flow.widgets);
+  useWidgetStore.getState().updateWidgetSettingValues("a", { top_spacing_px: 93,
+    image_transform: { ...flow.widgets.a.settings.image_transform, dimensions: { width: { unit: "px", value: 177 }, height: { unit: "px", value: 99 } } } });
+  const authoredFlow = structuredClone(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.areas[areaId].flow);
+  for (let i = 0; i < 5; i++) {
+    const saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+    usePageStore.getState().setPage(JSON.parse(JSON.stringify(saved)));
+    expect(switchPairedCompositionMode(areaId, "composition")).toBe(true);
+    expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.areas[areaId].composition).toEqual(composition);
+    expect(() => convertImages(["a"], 1000)).toThrow(/already has/);
+    expect(returnCompositionToFlow(areaId)).toBe(true);
+    expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.areas[areaId].flow).toEqual(authoredFlow);
+  }
+});
+it("does not silently create paired geometry on an older Flow page", () => {
+  const page = structuredClone(usePageStore.getState().page);
+  delete page.layout;
+  usePageStore.setState({ page });
+  expect(() => convertImages(["a"])).toThrow(/paired-layout copy/);
+  expect(usePageStore.getState().page).toEqual(page);
+});
+it("does not discard an older Composition when switching to Flow", () => {
+  const before = structuredClone(usePageStore.getState().page);
+  expect(() => returnCompositionToFlow("canvas")).toThrow(/paired-layout copy/);
+  expect(usePageStore.getState().page).toEqual(before);
+});
+it("restores an authored paired position through switching, persistence and rendering", async () => {
+  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
+  const startFrame = usePageStore.getState().page.layout.compositions.canvas.placements.a.frames.desktop;
+  const frame = { ...startFrame, x: 0.6, y: 0.3 };
+  expect(applyCompositionGeometry("a", { frame, startFrame })).toBe(true);
+  const authored = structuredClone(usePageStore.getState().page.layout.compositions.canvas);
+  for (let i = 0; i < 3; i++) {
+    expect(returnCompositionToFlow("canvas")).toBe(true);
+    const saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+    expect(saved.layout.areas.canvas.composition.geometry).toEqual(authored);
+    usePageStore.getState().setPage(JSON.parse(JSON.stringify(saved)));
+    expect(switchPairedCompositionMode("canvas", "composition")).toBe(true);
+    const restored = usePageStore.getState().page;
+    expect(restored.layout.compositions.canvas).toEqual(authored);
+    const html = await renderPageContent(restored, () => '<section data-composition-capability="image.v1" data-image-natural-width="1600" data-image-natural-height="900"><img></section>');
+    expect(html).toContain('left:47.5%;top:45%');
+  }
+});
 it("persists pivot edits and Reset Pivot without moving corners, with atomic Undo/Redo", () => {
   rotateCompositionImage("a", 30);
   const before = structuredClone(usePageStore.getState().page);
@@ -284,6 +348,7 @@ it("keeps movement locks outside content/history and rejects locked moves throug
   expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
 });
 it("clears locks on Return to Flow without restoring them on Undo", () => {
+  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
   const iframe = {}, origin = "https://preview.example";
   const event = { source: iframe, origin, data: { type: "COMPOSITION_LOCK", payload: { widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(), locked: true } } };
   handleCompositionLockMessage(event, iframe, origin);

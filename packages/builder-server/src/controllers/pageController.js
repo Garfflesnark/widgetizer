@@ -1,5 +1,5 @@
 import { validateCompositionLayout } from "@widgetizer/core/composition";
-import { resolveWyrmetizerPage, createWyrmetizerCopy } from "@widgetizer/core/wyrmetizerLayouts";
+import { resolveWyrmetizerPage, createWyrmetizerCopy, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { getMediaFiles } from "../db/repositories/mediaRepository.js";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { randomUUID } from "crypto";
@@ -774,7 +774,7 @@ export async function createPage(req, res) {
     }
 
     const uuid = randomUUID();
-    const newPage = {
+    const newPage = initializeWyrmetizerPage({
       ...pageData, // Include all submitted data (name, seo, etc.)
       uuid, // Stable identifier that persists across renames
       translationGroupId: uuid,
@@ -782,9 +782,11 @@ export async function createPage(req, res) {
       id: slug,
       slug,
       widgets: {},
+      widgetsOrder: [],
+      layout: null,
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
-    };
+    }, compositionAdapters);
 
     // storage.write creates parent directories as needed.
     await persistPageWithMediaTracking({
@@ -814,11 +816,11 @@ export async function convertWyrmetizerPage(req, res) {
       const sourceBytes = await storage.read(scope, pageKey(req.params.id, lang));
       if (sourceBytes == null) throw new Error("Source page is missing.");
       const source = JSON.parse(sourceBytes.toString("utf8"));
-      if (source.layout?.version !== 1) throw new Error("No validated conversion path exists for this format. Use a compatible application version.");
+      if (source.layout != null && source.layout.version !== 1) throw new Error("No validated conversion path exists for this format. Use a compatible application version.");
       validateCompositionLayout(source, compositionAdapters);
       const draft = req.body.page || source;
       if (draft.id !== req.params.id || draft.updated !== source.updated) throw new Error("The source changed. Reload it before converting; the original remains unchanged.");
-      for (const [areaId, area] of Object.entries(source.layout.compositions)) {
+      for (const [areaId, area] of Object.entries(source.layout?.compositions || {})) {
         for (const [childId, placement] of Object.entries(area.placements)) {
           const proposed = draft.layout?.compositions?.[areaId]?.placements?.[childId];
           if (proposed && proposed.version < placement.version) throw new Error("Conversion cannot downgrade newer placement data. Reload with a compatible editor.");

@@ -29,6 +29,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
     ([id, w]) =>
       !compositionFor(page, id) &&
       schemas[w.type]?.compositionCapability === "image.v1" &&
+      !Object.values(page?.wyrmetizerEditorLayout?.areas || {}).some(area => area.members.includes(id)) &&
       compositionAdapters[w.type]?.supports(w),
   );
   const run = (action) => {
@@ -81,7 +82,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
       <strong className="block text-sm font-semibold text-slate-900">
         {found ? "Composition Area" : "Create Composition Area"}
       </strong>
-      {found && !paired && <WyrmetizerCompatibility page={page} />}
+      {!page?.wyrmetizerEditorLayout && <WyrmetizerCompatibility page={page} />}
       {found ? (
         <>
           <p className="form-description">
@@ -169,16 +170,16 @@ export default function CompositionControls({ widgetId, blockSelected = false })
               />
             </div>
           </div>
-          <div className="space-y-2 border-t border-slate-200 pt-4">
+          {paired && <div className="space-y-2 border-t border-slate-200 pt-4">
             <p className="form-description">
-              Image flow spacing is retained for Return to Flow. It does not position composition children.
+              Your Flow and Composition arrangements are preserved independently.
             </p>
             <button className={button} onClick={() => run(() => returnCompositionToFlow(found[0]))}>
-              Return Composition to Flow
+              Switch to Flow
             </button>
-          </div>
+          </div>}
         </>
-      ) : (
+      ) : page?.wyrmetizerEditorLayout ? (
         <>
           <p className="form-description">
             Opt in selected v2 Images. Initial arrangement overlaps; current image sizes are retained. Legacy images
@@ -215,7 +216,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
             Create Composition Area
           </button>
         </>
-      )}
+      ) : <p className="form-description">Create a paired-layout copy to keep independent Flow and Composition arrangements. The original page stays unchanged.</p>}
       {error && (
         <p role="alert" className="text-xs text-red-700">
           {error}
