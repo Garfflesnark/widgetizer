@@ -1364,7 +1364,7 @@ function ensureHeaderScrollListener() {
 function initializeRuntime() {
   overlayContainer = createOverlayContainer();
   if (PREVIEW_MODE === "editor") {
-    compositionNumericPreview = createWyrmetizerNumericPreview({ document, selected: () => currentSelectedWidgetId, getContext: () => compositionInteractionContext, onPreview: renderOverlay });
+    compositionNumericPreview = createWyrmetizerNumericPreview({ document, selected: () => currentSelectedWidgetId, selectedComposition: () => currentSelectedCompositionId, getContext: () => compositionInteractionContext, onPreview: renderOverlay });
     document.addEventListener("pointerdown", () => compositionNumericPreview?.cancel(), true);
     compositionPivotController = createWyrmetizerPivotController({ document, selected: () => currentSelectedWidgetId, getContext: () => compositionInteractionContext,
       onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); },

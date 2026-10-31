@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { compositionRevision } from "@widgetizer/core/composition";
+import { createWyrmetizerNumericPreview } from "../../../../../core/src/runtime/wyrmetizerNumericPreview.js";
+import { compositionInteractionContext } from "../../../lib/compositionActions";
 import { fixture } from "../../../../../core/src/runtime/__tests__/compositionFixture.js";
 import { serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import schema from "../../../../../../themes/arch/widgets/image/schema.json";
@@ -224,4 +227,72 @@ it("sustained Height keyboard hold previews on animation frames independently of
     expect(input.value).toBe(blurredHeight);
     expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
   } finally { window.removeEventListener("wyrmetizer:numeric-preview", preview); }
+});
+
+it("renders each Height preview while the Composition Area is selected, with cancellation and one hold commit", () => {
+  vi.useFakeTimers();
+  const page = structuredClone(usePageStore.getState().page), c = page.layout.compositions.canvas;
+  c.placements.b.version = 3;
+  Object.assign(c.placements.b.frames.desktop, { rotation: 90, rotationPivot: { x: 0, y: 0 } });
+  usePageStore.setState({ page });
+  usePageStore.temporal.getState().clear();
+  useWidgetStore.getState().setSelectedCompositionId("canvas");
+  expect(useWidgetStore.getState().selectedWidgetId).toBeNull();
+  const area = document.createElement("section");
+  Object.assign(area.dataset, { compositionId: "canvas", compositionWidth: "1200", compositionHeight: "800" });
+  area.style.aspectRatio = "1200/800";
+  for (const [id, left, top] of [["a", 450, 180], ["b", 480, 240]]) {
+    const child = document.createElement("div"), frame = c.placements[id].frames.desktop;
+    Object.assign(child.dataset, { compositionChild: id, compositionRevision: compositionRevision(page.widgets[id], frame), compositionFrame: JSON.stringify(frame) });
+    Object.assign(child.style, { left: `${left}px`, top: `${top}px`, width: "300px", height: "200px", transform: `rotate(${frame.rotation || 0}deg)` });
+    child.innerHTML = `<section data-widget-id="${id}"></section>`;
+    area.append(child);
+  }
+  document.body.append(area);
+  area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1200, height: Number(area.dataset.compositionHeight) });
+  const controller = createWyrmetizerNumericPreview({ document,
+    selected: () => useWidgetStore.getState().selectedWidgetId,
+    selectedComposition: () => useWidgetStore.getState().selectedCompositionId,
+    getContext: compositionInteractionContext, onPreview: vi.fn() });
+  const relay = event => controller.preview(event.detail);
+  window.addEventListener("wyrmetizer:numeric-preview", relay);
+  try {
+    render(<CompositionControls widgetId="a" blockSelected />);
+    const input = screen.getByLabelText("Canvas height"), original = area.innerHTML;
+    const expectLive = () => {
+      const height = Number(input.value);
+      expect(area.dataset.compositionHeight).toBe(input.value);
+      expect(area.style.aspectRatio).toBe(`1200/${height}`);
+      for (const [i, child] of [...area.children].entries()) {
+        expect(parseFloat(child.style.top) * height / 100).toBeCloseTo(i === 0 ? 180 : 240);
+        expect(parseFloat(child.style.height) * height / 100).toBeCloseTo(200);
+      }
+    };
+    act(() => input.focus());
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expectLive();
+    act(() => vi.advanceTimersByTime(350));
+    for (let i = 0; i < 6; i++) { act(() => vi.advanceTimersToNextFrame()); expectLive(); }
+    expect(usePageStore.getState().page).toEqual(page);
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(area.dataset.compositionHeight).toBe("800");
+    expect(area.innerHTML).toBe(original);
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "50" } });
+    expect(area.dataset.compositionHeight).toBe("540");
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input.value).toBe("541"); expectLive();
+    act(() => vi.advanceTimersByTime(350));
+    for (let i = 0; i < 6; i++) { act(() => vi.advanceTimersToNextFrame()); expectLive(); }
+    const height = Number(input.value);
+    fireEvent.keyUp(input, { key: "ArrowUp" });
+    expectLive(); expect(input).toHaveFocus();
+    const committed = usePageStore.getState().page.layout.compositions.canvas;
+    expect(committed.profiles.desktop.height.valuePx).toBe(height);
+    expect(committed.placements).toEqual(c.placements);
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+    act(() => usePageStore.temporal.getState().undo());
+    expect(usePageStore.getState().page).toEqual(page);
+  } finally { window.removeEventListener("wyrmetizer:numeric-preview", relay); controller.cancel(); area.remove(); }
 });

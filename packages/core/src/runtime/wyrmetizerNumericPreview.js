@@ -2,7 +2,7 @@ import { compositionContext, unrotatedCompositionRect } from "./compositionDOM.j
 import { containedRect, minimumCompositionHeight } from "./composition.js";
 import { normalizeAngle } from "./rotationGeometry.js";
 
-export function createWyrmetizerNumericPreview({ document, selected, getContext, onPreview }) {
+export function createWyrmetizerNumericPreview({ document, selected, selectedComposition = () => null, getContext, onPreview }) {
   let draft = null;
   const cancel = () => {
     if (!draft) return;
@@ -17,11 +17,16 @@ export function createWyrmetizerNumericPreview({ document, selected, getContext,
   return { cancel,
     preview(payload) {
       if (payload?.phase === "cancel") { cancel(); return; }
-      if (!payload || payload.widgetId !== selected() || payload.context !== getContext()) return;
+      if (!payload || payload.context !== getContext()) return;
+      const widget = Array.from(document.querySelectorAll("[data-widget-id]")).find(el => el.dataset.widgetId === payload.widgetId);
+      const area = widget?.closest("[data-composition-id]");
+      // Area selection clears the selected image. Height still belongs to that
+      // area, whereas rotation continues to require the selected image itself.
+      if (payload.widgetId !== selected() && !(payload.field === "height" && area &&
+          area.dataset.compositionId === selectedComposition())) return;
       // Retain the final styles until the canonical sync arrives; cancellation
       // here would paint the original geometry between preview and commit.
       if (payload.phase === "commit") { if (draft?.revision === payload.revision) draft = null; return; }
-      const widget = Array.from(document.querySelectorAll("[data-widget-id]")).find(el => el.dataset.widgetId === selected());
       if (!draft) {
         const context = compositionContext(widget);
         if (!context?.editable || context.child.dataset.compositionRevision !== payload.revision) return;
