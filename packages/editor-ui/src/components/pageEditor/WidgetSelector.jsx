@@ -15,6 +15,7 @@ export default function WidgetSelector({
   position,
   triggerRef,
   canAddComposition = false,
+  pasteComposition = false,
 }) {
   const { t } = useTranslation();
   const { tTheme } = useThemeLocale();
@@ -258,7 +259,7 @@ export default function WidgetSelector({
               }}
             >
               <ClipboardPaste size={14} />
-              <span>{t("pageEditor.actions.pasteWidget")}</span>
+              <span>{pasteComposition ? "Paste Composition Area" : t("pageEditor.actions.pasteWidget")}</span>
             </button>
           )}
 

@@ -6,10 +6,74 @@ import { createWyrmetizerCopy, resolveWyrmetizerPage, switchWyrmetizerMode,
   editWyrmetizerWidget, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, validateWyrmetizerPage,
   addWyrmetizerWidget, reorderWyrmetizerFlow, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage,
   initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget,
-  createEmptyWyrmetizerComposition, deleteWyrmetizerComposition } from "../wyrmetizerLayouts.js";
+  createEmptyWyrmetizerComposition, deleteWyrmetizerComposition,
+  copyWyrmetizerComposition, pasteWyrmetizerComposition } from "../wyrmetizerLayouts.js";
 import { validateCompositionLayout } from "../composition.js";
 const adapters = compositionAdapters;
 const roundTrip = page => serializeWyrmetizerEditorPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(page)), adapters), adapters);
+it.each(["flow", "composition"])("copies paired content and every authored arrangement independently in %s", mode => {
+  let page = duplicateWyrmetizerWidget(createWyrmetizerCopy(fixture(), adapters), "a", "b", adapters);
+  page.layout.areas.area.flow.order.reverse();
+  page.layout.areas.area.flow.presentation.a.top_spacing_px = 93;
+  page.layout.areas.area.flow.presentation.a.image_transform.dimensions.width.value = 173;
+  page.layout.areas.area.composition.geometry.stackOrder.reverse();
+  page.layout.areas.area.composition.geometry.placements.a.version = 3;
+  Object.assign(page.layout.areas.area.composition.geometry.placements.a.frames.desktop,
+    { rotation: 30, rotationPivot: { x: 0.2, y: 0.8 } });
+  page = switchWyrmetizerMode(page, "area", mode, adapters);
+  const before = structuredClone(page), clipboard = copyWyrmetizerComposition(page, "area", adapters);
+  const snapshot = structuredClone(clipboard), map = { a: "new_a", b: "new_b" };
+  const next = pasteWyrmetizerComposition(page, clipboard, "copy", map, adapters, 0);
+  expect(page).toEqual(before);
+  expect(clipboard).toEqual(snapshot);
+  expect(next.layout.contentOrder[0]).toEqual({ kind: "area", id: "copy" });
+  const old = page.layout.areas.area, area = next.layout.areas.copy;
+  expect(next.layout.areas.area).toEqual(old);
+  expect(area.activeMode).toBe(mode);
+  expect(area.members).toEqual(["new_a", "new_b"]);
+  expect(area.flow.order).toEqual(["new_b", "new_a"]);
+  expect(area.composition.geometry.stackOrder).toEqual(["new_b", "new_a"]);
+  for (const id of old.members) {
+    expect(next.widgets[map[id]]).toEqual(page.widgets[id]);
+    expect(area.flow.presentation[map[id]]).toEqual(old.flow.presentation[id]);
+    expect(area.composition.presentation[map[id]]).toEqual(old.composition.presentation[id]);
+    expect(area.composition.geometry.placements[map[id]]).toEqual(old.composition.geometry.placements[id]);
+  }
+  expect(roundTrip(next)).toEqual(next);
+  next.widgets.new_a.settings.link = "/independent";
+  expect(next.widgets.a.settings.link).toBe("/one");
+  expect(clipboard).toEqual(snapshot);
+});
+it("copies empty Areas and omits detached independent Widgets and their restoration records", () => {
+  const page = removeWyrmetizerWidget(createWyrmetizerCopy(fixture(), adapters), "area", "a", adapters);
+  const clipboard = copyWyrmetizerComposition(page, "area", adapters);
+  expect(clipboard.widgets).toEqual({});
+  expect(clipboard.area.detached).toBeUndefined();
+  const next = pasteWyrmetizerComposition(page, clipboard, "copy", {}, adapters);
+  expect(next.widgets).toEqual(page.widgets);
+  expect(next.layout.areas.area.detached).toEqual(page.layout.areas.area.detached);
+  expect(next.layout.areas.copy.members).toEqual([]);
+  expect(roundTrip(next)).toEqual(next);
+});
+it("rejects duplicate identities, malformed snapshots and invalid paste positions atomically", () => {
+  const page = duplicateWyrmetizerWidget(createWyrmetizerCopy(fixture(), adapters), "a", "b", adapters);
+  const before = structuredClone(page), clipboard = copyWyrmetizerComposition(page, "area", adapters);
+  for (const ids of [{ a: "same", b: "same" }, { a: "a", b: "new_b" }, { a: "new_a" }])
+    expect(() => pasteWyrmetizerComposition(page, clipboard, "copy", ids, adapters)).toThrow();
+  expect(() => pasteWyrmetizerComposition(page, clipboard, "area", { a: "x", b: "y" }, adapters)).toThrow();
+  expect(() => pasteWyrmetizerComposition(page, clipboard, "copy", { a: "x", b: "y" }, adapters, -1)).toThrow();
+  const malformed = structuredClone(clipboard);
+  malformed.area.composition.geometry.stackOrder = ["a", "a"];
+  expect(() => pasteWyrmetizerComposition(page, malformed, "copy", { a: "x", b: "y" }, adapters)).toThrow();
+  expect(page).toEqual(before);
+});
+it("keeps the existing Area limit when pasting a whole container", () => {
+  let page = createWyrmetizerCopy(fixture(), adapters);
+  for (let i = 0; i < 19; i++) page = createEmptyWyrmetizerComposition(page, `empty_${i}`, adapters);
+  const before = structuredClone(page), clipboard = copyWyrmetizerComposition(page, "area", adapters);
+  expect(() => pasteWyrmetizerComposition(page, clipboard, "copy", { a: "new_a" }, adapters)).toThrow(/too many Areas/);
+  expect(page).toEqual(before);
+});
 it("creates empty Areas at explicit Flow positions with stable identities and no input changes", () => {
   const page = createWyrmetizerCopy(fixture(), adapters), before = structuredClone(page);
   let next = createEmptyWyrmetizerComposition(page, "empty", adapters, { index: 0, height: 950 });

@@ -98,6 +98,47 @@ export function deleteWyrmetizerComposition(page, areaId, adapters) {
   return next;
 }
 
+export function copyWyrmetizerComposition(page, areaId, adapters) {
+  validateWyrmetizerPage(page, adapters);
+  if (!Object.hasOwn(page.layout.areas, areaId)) fail("unknown Area");
+  const area = clone(page.layout.areas[areaId]);
+  // Detached Widgets are independent Flow content, not children of the copy.
+  delete area.detached;
+  return { kind: "composition-area", area,
+    widgets: Object.fromEntries(area.members.map(id => [id, clone(page.widgets[id])])) };
+}
+
+export function pasteWyrmetizerComposition(page, clipboard, areaId, childIds, adapters, index = page.layout?.contentOrder?.length) {
+  validateWyrmetizerPage(page, adapters);
+  if (clipboard?.kind !== "composition-area" || !record(clipboard.area) || !record(clipboard.widgets)) fail("invalid Area clipboard");
+  const source = { widgets: clipboard.widgets, layout: { version: 2, areas: { clipboard: clipboard.area },
+    contentOrder: [{ kind: "area", id: "clipboard" }] } };
+  source.widgetsOrder = resolveWyrmetizerPage(source).widgetsOrder;
+  validateWyrmetizerPage(source, adapters);
+  const members = clipboard.area.members;
+  if (!record(childIds) || !sameMembers(Object.keys(childIds), members) ||
+      new Set(Object.values(childIds)).size !== members.length ||
+      Object.values(childIds).some(id => members.includes(id) || Object.hasOwn(page.widgets, id)) ||
+      Object.hasOwn(page.layout.areas, areaId)) fail("copy requires new Area and Widget identities");
+  if (!Number.isSafeInteger(index) || index < 0 || index > page.layout.contentOrder.length) fail("invalid Area position");
+  const next = clone(page), area = clone(clipboard.area);
+  const remap = values => Object.fromEntries(Object.entries(values).map(([id, value]) => [childIds[id], clone(value)]));
+  area.members = members.map(id => childIds[id]);
+  area.flow.order = area.flow.order.map(id => childIds[id]);
+  area.flow.presentation = remap(area.flow.presentation);
+  area.composition.presentation = remap(area.composition.presentation);
+  const geometry = area.composition.geometry;
+  geometry.childrenOrder = geometry.childrenOrder.map(id => childIds[id]);
+  geometry.stackOrder = geometry.stackOrder.map(id => childIds[id]);
+  geometry.placements = remap(geometry.placements);
+  for (const id of members) next.widgets[childIds[id]] = clone(clipboard.widgets[id]);
+  next.layout.areas[areaId] = area;
+  next.layout.contentOrder.splice(index, 0, { kind: "area", id: areaId });
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  validateWyrmetizerPage(next, adapters);
+  return next;
+}
+
 // The resolver is a disposable adapter for existing renderers, never persisted.
 // Canonical member Widgets contain content; each arrangement owns presentation.
 export function resolveWyrmetizerPage(page) {

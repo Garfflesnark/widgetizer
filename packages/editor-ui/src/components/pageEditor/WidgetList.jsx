@@ -30,7 +30,7 @@ import WidgetSelector from "./WidgetSelector";
 import WidgetContextMenu from "./WidgetContextMenu";
 import BlockSelector from "./blocks/BlockSelector";
 import CompositionWidgetHierarchy from "./CompositionWidgetHierarchy";
-import { createEmptyCompositionArea } from "../../lib/compositionActions";
+import { createEmptyCompositionArea, deleteCompositionArea } from "../../lib/compositionActions";
 import useToastStore from "../../stores/toastStore";
 
 export default function WidgetList({
@@ -153,17 +153,19 @@ export default function WidgetList({
 
   // Handle widget paste (inserts the clipboard widget at the given position)
   const handlePasteWidget = (position) => {
-    pasteWidget(position, page.wyrmetizerEditorLayout ? { contentIndex: position } : {});
-    setStructureModified(true);
+    try {
+      if (pasteWidget(position, page.wyrmetizerEditorLayout ? { contentIndex: position } : {})) setStructureModified(true);
+    } catch (error) { useToastStore.getState().showToast(error.message, "error"); }
   };
 
   // Paste from the context menu: insert immediately after the target widget.
   // Reads live order from the store to avoid a stale-closure position.
-  const handlePasteAfter = (widgetId) => {
+  const handlePasteAfter = (widgetId, kind = "widget") => {
     const current = usePageStore.getState().page;
     const layout = current?.wyrmetizerEditorLayout;
     if (layout) {
-      const index = layout.contentOrder.findIndex(entry => entry.kind === "widget" ? entry.id === widgetId : layout.areas[entry.id].members.includes(widgetId));
+      const index = layout.contentOrder.findIndex(entry => kind === "area" ? entry.kind === "area" && entry.id === widgetId :
+        entry.kind === "widget" ? entry.id === widgetId : layout.areas[entry.id].members.includes(widgetId));
       pasteWidget(null, { contentIndex: index < 0 ? layout.contentOrder.length : index + 1 });
       return;
     }
@@ -174,9 +176,15 @@ export default function WidgetList({
   };
 
   // Widget context menu open/close
-  const openWidgetContextMenu = (widgetId, x, y) => {
-    setContextMenu({ widgetId, x, y });
+  const openWidgetContextMenu = (widgetId, x, y, kind = "widget") => {
+    setContextMenu({ widgetId, x, y, kind });
   };
+
+  const runMenuAction = action => {
+    try { action(); } catch (error) { useToastStore.getState().showToast(error.message, "error"); }
+  };
+  const canPasteClipboard = !!widgetClipboard && (widgetClipboard.kind !== "composition-area" ||
+    (!!page.wyrmetizerEditorLayout && compositionContext === "desktop"));
 
   const closeWidgetContextMenu = () => {
     setContextMenu(null);
@@ -302,6 +310,7 @@ export default function WidgetList({
             modifiedWidgets={modifiedWidgets} onAddWidgetClick={handleAddWidgetClick}
             isWidgetSelectorOpen={isWidgetSelectorOpen} activeWidgetTriggerPosition={activeWidgetTriggerPosition}
             onWidgetSelect={onWidgetSelect} onOpenContextMenu={openWidgetContextMenu}
+            onOpenCompositionMenu={(id, x, y) => openWidgetContextMenu(id, x, y, "area")}
             selectedBlockId={selectedBlockId} onBlockSelect={onBlockSelect} onBlocksReorder={reorderBlocks}
             onAddBlockClick={handleAddBlockClick} isBlockSelectorOpen={isBlockSelectorOpen}
             activeWidgetId={activeWidgetId} activeBlockTriggerKey={activeBlockTriggerKey}
@@ -476,7 +485,8 @@ export default function WidgetList({
             }
           } catch (error) { useToastStore.getState().showToast(error.message, "error"); }
         }}
-        hasClipboard={!!widgetClipboard}
+        hasClipboard={canPasteClipboard}
+        pasteComposition={widgetClipboard?.kind === "composition-area"}
         onPasteWidget={handlePasteWidget}
         position={insertPosition}
         triggerRef={widgetTriggerRef}
@@ -523,12 +533,15 @@ export default function WidgetList({
         <WidgetContextMenu
           isOpen={true}
           anchor={{ x: contextMenu.x, y: contextMenu.y }}
-          canPaste={!!widgetClipboard}
+          canPaste={canPasteClipboard && (contextMenu.kind !== "area" || compositionContext === "desktop")}
+          isComposition={contextMenu.kind === "area"}
+          pasteComposition={widgetClipboard?.kind === "composition-area"}
+          canMutate={contextMenu.kind !== "area" || compositionContext === "desktop"}
           onClose={closeWidgetContextMenu}
-          onCopy={() => handleCopyWidget(contextMenu.widgetId)}
-          onPaste={() => handlePasteAfter(contextMenu.widgetId)}
-          onDuplicate={() => handleDuplicateWidget(contextMenu.widgetId)}
-          onDelete={() => handleDeleteWidget(contextMenu.widgetId)}
+          onCopy={() => runMenuAction(() => contextMenu.kind === "area" ? useWidgetStore.getState().copyCompositionArea(contextMenu.widgetId) : handleCopyWidget(contextMenu.widgetId))}
+          onPaste={() => runMenuAction(() => handlePasteAfter(contextMenu.widgetId, contextMenu.kind))}
+          onDuplicate={() => runMenuAction(() => contextMenu.kind === "area" ? useWidgetStore.getState().duplicateCompositionArea(contextMenu.widgetId) : handleDuplicateWidget(contextMenu.widgetId))}
+          onDelete={() => runMenuAction(() => contextMenu.kind === "area" ? deleteCompositionArea(contextMenu.widgetId) : handleDeleteWidget(contextMenu.widgetId))}
         />
       )}
     </div>

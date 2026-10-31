@@ -1,5 +1,5 @@
 import { compositionFor } from "@widgetizer/core/composition";
-import { serializeWyrmetizerEditorPage, resolveWyrmetizerPage, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, addWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, resolveWyrmetizerPage, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, addWyrmetizerWidget, copyWyrmetizerComposition, pasteWyrmetizerComposition } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { applyCompositionGeometry, compositionImageForCreation } from "../lib/compositionActions";
 import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform, supportsImageUnits, defaultImageTransform } from "@widgetizer/core/imageTransform";
@@ -326,6 +326,38 @@ const useWidgetStore = create((set, get) => ({
     return true;
   },
 
+  copyCompositionArea: (areaId) => {
+    const page = usePageStore.getState().page;
+    if (!page?.wyrmetizerEditorLayout?.areas[areaId]) return false;
+    set({ widgetClipboard: copyWyrmetizerComposition(serializeWyrmetizerEditorPage(page, compositionAdapters), areaId, compositionAdapters) });
+    return true;
+  },
+
+  pasteCompositionArea: (clipboard, index) => {
+    const pageStore = usePageStore.getState(), page = pageStore.page;
+    if (!page?.wyrmetizerEditorLayout || get().compositionContext !== "desktop") return null;
+    const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+    const snapshot = structuredClone(clipboard), id = `composition_${uuidv4()}`;
+    const childIds = Object.fromEntries(snapshot.area.members.map(child => [child, get().generateWidgetId()]));
+    for (const child of snapshot.area.members) {
+      const widget = snapshot.widgets[child];
+      if (widget.blocks || widget.blocksOrder) snapshot.widgets[child] = cloneWidgetWithNewBlockIds(widget, () => get().generateBlockId());
+    }
+    const next = pasteWyrmetizerComposition(canonical, snapshot, id, childIds, compositionAdapters, index);
+    pageStore.beginHistoryStep(); pageStore.setPage(next); pageStore.beginHistoryStep();
+    set({ ...getWidgetSelectionState(null), selectedCompositionId: id, ...getClearedHoverState() });
+    markStructureChanged();
+    return id;
+  },
+
+  duplicateCompositionArea: (areaId) => {
+    const page = usePageStore.getState().page;
+    if (!page?.wyrmetizerEditorLayout?.areas[areaId]) return null;
+    const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+    const index = canonical.layout.contentOrder.findIndex(entry => entry.kind === "area" && entry.id === areaId) + 1;
+    return get().pasteCompositionArea(copyWyrmetizerComposition(canonical, areaId, compositionAdapters), index);
+  },
+
   pasteWidget: (position, { contentIndex } = {}) => {
     const { widgetClipboard } = get();
     if (!widgetClipboard) return null;
@@ -333,6 +365,8 @@ const useWidgetStore = create((set, get) => ({
     const pageStore = usePageStore.getState();
     const { page } = pageStore;
     if (!page) return null;
+
+    if (widgetClipboard.kind === "composition-area") return get().pasteCompositionArea(widgetClipboard, contentIndex ?? page.wyrmetizerEditorLayout?.contentOrder.length);
 
     const newWidgetId = get().generateWidgetId();
     const newWidget = withoutListingFlags(cloneWidgetWithNewBlockIds(widgetClipboard, () => get().generateBlockId()));

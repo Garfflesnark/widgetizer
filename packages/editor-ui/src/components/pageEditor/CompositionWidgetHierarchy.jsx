@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, EllipsisVertical } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import WidgetItem from "./widgets/WidgetItem";
 import WidgetInsertionZone from "./WidgetInsertionZone";
 import useWidgetStore from "../../stores/widgetStore";
@@ -7,7 +8,8 @@ import { moveHierarchyItem } from "../../lib/compositionHierarchy";
 import { removeImageFromComposition } from "../../lib/compositionActions";
 
 export default function CompositionWidgetHierarchy({ page, widgetSchemas, onAddWidgetClick,
-  isWidgetSelectorOpen, activeWidgetTriggerPosition, modifiedWidgets = new Set(), ...widgetProps }) {
+  isWidgetSelectorOpen, activeWidgetTriggerPosition, onOpenCompositionMenu, modifiedWidgets = new Set(), ...widgetProps }) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState({});
   const [error, setError] = useState("");
   const { selectedWidgetId, selectedCompositionId, compositionContext, compositionSelection } = useWidgetStore();
@@ -62,7 +64,10 @@ export default function CompositionWidgetHierarchy({ page, widgetSchemas, onAddW
       return <div key={`${entry.kind}:${entry.id}`}>
         {area ? <section aria-label={`Composition Area ${entry.id}`} id={`sidebar-area-${entry.id}`}
           className="rounded border border-slate-200 p-1">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 group widget-item" onContextMenu={event => {
+            event.preventDefault(); event.stopPropagation();
+            onOpenCompositionMenu?.(entry.id, event.clientX, event.clientY);
+          }}>
             <button type="button" aria-label={collapsed[entry.id] ? "Expand Composition Area" : "Collapse Composition Area"}
               aria-expanded={!collapsed[entry.id]} aria-controls={`area-children-${entry.id}`}
               onClick={() => setCollapsed(previous => ({ ...previous, [entry.id]: !previous[entry.id] }))}>
@@ -72,6 +77,15 @@ export default function CompositionWidgetHierarchy({ page, widgetSchemas, onAddW
               className="flex-1 rounded p-2 text-left text-xs font-medium aria-pressed:bg-pink-50 aria-pressed:ring-2 aria-pressed:ring-pink-300"
               onClick={() => useWidgetStore.getState().setSelectedCompositionId(entry.id)}>Composition Area</button>
             <span className="text-xs text-slate-500">{children.length}</span>
+            <div className="flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+              <button type="button" className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-white/80 transition-colors"
+                title={t("pageEditor.actions.widgetActions")} aria-label={t("pageEditor.actions.widgetActions")}
+                onClick={event => {
+                  event.stopPropagation();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  onOpenCompositionMenu?.(entry.id, rect.left, rect.bottom + 2);
+                }}><EllipsisVertical size={14} /></button>
+            </div>
           </div>
           {movement(entry, index, layout.contentOrder.length, `Composition Area ${entry.id}`)}
           <div id={`area-children-${entry.id}`} hidden={!!collapsed[entry.id]} className="ml-3 space-y-1 border-l border-slate-200 pl-2">

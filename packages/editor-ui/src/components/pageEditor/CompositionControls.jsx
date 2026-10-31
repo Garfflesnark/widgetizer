@@ -68,8 +68,10 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
       </label>
     ))}
   </>;
+  const addWarning = error === "Increase the Composition Area height before converting this image." && paired && eligible.length > 0;
   const addMembers = paired && eligible.length > 0 && <div className="space-y-2 border-t border-slate-200 pt-4">
     {checkboxes}
+    {addWarning && <p role="alert" className="text-xs text-red-700">{error}</p>}
     <button className={button} disabled={!ids.length || context !== "desktop"}
       onClick={() => run(() => addImagesToComposition(paired[0], ids))}>Add checked images to Composition Area</button>
   </div>;
@@ -99,7 +101,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
         {addMembers}
         {removeMember}
         {deleteArea}
-        {error && (
+        {error && !addWarning && (
           <p role="alert" className="text-xs text-red-700">
             {error}
           </p>
@@ -243,7 +245,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
           </button>
         </>
       ) : <p className="form-description">Create a paired-layout copy to keep independent Flow and Composition arrangements. The original page stays unchanged.</p>}
-      {error && (
+      {error && !addWarning && (
         <p role="alert" className="text-xs text-red-700">
           {error}
         </p>

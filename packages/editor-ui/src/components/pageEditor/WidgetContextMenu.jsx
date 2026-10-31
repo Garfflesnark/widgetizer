@@ -19,6 +19,9 @@ export default function WidgetContextMenu({
   onPaste,
   onDuplicate,
   onDelete,
+  isComposition = false,
+  pasteComposition = false,
+  canMutate = true,
 }) {
   const { t } = useTranslation();
   const menuRef = useRef(null);
@@ -30,12 +33,13 @@ export default function WidgetContextMenu({
 
     let left = anchor.x;
     let top = anchor.y;
+    const menuHeight = menuRef.current?.getBoundingClientRect().height || MENU_HEIGHT_ESTIMATE;
 
     if (left + MENU_WIDTH > window.innerWidth - 8) {
       left = Math.max(8, window.innerWidth - MENU_WIDTH - 8);
     }
-    if (top + MENU_HEIGHT_ESTIMATE > window.innerHeight - 8) {
-      top = Math.max(8, anchor.y - MENU_HEIGHT_ESTIMATE);
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = Math.max(8, anchor.y - menuHeight);
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -85,13 +89,15 @@ export default function WidgetContextMenu({
 
       <div
         ref={menuRef}
+        role="group"
+        aria-label={isComposition ? "Composition Area actions" : "Widget actions"}
         className="bg-white border border-slate-200 rounded-md shadow-lg py-1"
         style={{ ...style, width: MENU_WIDTH }}
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" className={itemClass} onClick={run(onCopy)}>
           <Copy size={14} className="text-slate-400" />
-          <span>{t("pageEditor.actions.copyWidget")}</span>
+          <span>{isComposition ? "Copy Composition Area" : t("pageEditor.actions.copyWidget")}</span>
         </button>
 
         <button
@@ -105,25 +111,27 @@ export default function WidgetContextMenu({
           onClick={canPaste ? run(onPaste) : undefined}
         >
           <ClipboardPaste size={14} className={canPaste ? "text-slate-400" : "text-slate-300"} />
-          <span>{t("pageEditor.actions.pasteWidgetAfter")}</span>
+          <span>{pasteComposition ? "Paste Composition Area after" : t("pageEditor.actions.pasteWidgetAfter")}</span>
         </button>
 
-        <button type="button" className={itemClass} onClick={run(onDuplicate)}>
+        <button type="button" className={`${itemClass} disabled:opacity-40`} disabled={!canMutate} onClick={run(onDuplicate)}>
           <CopyPlus size={14} className="text-slate-400" />
-          <span>{t("pageEditor.actions.duplicateWidget")}</span>
+          <span>{isComposition ? "Duplicate Composition Area" : t("pageEditor.actions.duplicateWidget")}</span>
         </button>
 
         <div className="my-1 border-t border-slate-100" />
+        {isComposition && <p className="px-3 py-1 text-xs text-slate-500">Deleting the area releases its children into Flow.</p>}
 
         <button
           type="button"
-          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
           onClick={run(onDelete)}
+          disabled={!canMutate}
         >
           <Trash2 size={14} />
-          <span>{t("pageEditor.actions.deleteWidget")}</span>
+          <span>{isComposition ? "Delete Composition Area" : t("pageEditor.actions.deleteWidget")}</span>
           {/* Chrome-style shortcut hint; the key itself is handled by useDeleteKeyShortcut. */}
-          <span className="ml-auto pl-4 text-xs text-red-300">Del</span>
+          {!isComposition && <span className="ml-auto pl-4 text-xs text-red-300">Del</span>}
         </button>
       </div>
     </>
