@@ -443,6 +443,13 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
           point = { x: area.left + point.x * composition.scale, y: area.top + point.y * composition.scale };
         }
         Object.assign(handle.style, {
+          // Native button chrome can paint outside these tiny overlay nodes.
+          appearance: "none",
+          boxSizing: "border-box",
+          padding: "0",
+          minWidth: "0",
+          minHeight: "0",
+          boxShadow: "none",
           position: "absolute",
           left: `${point.x - handleRadius}px`,
           top: `${point.y - handleRadius}px`,

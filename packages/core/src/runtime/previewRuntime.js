@@ -728,6 +728,7 @@ function createOverlayContainer() {
     .wz-controls { position: absolute; transform: translateX(-50%); left: 50%; display: flex; align-items: center; gap: 4px; pointer-events: auto; }
     button.wz-widget-label { border: 0; cursor: pointer; pointer-events: auto; }
     button.wz-widget-label:focus-visible { outline: 2px solid #e0006d; outline-offset: 2px; }
+    .wz-image-resize-handle:focus-visible { outline: 2px solid #e0006d; outline-offset: 2px; }
     .wz-image-controls { max-width: calc(100vw - 8px); }
     .wz-image-controls > .wz-widget-label { max-width: min(240px, 50vw); min-width:0; overflow:hidden; text-overflow:ellipsis; }
     .wz-image-controls > .wz-reorder-btn { flex-shrink:0; }

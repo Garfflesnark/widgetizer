@@ -279,7 +279,7 @@ export default function SettingsPanel({
                   <CheckboxInput id={`${selectedWidgetId}-default-scale`} value={isDefaultImageScale(currentWidget, imageGeometry[selectedWidgetId])}
                     onChange={() => resetImageScale(selectedWidgetId)} /></div>
                 <p className="text-xs text-slate-500 mt-1">Restore natural proportions and fitted intrinsic dimensions. Alignment is preserved. Edit a dimension to leave Default Scale.</p>
-                {modernImage && <p className="text-xs text-slate-500 mt-1">DragonFruit: Shift scales proportionally. Double-click a resize node to pin/unpin it (green). Pins can lock resizing; editing a dimension clears them.</p>}
+                {modernImage && <p className="text-xs text-slate-500 mt-1">Shift scales proportionally. Double-click a resize node to pin/unpin it (green). Pins can lock resizing; editing a dimension clears them.</p>}
                 {modernImage && !currentWidget.settings?.image_transform && <p className="text-xs text-slate-500 mt-1">Legacy appearance is preserved until you edit a scale or use Default Scale.</p>}
               </div>;
             }

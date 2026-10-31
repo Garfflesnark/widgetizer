@@ -382,3 +382,25 @@ it("reconciles canvas height alone without moving or resizing composition images
     expect(widget.querySelector("img")).toBe(image);
   }
 });
+
+it("keeps an idle selected image and its resize nodes unchanged through Shift press, repeat and release", () => {
+  pinnedFixture(["nw"]);
+  const before = widget.outerHTML, nodes = overlay.innerHTML;
+  preview.mockClear(); commit.mockClear();
+  for (const [type, repeat] of [["keydown", false], ["keydown", true], ["keyup", false]]) {
+    const event = new KeyboardEvent(type, { key: "Shift", shiftKey: type === "keydown", repeat, bubbles: true, cancelable: true });
+    document.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(widget.outerHTML).toBe(before);
+    expect(overlay.innerHTML).toBe(nodes);
+  }
+  expect(preview).not.toHaveBeenCalled();
+  expect(commit).not.toHaveBeenCalled();
+  for (const node of overlay.querySelectorAll("button")) {
+    expect(node.style.appearance).toBe("none");
+    expect(node.style.boxSizing).toBe("border-box");
+    expect(node.style.padding).toBe("0px");
+    expect(node.style.boxShadow).toBe("none");
+    expect(node.tabIndex).toBe(0);
+  }
+});
