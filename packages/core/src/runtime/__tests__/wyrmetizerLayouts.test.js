@@ -5,8 +5,49 @@ import { defaultImageTransform } from "../imageTransform.js";
 import { createWyrmetizerCopy, resolveWyrmetizerPage, switchWyrmetizerMode,
   editWyrmetizerWidget, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, validateWyrmetizerPage,
   addWyrmetizerWidget, reorderWyrmetizerFlow, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage,
-  initializeWyrmetizerPage, createWyrmetizerComposition } from "../wyrmetizerLayouts.js";
+  initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets } from "../wyrmetizerLayouts.js";
 const adapters = compositionAdapters;
+it.each(["flow", "composition"])("includes existing Flow Widgets atomically in %s without replacing authored members", mode => {
+  const source = fixture();
+  source.widgets.b = structuredClone(source.widgets.a);
+  source.widgets.c = structuredClone(source.widgets.a);
+  source.widgetsOrder.push("b", "c");
+  source.layout.contentOrder.push({ kind: "widget", id: "b" }, { kind: "widget", id: "c" });
+  let page = createWyrmetizerCopy(source, adapters);
+  page = duplicateWyrmetizerWidget(page, "a", "d", adapters);
+  page.layout.areas.area.flow.order = ["d", "a"];
+  page.layout.areas.area.composition.geometry.stackOrder = ["d", "a"];
+  const placement = page.layout.areas.area.composition.geometry.placements.a;
+  Object.assign(placement, { version: 3 });
+  Object.assign(placement.frames.desktop, { rotation: 25, rotationPivot: { x: 0.2, y: 0.8 } });
+  page = switchWyrmetizerMode(page, "area", mode, adapters);
+  const before = structuredClone(page);
+  const frame = { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } };
+  page = includeWyrmetizerWidgets(page, "area", ["b"], { b: frame }, adapters);
+  const area = page.layout.areas.area, old = before.layout.areas.area;
+  expect(area.activeMode).toBe(mode);
+  expect(area.members).toEqual(["a", "d", "b"]);
+  expect(area.flow.order).toEqual(["d", "a", "b"]);
+  expect(area.flow.presentation.a).toEqual(old.flow.presentation.a);
+  expect(area.composition.presentation.a).toEqual(old.composition.presentation.a);
+  expect(area.composition.geometry.placements.a).toEqual(old.composition.geometry.placements.a);
+  expect(area.composition.geometry.placements.d).toEqual(old.composition.geometry.placements.d);
+  expect(area.composition.geometry.childrenOrder).toEqual(["a", "d", "b"]);
+  expect(area.composition.geometry.stackOrder).toEqual(["d", "a", "b"]);
+  expect(area.composition.geometry.placements.b.frames.desktop).toEqual(frame);
+  expect(page.widgets.c).toEqual(before.widgets.c);
+  expect(page.layout.contentOrder).toContainEqual({ kind: "widget", id: "c" });
+  expect(before.widgets.b.settings.image_transform).toEqual(area.flow.presentation.b.image_transform);
+  expect(serializeWyrmetizerEditorPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(page)), adapters), adapters)).toEqual(page);
+  const unchanged = structuredClone(page);
+  expect(() => includeWyrmetizerWidgets(page, "area", ["c", "a"], { c: frame, a: frame }, adapters)).toThrow(/membership/);
+  expect(page).toEqual(unchanged);
+  page = editWyrmetizerWidget(page, "b", { link: "/shared-content" }, adapters);
+  for (const target of ["flow", "composition"]) {
+    page = switchWyrmetizerMode(page, "area", target, adapters);
+    expect(resolveWyrmetizerPage(page).widgets.b.settings.link).toBe("/shared-content");
+  }
+});
 it("initializes new empty and Flow-only pages with the paired envelope without altering Flow", () => {
   for (const source of [{ widgets: {} }, { widgets: fixture().widgets, widgetsOrder: ["a"] }]) {
     const before = structuredClone(source);

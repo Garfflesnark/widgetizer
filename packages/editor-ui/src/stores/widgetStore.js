@@ -184,6 +184,29 @@ const useWidgetStore = create((set, get) => ({
   },
 
   compositionMovementLocks: {},
+  compositionSelection: { scope: null, ids: [] },
+  getCompositionCandidates: () => {
+    const page = usePageStore.getState().page;
+    if (!page?.wyrmetizerEditorLayout) return [];
+    const members = new Set(Object.values(page.wyrmetizerEditorLayout.areas).flatMap(area => area.members));
+    return (page.widgetsOrder || []).filter(id => !members.has(id) &&
+      get().schemas[page.widgets[id]?.type]?.compositionCapability === "image.v1" &&
+      compositionAdapters[page.widgets[id]?.type]?.supports(page.widgets[id]));
+  },
+  getCompositionSelection: (selection = get().compositionSelection) => {
+    const state = usePageStore.getState();
+    const scope = JSON.stringify([state.loadedProjectId, state.page?.uuid || state.page?.id, state.activeLoadId]);
+    return selection.scope === scope ? get().getCompositionCandidates().filter(id => selection.ids.includes(id)) : [];
+  },
+  toggleCompositionImage: (id) => {
+    if (get().compositionContext !== "desktop" || !get().getCompositionCandidates().includes(id)) return false;
+    const state = usePageStore.getState();
+    const scope = JSON.stringify([state.loadedProjectId, state.page?.uuid || state.page?.id, state.activeLoadId]);
+    const ids = get().getCompositionSelection();
+    set({ compositionSelection: { scope, ids: ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id] } });
+    return true;
+  },
+  clearCompositionSelection: () => set({ compositionSelection: { scope: null, ids: [] } }),
   compositionContext: "desktop",
   setCompositionContext: (context) => set({ compositionContext: context }),
 
@@ -196,6 +219,7 @@ const useWidgetStore = create((set, get) => ({
 
   resetForProjectChange: () => {
     set({
+      compositionSelection: { scope: null, ids: [] },
       schemas: {},
       imageGeometry: {},
       ...getWidgetSelectionState(null),

@@ -7,6 +7,7 @@ import usePageStore from "../../stores/pageStore";
 import useWidgetStore from "../../stores/widgetStore";
 import {
   convertImages,
+  addImagesToComposition,
   layerImage,
   returnCompositionToFlow,
   compositionHeightValue,
@@ -20,8 +21,9 @@ export default function CompositionControls({ widgetId, blockSelected = false })
   const page = usePageStore((s) => s.page),
     schemas = useWidgetStore((s) => s.schemas);
   const context = useWidgetStore((s) => s.compositionContext);
-  const [ids, setIds] = useState([]),
-    [height, setHeight] = useState(() => compositionFor(page, widgetId)?.[1].profiles.desktop.height.valuePx || 1000),
+  const selection = useWidgetStore(s => s.compositionSelection);
+  const ids = useWidgetStore.getState().getCompositionSelection(selection);
+  const [height, setHeight] = useState(() => compositionFor(page, widgetId)?.[1].profiles.desktop.height.valuePx || 1000),
     [error, setError] = useState("");
   const found = compositionFor(page, widgetId);
   const paired = Object.entries(page?.wyrmetizerEditorLayout?.areas || {}).find(([, area]) => area.members.includes(widgetId));
@@ -51,6 +53,22 @@ export default function CompositionControls({ widgetId, blockSelected = false })
   };
   const button =
     "shadow-sm shadow-slate-100 hover:shadow-lg hover:shadow-slate-100 aria-pressed:ring-2 aria-pressed:ring-pink-200 aria-pressed:shadow-lg aria-pressed:shadow-pink-100 border border-slate-200 rounded-md px-3 py-2 text-xs text-pink-700 hover:bg-pink-50 focus-visible:outline-2 focus-visible:outline-pink-600 aria-pressed:bg-pink-50 aria-pressed:border-pink-500 disabled:opacity-40 break-words";
+  const checkboxes = <>
+    <p className="form-description">Check images to include. Ctrl+Click a Flow Widget to toggle the same selection.</p>
+    {eligible.map(([id, w]) => (
+      <label key={id} className="flex items-start gap-2 text-xs font-medium text-slate-700 break-words">
+        <input type="checkbox" className="mt-0.5 shrink-0 accent-pink-600"
+          checked={ids.includes(id)} disabled={context !== "desktop"}
+          onChange={() => useWidgetStore.getState().toggleCompositionImage(id)} />
+        <span className="min-w-0">{w.settings?.name || id}</span>
+      </label>
+    ))}
+  </>;
+  const addMembers = paired && eligible.length > 0 && <div className="space-y-2 border-t border-slate-200 pt-4">
+    {checkboxes}
+    <button className={button} disabled={!ids.length || context !== "desktop"}
+      onClick={() => run(() => addImagesToComposition(paired[0], ids))}>Add checked images to Composition Area</button>
+  </div>;
   if (paired && paired[1].activeMode === "flow")
     return (
       <section
@@ -66,6 +84,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
         >
           Switch to Composition
         </button>
+        {addMembers}
         {error && (
           <p role="alert" className="text-xs text-red-700">
             {error}
@@ -178,6 +197,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
               Switch to Flow
             </button>
           </div>}
+          {addMembers}
         </>
       ) : page?.wyrmetizerEditorLayout ? (
         <>
@@ -185,17 +205,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
             Opt in selected v2 Images. Initial arrangement overlaps; current image sizes are retained. Legacy images
             must first use the accepted sizing controls.
           </p>
-          {eligible.map(([id, w]) => (
-            <label key={id} className="flex items-start gap-2 text-xs font-medium text-slate-700 break-words">
-              <input
-                type="checkbox"
-                className="mt-0.5 shrink-0 accent-pink-600"
-                checked={ids.includes(id)}
-                onChange={(e) => setIds(e.target.checked ? [...ids, id] : ids.filter((v) => v !== id))}
-              />
-              <span className="min-w-0">{w.settings?.name || id}</span>
-            </label>
-          ))}
+          {checkboxes}
           <label className="block">
             <span className="form-label">Initial height (px)</span>
             <input

@@ -199,6 +199,29 @@ export function switchWyrmetizerMode(page, areaId, mode, adapters) {
   return next;
 }
 
+export function includeWyrmetizerWidgets(page, areaId, ids, frames, adapters) {
+  validateWyrmetizerPage(page, adapters);
+  if (!page.layout.areas[areaId] || !Array.isArray(ids) || !ids.length || new Set(ids).size !== ids.length ||
+      ids.some(id => !page.widgets[id] || Object.values(page.layout.areas).some(area => area.members.includes(id))))
+    fail("invalid existing Widget membership");
+  const next = clone(page), area = next.layout.areas[areaId], geometry = area.composition.geometry;
+  for (const id of ids) {
+    const split = splitWidget(page.widgets[id]);
+    next.widgets[id] = split.content;
+    area.members.push(id);
+    area.flow.order.push(id);
+    area.flow.presentation[id] = clone(split.presentation);
+    area.composition.presentation[id] = clone(split.presentation);
+    geometry.childrenOrder.push(id);
+    geometry.stackOrder.push(id);
+    geometry.placements[id] = { version: 1, responsive: { mode: "inherit" }, frames: { desktop: clone(frames[id]) } };
+  }
+  next.layout.contentOrder = next.layout.contentOrder.filter(entry => entry.kind !== "widget" || !ids.includes(entry.id));
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  validateWyrmetizerPage(next, adapters);
+  return next;
+}
+
 export function editWyrmetizerWidget(page, id, settings, adapters) {
   validateWyrmetizerPage(page, adapters);
   if (!record(settings) || !page.widgets[id]) fail("invalid edit");

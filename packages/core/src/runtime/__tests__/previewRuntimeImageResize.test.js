@@ -55,6 +55,22 @@ beforeAll(async () => {
   await import("../previewRuntime.js");
 });
 
+it("Ctrl+Click on a Flow Image toggles composition checks while ordinary clicks still edit widgets", () => {
+  const widget = document.createElement("section");
+  Object.assign(widget.dataset, { widgetId: "flow-select", widgetType: "image" });
+  widget.innerHTML = "<div>Flow Image</div>";
+  document.body.append(widget);
+  const click = ctrlKey => widget.firstChild.dispatchEvent(new MouseEvent("click", { ctrlKey, bubbles: true, cancelable: true }));
+  sent.length = 0;
+  click(true);
+  expect(sent).toHaveLength(1);
+  expect(sent[0]).toMatchObject({ type: "COMPOSITION_TOGGLE_IMAGE", payload: { widgetId: "flow-select" } });
+  sent.length = 0;
+  click(false);
+  expect(sent.some(event => event.type === "WIDGET_SELECTED" && event.payload.widgetId === "flow-select")).toBe(true);
+  expect(sent.some(event => event.type === "COMPOSITION_TOGGLE_IMAGE")).toBe(false);
+  widget.remove();
+});
 it("requires trusted support metadata before showing a selected image handle", () => {
   message("UPDATE_SELECTION", { widgetId: "w1", blockId: null });
   expect(document.querySelector(".wz-image-resize-handle")).toBeNull();

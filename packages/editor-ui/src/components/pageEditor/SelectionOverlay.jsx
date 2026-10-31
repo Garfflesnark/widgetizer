@@ -1,5 +1,5 @@
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
-import { handleCompositionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext, handleCompositionLockMessage, pruneCompositionMovementLocks } from "../../lib/compositionActions";
+import { handleCompositionMessage, handleCompositionSelectionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext, handleCompositionLockMessage, pruneCompositionMovementLocks } from "../../lib/compositionActions";
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
@@ -146,6 +146,9 @@ export default function SelectionOverlay({
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.data?.type === "COMPOSITION_TOGGLE_IMAGE") {
+        handleCompositionSelectionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
+      }
       if (event.data?.type === "ORDER_SELECTION") {
         handleOrderingMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }

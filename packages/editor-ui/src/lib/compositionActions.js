@@ -1,6 +1,6 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
   compositionFor,
@@ -123,7 +123,7 @@ export function setCompositionHeight(id, requested) {
   next.layout.compositions[id].profiles.desktop.height.valuePx = value;
   return commitCompositionPage(next);
 }
-export function convertImages(ids, height = 1000) {
+function initialImageFrames(ids, width, height) {
   if (useWidgetStore.getState().compositionContext !== "desktop")
     throw new Error("Switch to Desktop to create a Composition Area.");
   const { page } = usePageStore.getState(),
@@ -132,8 +132,7 @@ export function convertImages(ids, height = 1000) {
     throw new Error("Create a paired-layout copy before creating a Composition Area on this older page.");
   if (ids.some((id) => schemas[page.widgets[id]?.type]?.compositionCapability !== "image.v1"))
     throw new Error("Update the project's approved image theme files before conversion.");
-  const width = 1200,
-    frames = {};
+  const frames = {};
   const c = { profiles: { desktop: { referenceWidthPx: width, height: { valuePx: height } } } };
   for (const [i, id] of ids.entries()) {
     const w = page.widgets[id];
@@ -153,9 +152,32 @@ export function convertImages(ids, height = 1000) {
     const rect = { ...size, left: Math.min(40 * i, width - size.width), top: Math.min(40 * i, height - size.height) };
     frames[id] = frameFromRect(rect, { x: 0, y: 0 }, width);
   }
+  return frames;
+}
+export function convertImages(ids, height = 1000) {
+  const width = 1200, frames = initialImageFrames(ids, width, height);
+  const { page } = usePageStore.getState();
   const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
   const next = createWyrmetizerComposition(canonical, `composition_${crypto.randomUUID()}`, ids, frames, width, height, compositionAdapters);
-  return commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+  const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+  if (changed) useWidgetStore.getState().clearCompositionSelection();
+  return changed;
+}
+export function addImagesToComposition(areaId, ids) {
+  const canonical = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  const area = canonical.layout?.areas?.[areaId];
+  if (!area) throw new Error("Select an existing Composition Area first.");
+  const profile = area.composition.geometry.profiles.desktop;
+  const frames = initialImageFrames(ids, profile.referenceWidthPx, profile.height.valuePx);
+  const next = includeWyrmetizerWidgets(canonical, areaId, ids, frames, compositionAdapters);
+  const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+  if (changed) useWidgetStore.getState().clearCompositionSelection();
+  return changed;
+}
+export function handleCompositionSelectionMessage(event, iframe, origin) {
+  if (!iframe || origin === "*" || origin === "null" || event.source !== iframe || event.origin !== origin ||
+      event.data?.type !== "COMPOSITION_TOGGLE_IMAGE" || event.data.payload?.interactionContext !== compositionInteractionContext()) return false;
+  return useWidgetStore.getState().toggleCompositionImage(event.data.payload?.widgetId);
 }
 export function layerImage(id, direction) {
   return commitCompositionPage(changeStack(usePageStore.getState().page, id, direction));

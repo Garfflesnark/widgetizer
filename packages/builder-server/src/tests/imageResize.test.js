@@ -1,6 +1,6 @@
 import { createComposition, dissolveComposition } from "@widgetizer/core/composition";
 import { defaultImageTransform } from "@widgetizer/core/imageTransform";
-import { initializeWyrmetizerPage, createWyrmetizerComposition, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { after, before, it } from "node:test";
 import assert from "node:assert/strict";
@@ -178,6 +178,36 @@ it("saves a newly initialized paired area and reloads both arrangements exactly"
   assert.match(preview.html, /transform-origin:20% 80%/);
   assert.match(html, /transform-origin:\s*20% 80%/);
   assert.deepEqual(restored.layout.areas.area.flow.presentation.a.image_transform, flowTransform);
+});
+
+it("saves added existing Image Widgets without duplicating members or changing inactive geometry", async () => {
+  const transform = defaultImageTransform();
+  transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };
+  const image = () => ({ type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: structuredClone(transform) }, blocks: {}, blocksOrder: [] });
+  let page = initializeWyrmetizerPage({ id: "membership", slug: "membership", name: "Membership",
+    widgets: { a: image(), b: image(), c: image() }, widgetsOrder: ["a", "b", "c"] }, compositionAdapters);
+  const frame = { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } };
+  page = createWyrmetizerComposition(page, "area", ["a"], { a: frame }, 1200, 800, compositionAdapters);
+  const placement = page.layout.areas.area.composition.geometry.placements.a;
+  placement.version = 3;
+  Object.assign(placement.frames.desktop, { rotation: 30, rotationPivot: { x: 0.2, y: 0.8 } });
+  page = switchWyrmetizerMode(page, "area", "flow", compositionAdapters);
+  const before = structuredClone(page.layout.areas.area.composition);
+  page = includeWyrmetizerWidgets(page, "area", ["b"], { b: { ...frame, x: 0.4 } }, compositionAdapters);
+  page = editWyrmetizerWidget(page, "b", { top_spacing_px: 93, link: "/shared" }, compositionAdapters);
+  const req = body => ({ ...request(body), params: { id: page.id } });
+  const saved = response(); await savePageContent(req(page), saved);
+  assert.equal(saved.code, 200, JSON.stringify(saved.data));
+  const loaded = response(); await getPage(req(), loaded);
+  assert.equal(loaded.code, 200);
+  assert.deepEqual(loaded.data.layout, page.layout);
+  assert.deepEqual(loaded.data.widgets.c, page.widgets.c);
+  const restored = switchWyrmetizerMode(loaded.data, "area", "composition", compositionAdapters);
+  assert.deepEqual(restored.layout.areas.area.composition.geometry.placements.a, before.geometry.placements.a);
+  assert.deepEqual(restored.layout.areas.area.composition.presentation.a, before.presentation.a);
+  assert.deepEqual(restored.layout.areas.area.members, ["a", "b"]);
+  assert.equal(restored.layout.areas.area.flow.presentation.b.top_spacing_px, 93);
+  assert.equal(restored.widgets.b.settings.link, "/shared");
 });
 
 it("does not let stale saves strip or downgrade a stored newer layout", async () => {

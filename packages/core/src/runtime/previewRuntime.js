@@ -588,6 +588,16 @@ function setupInteractionHandler() {
       const widgetEl = event.target.closest("[data-widget-id]");
 
       const area = event.target.closest("[data-composition-id]");
+      if (PREVIEW_MODE === "editor" && event.ctrlKey && widgetEl && !blockEl && !area &&
+          widgetEl.dataset.widgetType === "image" &&
+          !event.target.closest('button, input, select, textarea, video, audio, [role="button"]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        postToParent({ type: "COMPOSITION_TOGGLE_IMAGE", payload: {
+          widgetId: widgetEl.dataset.widgetId, interactionContext: compositionInteractionContext,
+        } });
+        return;
+      }
       if (PREVIEW_MODE === "editor" && area && !widgetEl) {
         updateSelection(null, null, area.dataset.compositionId);
         postToParent({ type: "COMPOSITION_SELECTED", payload: { compositionId: area.dataset.compositionId } });
