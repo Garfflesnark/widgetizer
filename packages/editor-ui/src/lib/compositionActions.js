@@ -1,6 +1,6 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
   compositionFor,
@@ -190,17 +190,21 @@ export function createEmptyCompositionArea(options = {}) {
   if (changed) useWidgetStore.getState().setSelectedCompositionId(id);
   return changed;
 }
-export function deleteCompositionArea(areaId) {
+export function deleteCompositionArea(areaId, { deleteContents = false } = {}) {
   if (useWidgetStore.getState().compositionContext !== "desktop") return false;
   const page = usePageStore.getState().page;
   if (!page?.wyrmetizerEditorLayout)
     throw new Error("Create a paired-layout copy before deleting a Composition Area on this older page.");
   const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
-  const next = deleteWyrmetizerComposition(canonical, areaId, compositionAdapters);
+  const children = canonical.layout.areas[areaId]?.members || [];
+  const emptied = deleteContents ? children.reduce((next, id) => deleteWyrmetizerWidget(next, id, compositionAdapters), canonical) : canonical;
+  const next = deleteWyrmetizerComposition(emptied, areaId, compositionAdapters);
   if (next === canonical) return false;
   const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
   if (changed && useWidgetStore.getState().selectedCompositionId === areaId)
     useWidgetStore.getState().setSelectedCompositionId(null);
+  if (changed && deleteContents && children.includes(useWidgetStore.getState().selectedWidgetId))
+    useWidgetStore.getState().setSelectedWidgetId(null);
   return changed;
 }
 export function addImagesToComposition(areaId, ids) {

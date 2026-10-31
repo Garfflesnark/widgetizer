@@ -30,7 +30,8 @@ import WidgetSelector from "./WidgetSelector";
 import WidgetContextMenu from "./WidgetContextMenu";
 import BlockSelector from "./blocks/BlockSelector";
 import CompositionWidgetHierarchy from "./CompositionWidgetHierarchy";
-import { createEmptyCompositionArea, deleteCompositionArea } from "../../lib/compositionActions";
+import { createEmptyCompositionArea } from "../../lib/compositionActions";
+import CompositionAreaDeletionDialog from "./CompositionAreaDeletionDialog";
 import useToastStore from "../../stores/toastStore";
 
 export default function WidgetList({
@@ -65,6 +66,7 @@ export default function WidgetList({
 
   // Widget context menu state: { widgetId, x, y } | null
   const [contextMenu, setContextMenu] = useState(null);
+  const [deletionRequest, setDeletionRequest] = useState(null);
 
   const { globalWidgets } = usePageStore();
   const {
@@ -541,9 +543,16 @@ export default function WidgetList({
           onCopy={() => runMenuAction(() => contextMenu.kind === "area" ? useWidgetStore.getState().copyCompositionArea(contextMenu.widgetId) : handleCopyWidget(contextMenu.widgetId))}
           onPaste={() => runMenuAction(() => handlePasteAfter(contextMenu.widgetId, contextMenu.kind))}
           onDuplicate={() => runMenuAction(() => contextMenu.kind === "area" ? useWidgetStore.getState().duplicateCompositionArea(contextMenu.widgetId) : handleDuplicateWidget(contextMenu.widgetId))}
-          onDelete={() => runMenuAction(() => contextMenu.kind === "area" ? deleteCompositionArea(contextMenu.widgetId) : handleDeleteWidget(contextMenu.widgetId))}
+          onDelete={() => {
+            if (contextMenu.kind !== "area") return runMenuAction(() => handleDeleteWidget(contextMenu.widgetId));
+            const { page, loadedProjectId, activeLoadId } = usePageStore.getState();
+            setDeletionRequest({ page, loadedProjectId, activeLoadId, areaId: contextMenu.widgetId,
+              returnFocusTo: document.getElementById(`sidebar-area-${contextMenu.widgetId}`)?.querySelector(".widget-item button[title]"),
+            });
+          }}
         />
       )}
+      {deletionRequest && <CompositionAreaDeletionDialog request={deletionRequest} onClose={() => setDeletionRequest(null)} />}
     </div>
   );
 }

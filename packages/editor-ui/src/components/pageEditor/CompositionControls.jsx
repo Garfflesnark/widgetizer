@@ -1,6 +1,7 @@
 import { useState } from "react";
 import CompositionNumberInput from "./CompositionNumberInput";
 import WyrmetizerCompatibility from "./WyrmetizerCompatibility";
+import CompositionAreaDeletionDialog from "./CompositionAreaDeletionDialog";
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
 import usePageStore from "../../stores/pageStore";
 import useWidgetStore from "../../stores/widgetStore";
@@ -16,10 +17,10 @@ import {
   rotateCompositionImage,
   switchPairedCompositionMode,
   compositionInteractionContext,
-  deleteCompositionArea,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, compositionId, blockSelected = false }) {
+  const [deletionRequest, setDeletionRequest] = useState(null);
   const page = usePageStore((s) => s.page),
     schemas = useWidgetStore((s) => s.schemas);
   const context = useWidgetStore((s) => s.compositionContext);
@@ -81,7 +82,11 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
   const deleteArea = paired && compositionId && <div className="space-y-2 border-t border-slate-200 pt-4">
     <p className="form-description">Deleting this area releases its children as independent Flow Widgets.</p>
     <button className={button} disabled={context !== "desktop"}
-      onClick={() => run(() => deleteCompositionArea(paired[0]))}>Delete Composition Area</button>
+      onClick={event => {
+        const { page, loadedProjectId, activeLoadId } = usePageStore.getState();
+        setDeletionRequest({ page, loadedProjectId, activeLoadId, areaId: paired[0], returnFocusTo: event.currentTarget });
+      }}>Delete Composition Area</button>
+    {deletionRequest && <CompositionAreaDeletionDialog request={deletionRequest} onClose={() => setDeletionRequest(null)} />}
   </div>;
   if (paired && paired[1].activeMode === "flow")
     return (

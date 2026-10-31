@@ -21,6 +21,7 @@ export default function ConfirmationModal({
   confirmText,
   cancelText,
   confirmDisabled = false,
+  additionalAction = null,
   variant = "danger", // or "warning", "info"
   // Where focus goes when the dialog closes: an element or a ref to one. Defaults
   // to whatever was focused when the dialog opened, which is wrong when the
@@ -170,7 +171,7 @@ export default function ConfirmationModal({
           </div>
         </div>
 
-        <div className="p-4 bg-slate-50 flex justify-end gap-2">
+        <div className="p-4 bg-slate-50 flex flex-wrap justify-end gap-2">
           <button
             ref={cancelRef}
             onClick={onClose}
@@ -190,6 +191,11 @@ export default function ConfirmationModal({
           >
             {modalConfirmText}
           </button>
+          {additionalAction && <button
+            disabled={additionalAction.disabled}
+            className="px-4 py-2 text-white rounded-sm bg-red-600 hover:bg-red-700 disabled:opacity-40"
+            onClick={() => { additionalAction.onConfirm(); onClose(); }}
+          >{additionalAction.text}</button>}
         </div>
       </div>
     </div>

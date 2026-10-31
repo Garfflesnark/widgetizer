@@ -13,6 +13,28 @@ const cancel = () => screen.getByText(/^(Cancel|common\.cancel)$/);
 import ConfirmationModal from "../ConfirmationModal.jsx";
 import useConfirmationAction from "../../../hooks/useConfirmationAction.js";
 
+it("starts on Cancel and traps focus across all three choices without implicitly confirming either action", async () => {
+  const user = userEvent.setup(), close = vi.fn(), preserve = vi.fn(), removeAll = vi.fn();
+  render(<ConfirmationModal isOpen onClose={close} onConfirm={preserve}
+    cancelText="Cancel" confirmText="Preserve Contents"
+    additionalAction={{ text: "Delete All Contents", onConfirm: removeAll }} />);
+  expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+  await user.keyboard("{Enter}");
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(preserve).not.toHaveBeenCalled();
+  expect(removeAll).not.toHaveBeenCalled();
+  await user.tab({ shift: true });
+  expect(screen.getByRole("button", { name: "Delete All Contents" })).toHaveFocus();
+  await user.tab();
+  expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+  await user.tab();
+  expect(screen.getByRole("button", { name: "Preserve Contents" })).toHaveFocus();
+  await user.tab();
+  await user.keyboard("{Enter}");
+  expect(removeAll).toHaveBeenCalledTimes(1);
+  expect(preserve).not.toHaveBeenCalled();
+});
+
 // The row-menu pattern every list page uses: the menu's Delete item closes the
 // menu and opens the confirmation in the same click, so the focused item is
 // gone before the dialog can look at document.activeElement.

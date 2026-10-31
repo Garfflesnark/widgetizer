@@ -18,7 +18,7 @@ import usePageStore from "../../../stores/pageStore";
 import useWidgetStore from "../../../stores/widgetStore";
 import useAutoSave from "../../../stores/saveStore";
 import useDeleteKeyShortcut from "../../../hooks/useDeleteKeyShortcut";
-import { createEmptyCompositionArea, switchPairedCompositionMode, setCompositionHeight } from "../../../lib/compositionActions";
+import { createEmptyCompositionArea, switchPairedCompositionMode, setCompositionHeight, removeImageFromComposition } from "../../../lib/compositionActions";
 import { moveHierarchyItem } from "../../../lib/compositionHierarchy";
 
 const saved = () => serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
@@ -60,6 +60,101 @@ const openAreaMenu = id => fireEvent.click(within(
   within(areaRegion(id)).getByRole("button", { name: "Composition Area" }).parentElement,
 ).getByRole("button", { name: "pageEditor.actions.widgetActions" }));
 const menuAction = name => fireEvent.click(within(screen.getByRole("group", { name: "Composition Area actions" })).getByRole("button", { name }));
+it("focuses Cancel, changes nothing until confirmed, and restores the menu trigger on cancellation", () => {
+  authoredArea("composition");
+  useWidgetStore.getState().setSelectedWidgetId("a");
+  render(<Editor />);
+  const before = saved();
+  openAreaMenu("canvas"); menuAction("Delete Composition Area");
+  const dialog = screen.getByRole("dialog"), cancel = within(dialog).getByRole("button", { name: "Cancel" });
+  expect(cancel).toHaveFocus();
+  expect(within(dialog).getAllByRole("button")).toHaveLength(3);
+  expect(saved()).toEqual(before);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  fireEvent.keyDown(cancel, { key: "Delete" });
+  expect(saved()).toEqual(before);
+  fireEvent.click(cancel);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(saved()).toEqual(before);
+  expect(useWidgetStore.getState().selectedWidgetId).toBe("a");
+  const trigger = within(areaRegion("canvas")).getByRole("button", { name: "Composition Area" }).parentElement.querySelector("button[title]");
+  expect(trigger).toHaveFocus();
+  openAreaMenu("canvas"); menuAction("Delete Composition Area");
+  fireEvent.keyDown(screen.getByRole("button", { name: "Cancel" }), { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(saved()).toEqual(before);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+});
+
+it.each(["composition", "flow"])("confirms Delete All Contents in %s atomically without touching unrelated Widgets or Areas", mode => {
+  authoredArea(mode);
+  createEmptyCompositionArea();
+  const other = useWidgetStore.getState().selectedCompositionId;
+  useWidgetStore.getState().setSelectedWidgetId("a");
+  usePageStore.temporal.getState().clear();
+  render(<Editor />);
+  const before = saved();
+  openAreaMenu("canvas"); menuAction("Delete Composition Area");
+  expect(saved()).toEqual(before);
+  fireEvent.click(screen.getByRole("button", { name: "Delete All Contents" }));
+  const after = saved();
+  expect(Object.keys(after.widgets)).toEqual(["after"]);
+  expect(after.widgets.after).toEqual(before.widgets.after);
+  expect(after.widgetsOrder).toEqual(["after"]);
+  expect(after.layout.areas).toEqual({ [other]: before.layout.areas[other] });
+  expect(after.layout.contentOrder).toEqual(before.layout.contentOrder.filter(entry => entry.id !== "canvas"));
+  expect(useWidgetStore.getState().selectedWidgetId).toBeNull();
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  act(() => usePageStore.temporal.getState().undo()); expect(saved()).toEqual(before);
+  act(() => usePageStore.temporal.getState().redo()); expect(saved()).toEqual(after);
+  act(() => usePageStore.getState().setPage(JSON.parse(JSON.stringify(after))));
+  expect(saved()).toEqual(after);
+  expect(screen.queryByRole("button", { name: "Alpha" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Beta" })).toBeNull();
+});
+
+it("keeps detached Widgets when deleting all current contents, and confirms empty Area deletion simply", () => {
+  authoredArea("composition");
+  removeImageFromComposition("canvas", "b");
+  usePageStore.temporal.getState().clear();
+  render(<Editor />);
+  const before = saved();
+  openAreaMenu("canvas"); menuAction("Delete Composition Area");
+  fireEvent.click(screen.getByRole("button", { name: "Delete All Contents" }));
+  expect(saved().widgets.b).toEqual(before.widgets.b);
+  expect(saved().widgets.a).toBeUndefined();
+  act(() => createEmptyCompositionArea());
+  const id = useWidgetStore.getState().selectedCompositionId, emptyBefore = saved();
+  openAreaMenu(id); menuAction("Delete Composition Area");
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getAllByRole("button")).toHaveLength(2);
+  expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus();
+  expect(within(dialog).queryByRole("button", { name: "Delete All Contents" })).toBeNull();
+  expect(saved()).toEqual(emptyBefore);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Delete Composition Area" }));
+  const after = saved();
+  expect(after.widgets).toEqual(emptyBefore.widgets);
+  expect(after.layout.areas[id]).toBeUndefined();
+  act(() => usePageStore.temporal.getState().undo()); expect(saved()).toEqual(emptyBefore);
+  act(() => usePageStore.temporal.getState().redo()); expect(saved()).toEqual(after);
+});
+
+it.each(["page", "project", "membership"])("cancels a pending deletion when its %s changes", change => {
+  authoredArea("composition");
+  render(<Editor />);
+  openAreaMenu("canvas"); menuAction("Delete Composition Area");
+  const confirm = screen.getByRole("button", { name: "Delete All Contents" });
+  act(() => {
+    if (change === "page") usePageStore.getState().setPage(createWyrmetizerCopy(source(), compositionAdapters));
+    if (change === "project") usePageStore.setState({ loadedProjectId: "other-project", activeLoadId: 2 });
+    if (change === "membership") removeImageFromComposition("canvas", "b");
+  });
+  const changed = saved();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(confirm);
+  expect(saved()).toEqual(changed);
+  expect(saved().widgets.a).toBeDefined();
+});
 function authoredArea(mode) {
   const page = createWyrmetizerCopy(source(), compositionAdapters), area = page.layout.areas.canvas;
   area.activeMode = mode;
@@ -138,6 +233,8 @@ it.each(["composition", "flow"])("deletes only the menu target in %s and pastes 
   openAreaMenu("canvas"); menuAction("Copy Composition Area");
   const clipboard = structuredClone(useWidgetStore.getState().widgetClipboard);
   openAreaMenu("canvas"); menuAction("Delete Composition Area");
+  expect(saved()).toEqual(before);
+  fireEvent.click(screen.getByRole("button", { name: "Preserve Contents" }));
   const released = saved();
   expect(released.layout.areas).toEqual({});
   expect(released.widgetsOrder).toEqual(["b", "a", "after"]);
@@ -145,6 +242,8 @@ it.each(["composition", "flow"])("deletes only the menu target in %s and pastes 
   expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
   act(() => usePageStore.temporal.getState().undo()); expect(saved()).toEqual(before);
   act(() => usePageStore.temporal.getState().redo()); expect(saved()).toEqual(released);
+  act(() => usePageStore.getState().setPage(JSON.parse(JSON.stringify(released))));
+  expect(saved()).toEqual(released);
   act(() => useWidgetStore.getState().updateWidgetSettings("a", "name", "Changed after copy"));
   fireEvent.click(screen.getAllByRole("button", { name: "pageEditor.actions.addWidget" })[0]);
   fireEvent.click(screen.getByRole("button", { name: "Paste Composition Area" }));
@@ -322,6 +421,7 @@ it("deletes the container through its explicit action and deletes children separ
   const before = saved();
   fireEvent.click(within(areaRegion("canvas")).getByRole("button", { name: "Composition Area" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete Composition Area" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preserve Contents" }));
   expect(saved().layout.areas).toEqual({});
   expect(saved().widgets.a.settings.name).toBe("Alpha");
   expect(saved().widgets.b.settings.name).toBe("Beta");
