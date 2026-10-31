@@ -1,6 +1,6 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
   compositionFor,
@@ -176,6 +176,28 @@ export function convertImages(ids, height = 1000) {
   const next = createWyrmetizerComposition(canonical, `composition_${crypto.randomUUID()}`, ids, frames, width, height, compositionAdapters);
   const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
   if (changed) useWidgetStore.getState().clearCompositionSelection();
+  return changed;
+}
+export function createEmptyCompositionArea(options = {}) {
+  if (useWidgetStore.getState().compositionContext !== "desktop") return false;
+  const page = usePageStore.getState().page;
+  if (!page?.wyrmetizerEditorLayout)
+    throw new Error("Create a paired-layout copy before creating a Composition Area on this older page.");
+  const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  const next = createEmptyWyrmetizerComposition(canonical, `composition_${crypto.randomUUID()}`, compositionAdapters, options);
+  return commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+}
+export function deleteCompositionArea(areaId) {
+  if (useWidgetStore.getState().compositionContext !== "desktop") return false;
+  const page = usePageStore.getState().page;
+  if (!page?.wyrmetizerEditorLayout)
+    throw new Error("Create a paired-layout copy before deleting a Composition Area on this older page.");
+  const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  const next = deleteWyrmetizerComposition(canonical, areaId, compositionAdapters);
+  if (next === canonical) return false;
+  const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
+  if (changed && useWidgetStore.getState().selectedCompositionId === areaId)
+    useWidgetStore.getState().setSelectedCompositionId(null);
   return changed;
 }
 export function addImagesToComposition(areaId, ids) {

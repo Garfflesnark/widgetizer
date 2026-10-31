@@ -1,6 +1,6 @@
 import { createComposition, dissolveComposition } from "@widgetizer/core/composition";
 import { defaultImageTransform } from "@widgetizer/core/imageTransform";
-import { initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget, switchWyrmetizerMode, editWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { after, before, it } from "node:test";
 import assert from "node:assert/strict";
@@ -246,6 +246,38 @@ it("persists removed Images, the final empty Area and exact Composition restorat
   assert.deepEqual(page.layout.areas.area.composition, original);
   assert.deepEqual(page.layout.areas.area.detached, {});
   assert.deepEqual(Object.keys(page.widgets).sort(), ["a", "b"]);
+});
+
+it("persists empty creation, final child deletion and container release through real storage", async () => {
+  const transform = defaultImageTransform();
+  transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };
+  const widget = { type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: transform, link: "/shared" } };
+  let page = initializeWyrmetizerPage({ id: "lifecycle", slug: "lifecycle", name: "Lifecycle",
+    widgets: { a: structuredClone(widget), b: structuredClone(widget) }, widgetsOrder: ["a", "b"] }, compositionAdapters);
+  const req = body => ({ ...request(body), params: { id: "lifecycle" } });
+  const roundTrip = async value => {
+    const saved = response(); await savePageContent(req(value), saved);
+    assert.equal(saved.code, 200, JSON.stringify(saved.data));
+    const loaded = response(); await getPage(req(), loaded);
+    assert.equal(loaded.code, 200);
+    assert.deepEqual(loaded.data.layout, value.layout);
+    assert.deepEqual(loaded.data.widgets, value.widgets);
+    assert.deepEqual(loaded.data.widgetsOrder, value.widgetsOrder);
+    return loaded.data;
+  };
+  page = await roundTrip(createEmptyWyrmetizerComposition(page, "area", compositionAdapters, { index: 1 }));
+  const frame = { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } };
+  page = await roundTrip(includeWyrmetizerWidgets(page, "area", ["a"], { a: frame }, compositionAdapters));
+  page = await roundTrip(deleteWyrmetizerWidget(page, "a", compositionAdapters));
+  assert.deepEqual(page.layout.areas.area.members, []);
+  assert.equal(page.widgets.a, undefined);
+  page = await roundTrip(includeWyrmetizerWidgets(page, "area", ["b"], { b: frame }, compositionAdapters));
+  page = editWyrmetizerWidget(page, "b", { top_spacing_px: 81 }, compositionAdapters);
+  page = await roundTrip(deleteWyrmetizerComposition(page, "area", compositionAdapters));
+  assert.deepEqual(page.layout.areas, {});
+  assert.deepEqual(page.widgetsOrder, ["b"]);
+  assert.deepEqual(page.widgets.b, widget);
+  assert.equal(page.widgets.a, undefined);
 });
 
 it("does not let stale saves strip or downgrade a stored newer layout", async () => {

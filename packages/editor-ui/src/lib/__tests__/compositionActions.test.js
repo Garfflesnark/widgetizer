@@ -28,6 +28,10 @@ import {
   switchPairedCompositionMode,
   setCompositionRotationPivot,
   convertImages,
+  createEmptyCompositionArea,
+  deleteCompositionArea,
+  addImagesToComposition,
+  removeImageFromComposition,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -45,6 +49,90 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+it("records each container lifecycle and membership operation atomically and persists the full sequence", () => {
+  const flow = fixture();
+  delete flow.layout;
+  usePageStore.getState().setPage(initializeWyrmetizerPage(flow, compositionAdapters));
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false });
+  const snapshots = [structuredClone(usePageStore.getState().page)];
+  const record = action => {
+    action();
+    snapshots.push(structuredClone(usePageStore.getState().page));
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(snapshots.length - 1);
+    const saved = serializeWyrmetizerEditorPage(snapshots.at(-1), compositionAdapters);
+    expect(saved.wyrmetizerEditorLayout).toBeUndefined();
+    usePageStore.getState().setPage(JSON.parse(JSON.stringify(saved)));
+    expect(usePageStore.getState().page).toEqual(snapshots.at(-1));
+  };
+  record(() => expect(createEmptyCompositionArea({ index: 1, height: 1000 })).toBe(true));
+  const id = Object.keys(usePageStore.getState().page.wyrmetizerEditorLayout.areas)[0];
+  expect(usePageStore.getState().page.layout.contentOrder[1]).toEqual({ kind: "composition", id });
+  record(() => expect(addImagesToComposition(id, ["a", "b"])).toBe(true));
+  record(() => expect(removeImageFromComposition(id, "a")).toBe(true));
+  record(() => useWidgetStore.getState().deleteWidget("b"));
+  expect(usePageStore.getState().page.layout.compositions[id].childrenOrder).toEqual([]);
+  record(() => expect(addImagesToComposition(id, ["a"])).toBe(true));
+  useWidgetStore.getState().setSelectedCompositionId(id);
+  record(() => expect(deleteCompositionArea(id)).toBe(true));
+  expect(useWidgetStore.getState().selectedCompositionId).toBeNull();
+  expect(useAutoSave.getState().structureModified).toBe(true);
+  expect(usePageStore.getState().page.widgets.a).toEqual(flow.widgets.a);
+  expect(usePageStore.getState().page.widgets.b).toBeUndefined();
+  expect(usePageStore.getState().page.widgets.after).toEqual(flow.widgets.after);
+  expect(deleteCompositionArea(id)).toBe(false);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(snapshots.length - 1);
+  for (let i = snapshots.length - 2; i >= 0; i--) {
+    usePageStore.temporal.getState().undo();
+    expect(usePageStore.getState().page).toEqual(snapshots[i]);
+  }
+  for (let i = 1; i < snapshots.length; i++) {
+    usePageStore.temporal.getState().redo();
+    expect(usePageStore.getState().page).toEqual(snapshots[i]);
+  }
+});
+it("keeps lifecycle actions behind legacy copy-first conversion and rejects invalid creation atomically", () => {
+  const before = structuredClone(usePageStore.getState().page);
+  expect(() => createEmptyCompositionArea()).toThrow(/paired-layout copy/);
+  expect(() => deleteCompositionArea("canvas")).toThrow(/paired-layout copy/);
+  expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.getState().setPage(createWyrmetizerCopy(before, compositionAdapters));
+  usePageStore.temporal.getState().clear();
+  const paired = structuredClone(usePageStore.getState().page);
+  expect(() => createEmptyCompositionArea({ height: -1 })).toThrow();
+  expect(usePageStore.getState().page).toEqual(paired);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+});
+it("deletes a Flow-mode container atomically using its authored order and geometry", () => {
+  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
+  switchPairedCompositionMode("canvas", "flow");
+  const page = structuredClone(usePageStore.getState().page);
+  page.widgetsOrder = ["b", "a", "after"];
+  page.widgets.a.settings.image_transform.dimensions.width.value = 177;
+  usePageStore.getState().setPage(page);
+  const before = structuredClone(usePageStore.getState().page);
+  usePageStore.temporal.getState().clear();
+  expect(deleteCompositionArea("canvas")).toBe(true);
+  const after = structuredClone(usePageStore.getState().page);
+  expect(after.widgetsOrder).toEqual(["b", "a", "after"]);
+  expect(after.widgets).toEqual(before.widgets);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); expect(usePageStore.getState().page).toEqual(after);
+});
+it("deletes an empty Area in one history step without changing independent Widgets", () => {
+  const flow = fixture(); delete flow.layout;
+  usePageStore.getState().setPage(initializeWyrmetizerPage(flow, compositionAdapters));
+  createEmptyCompositionArea({ index: 1 });
+  const before = structuredClone(usePageStore.getState().page);
+  const id = Object.keys(before.wyrmetizerEditorLayout.areas)[0];
+  usePageStore.temporal.getState().clear();
+  expect(deleteCompositionArea(id)).toBe(true);
+  expect(usePageStore.getState().page.widgets).toEqual(flow.widgets);
+  expect(usePageStore.getState().page.widgetsOrder).toEqual(flow.widgetsOrder);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+});
 it("creates paired Composition from authored Flow and retains independent edits across reloads", () => {
   const flow = fixture();
   delete flow.layout;

@@ -5,9 +5,72 @@ import { defaultImageTransform } from "../imageTransform.js";
 import { createWyrmetizerCopy, resolveWyrmetizerPage, switchWyrmetizerMode,
   editWyrmetizerWidget, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, validateWyrmetizerPage,
   addWyrmetizerWidget, reorderWyrmetizerFlow, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage,
-  initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget } from "../wyrmetizerLayouts.js";
+  initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget,
+  createEmptyWyrmetizerComposition, deleteWyrmetizerComposition } from "../wyrmetizerLayouts.js";
 import { validateCompositionLayout } from "../composition.js";
 const adapters = compositionAdapters;
+const roundTrip = page => serializeWyrmetizerEditorPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(page)), adapters), adapters);
+it("creates empty Areas at explicit Flow positions with stable identities and no input changes", () => {
+  const page = createWyrmetizerCopy(fixture(), adapters), before = structuredClone(page);
+  let next = createEmptyWyrmetizerComposition(page, "empty", adapters, { index: 0, height: 950 });
+  expect(page).toEqual(before);
+  expect(next.layout.contentOrder).toEqual([{ kind: "area", id: "empty" }, { kind: "area", id: "area" }]);
+  expect(next.widgets).toEqual(page.widgets);
+  expect(next.layout.areas.empty.composition.geometry.profiles.desktop.height.valuePx).toBe(950);
+  for (const mode of ["flow", "composition"]) {
+    next = switchWyrmetizerMode(next, "empty", mode, adapters);
+    expect(roundTrip(next)).toEqual(next);
+    expect(next.layout.areas.empty.members).toEqual([]);
+  }
+  expect(() => createEmptyWyrmetizerComposition(next, "empty", adapters)).toThrow(/already exists/);
+  for (const options of [{ index: -1 }, { index: 99 }, { index: 0.5 }, { width: 0 }, { height: NaN }])
+    expect(() => createEmptyWyrmetizerComposition(next, "invalid", adapters, options)).toThrow();
+  expect(() => createEmptyWyrmetizerComposition(next, "__proto__", adapters)).toThrow();
+  const blank = initializeWyrmetizerPage({ widgets: {} }, adapters);
+  expect(roundTrip(createEmptyWyrmetizerComposition(blank, "first", adapters)).layout.areas.first.members).toEqual([]);
+});
+it.each(["flow", "composition"])("deletes only the container in %s and releases authored Flow in Flow order at its position", mode => {
+  let page = duplicateWyrmetizerWidget(createWyrmetizerCopy(fixture(), adapters), "a", "b", adapters);
+  page.layout.areas.area.flow.order = ["b", "a"];
+  page.layout.areas.area.flow.presentation.a.top_spacing_px = 99;
+  page.layout.areas.area.flow.presentation.a.image_transform.dimensions.width.value = 173;
+  page = createEmptyWyrmetizerComposition(page, "before", adapters, { index: 0 });
+  page = createEmptyWyrmetizerComposition(page, "after", adapters);
+  page = switchWyrmetizerMode(page, "area", mode, adapters);
+  const before = structuredClone(page), released = deleteWyrmetizerComposition(page, "area", adapters);
+  expect(page).toEqual(before);
+  expect(released.layout.contentOrder).toEqual([
+    { kind: "area", id: "before" }, { kind: "widget", id: "b" }, { kind: "widget", id: "a" }, { kind: "area", id: "after" },
+  ]);
+  expect(released.layout.areas).toEqual({ before: before.layout.areas.before, after: before.layout.areas.after });
+  expect(released.widgetsOrder).toEqual(["b", "a"]);
+  for (const id of ["a", "b"]) expect(released.widgets[id]).toEqual({ ...before.widgets[id],
+    settings: { ...before.widgets[id].settings, ...before.layout.areas.area.flow.presentation[id] } });
+  expect(roundTrip(released)).toEqual(released);
+  expect(deleteWyrmetizerComposition(released, "area", adapters)).toBe(released);
+});
+it.each(["flow", "composition"])("retains the final Area after explicit child deletion in %s and permits reuse", mode => {
+  let page = switchWyrmetizerMode(createWyrmetizerCopy(fixture(), adapters), "area", mode, adapters);
+  page = deleteWyrmetizerWidget(page, "a", adapters);
+  expect(page.widgets).toEqual({});
+  expect(page.widgetsOrder).toEqual([]);
+  expect(page.layout.areas.area.members).toEqual([]);
+  expect(page.layout.areas.area.composition.geometry.placements).toEqual({});
+  expect(roundTrip(page)).toEqual(page);
+  page = addWyrmetizerWidget(page, "area", "new", fixture().widgets.a, adapters);
+  expect(roundTrip(page).layout.areas.area.members).toEqual(["new"]);
+});
+it("deletes an empty container without moving detached or independent Widgets or another populated Area", () => {
+  let page = duplicateWyrmetizerWidget(createWyrmetizerCopy(fixture(), adapters), "a", "b", adapters);
+  page = removeWyrmetizerWidget(page, "area", "b", adapters);
+  page = createWyrmetizerComposition(page, "other", ["b"], { b: { x: 0, y: 0, pivot: { x: 0, y: 0 } } }, 1200, 800, adapters);
+  page = removeWyrmetizerWidget(page, "area", "a", adapters);
+  const before = structuredClone(page), next = deleteWyrmetizerComposition(page, "area", adapters);
+  expect(next.layout.contentOrder).toEqual(before.layout.contentOrder.filter(entry => entry.id !== "area"));
+  expect(next.widgets).toEqual(before.widgets);
+  expect(next.layout.areas.other).toEqual(before.layout.areas.other);
+  expect(roundTrip(next)).toEqual(next);
+});
 it.each(["composition", "flow"])("removes to authored Flow in %s and preserves every remaining placement", mode => {
   let page = createWyrmetizerCopy(fixture(), adapters);
   page = duplicateWyrmetizerWidget(page, "a", "b", adapters);
@@ -203,7 +266,8 @@ it("duplicates both arrangements independently and deletes all references withou
   expect(page.widgetsOrder).toEqual(["b"]);
   expect(page.widgets.a).toBeUndefined();
   page = deleteWyrmetizerWidget(page, "b", adapters);
-  expect(page.layout.areas).toEqual({});
+  expect(page.layout.areas.area.members).toEqual([]);
+  expect(page.layout.contentOrder).toEqual([{ kind: "area", id: "area" }]);
 });
 it("no-op mode switches and edits preserve identity for history suppression", () => {
   const page = createWyrmetizerCopy(fixture(), adapters);

@@ -63,6 +63,41 @@ export function createWyrmetizerComposition(page, areaId, ids, frames, width, he
   return next;
 }
 
+export function createEmptyWyrmetizerComposition(page, areaId, adapters, {
+  index = page.layout?.contentOrder?.length, width = 1200, height = 800,
+} = {}) {
+  validateWyrmetizerPage(page, adapters);
+  if (Object.hasOwn(page.layout.areas, areaId)) fail("Area already exists");
+  if (!Number.isSafeInteger(index) || index < 0 || index > page.layout.contentOrder.length)
+    fail("invalid Area position");
+  const next = clone(page);
+  next.layout.areas[areaId] = { version: 1, activeMode: "composition", members: [],
+    flow: { order: [], presentation: {} },
+    composition: { presentation: {}, geometry: {
+      version: 1, type: "composition-area", childrenOrder: [], stackOrder: [],
+      responsive: { defaultMode: "proportional" },
+      profiles: { desktop: { referenceWidthPx: width, height: { mode: "explicit", valuePx: height }, overflow: "clip" } },
+      placements: {},
+    } } };
+  next.layout.contentOrder.splice(index, 0, { kind: "area", id: areaId });
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  validateWyrmetizerPage(next, adapters);
+  return next;
+}
+
+export function deleteWyrmetizerComposition(page, areaId, adapters) {
+  validateWyrmetizerPage(page, adapters);
+  if (!Object.hasOwn(page.layout.areas, areaId)) return page;
+  const next = clone(page), area = next.layout.areas[areaId];
+  for (const id of area.members) next.widgets[id] = presented(page.widgets[id], area.flow.presentation[id]);
+  next.layout.contentOrder = next.layout.contentOrder.flatMap(entry =>
+    entry.kind === "area" && entry.id === areaId ? area.flow.order.map(id => ({ kind: "widget", id })) : [entry]);
+  delete next.layout.areas[areaId];
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  validateWyrmetizerPage(next, adapters);
+  return next;
+}
+
 // The resolver is a disposable adapter for existing renderers, never persisted.
 // Canonical member Widgets contain content; each arrangement owns presentation.
 export function resolveWyrmetizerPage(page) {
@@ -343,7 +378,7 @@ export function deleteWyrmetizerWidget(page, id, adapters) {
   const next = clone(page);
   delete next.widgets[id];
   next.layout.contentOrder = next.layout.contentOrder.filter(entry => entry.kind !== "widget" || entry.id !== id);
-  for (const [areaId, area] of Object.entries(next.layout.areas)) {
+  for (const area of Object.values(next.layout.areas)) {
     if (area.detached) delete area.detached[id];
     if (!area.members.includes(id)) continue;
     area.members = area.members.filter(value => value !== id);
@@ -353,10 +388,6 @@ export function deleteWyrmetizerWidget(page, id, adapters) {
     geometry.childrenOrder = geometry.childrenOrder.filter(value => value !== id);
     geometry.stackOrder = geometry.stackOrder.filter(value => value !== id);
     delete geometry.placements[id];
-    if (!area.members.length) {
-      delete next.layout.areas[areaId];
-      next.layout.contentOrder = next.layout.contentOrder.filter(entry => entry.id !== areaId);
-    }
   }
   next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
   validateWyrmetizerPage(next, adapters);
