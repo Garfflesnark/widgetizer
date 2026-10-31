@@ -167,3 +167,44 @@ it("press-and-hold supports keyboard button activation and stops on button blur"
   expect(commit).toHaveBeenCalledTimes(2);
   expect(commit).toHaveBeenLastCalledWith(805);
 });
+
+it.each([["ArrowUp", 804], ["ArrowDown", 796]])("keyboard repeat %s previews smoothly and commits once on key release", (key, expected) => {
+  vi.useFakeTimers();
+  const preview = vi.fn(), commit = vi.fn();
+  render(<CompositionNumberInput label="Height" value={800} onPreview={preview} onCommit={commit} />);
+  const input = screen.getByLabelText("Height");
+  act(() => input.focus());
+  fireEvent.keyDown(input, { key });
+  expect(preview).toHaveBeenLastCalledWith(key === "ArrowUp" ? 801 : 799);
+  for (let i = 0; i < 5; i++) fireEvent.keyDown(input, { key, repeat: true });
+  expect(preview).toHaveBeenCalledTimes(1);
+  act(() => vi.advanceTimersByTime(500));
+  expect(input.value).toBe(String(expected));
+  expect(commit).not.toHaveBeenCalled();
+  fireEvent.keyUp(input, { key: "Shift" });
+  expect(commit).not.toHaveBeenCalled();
+  fireEvent.keyUp(input, { key });
+  act(() => vi.advanceTimersByTime(1000));
+  expect(commit).toHaveBeenCalledExactlyOnceWith(expected);
+  expect(preview).toHaveBeenLastCalledWith(expected, "commit");
+  expect(input).toHaveFocus();
+});
+it.each(["Escape", "blur", "window blur"])("keyboard repeat stops on %s and ignores a late key release", end => {
+  vi.useFakeTimers();
+  const preview = vi.fn(), commit = vi.fn();
+  render(<CompositionNumberInput label="Height" value={800} onPreview={preview} onCommit={commit} />);
+  const input = screen.getByLabelText("Height");
+  act(() => input.focus());
+  fireEvent.keyDown(input, { key: "ArrowUp" });
+  act(() => vi.advanceTimersByTime(500));
+  if (end === "Escape") fireEvent.keyDown(input, { key: "Escape" });
+  else fireEvent.blur(end === "blur" ? input : window);
+  const calls = preview.mock.calls.length;
+  fireEvent.keyUp(input, { key: "ArrowUp" });
+  act(() => vi.advanceTimersByTime(1000));
+  expect(preview).toHaveBeenCalledTimes(calls);
+  if (end === "Escape") {
+    expect(commit).not.toHaveBeenCalled();
+    expect(input.value).toBe("800");
+  } else expect(commit).toHaveBeenCalledExactlyOnceWith(804);
+});

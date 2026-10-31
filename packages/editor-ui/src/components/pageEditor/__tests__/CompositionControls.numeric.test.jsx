@@ -119,3 +119,56 @@ it.each(["Image rotation angle", "Canvas height"])("press-and-hold %s produces o
   act(() => usePageStore.temporal.getState().redo());
   expect(usePageStore.getState().page).toEqual(after);
 });
+
+it.each([["Image rotation angle", 0.4, 0.7], ["Canvas height", 804, 807]])("keyboard repeat %s keeps focus and groups each held key into one Undo entry", (label, first, second) => {
+  vi.useFakeTimers();
+  const before = structuredClone(usePageStore.getState().page), preview = vi.fn();
+  const read = page => label === "Canvas height" ? page.layout.compositions.canvas.profiles.desktop.height.valuePx : page.layout.compositions.canvas.placements.a.frames.desktop.rotation;
+  window.addEventListener("wyrmetizer:numeric-preview", preview);
+  try {
+    render(<CompositionControls widgetId="a" />);
+    const input = screen.getByLabelText(label);
+    act(() => input.focus());
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    act(() => vi.advanceTimersByTime(500));
+    expect(input.value).toBe(String(first));
+    expect(preview.mock.lastCall[0].detail).toMatchObject({ phase: "preview", value: first });
+    expect(usePageStore.getState().page).toEqual(before);
+    fireEvent.keyUp(input, { key: "ArrowUp" });
+    const after = structuredClone(usePageStore.getState().page);
+    expect(read(after)).toBe(first);
+    expect(input).toBe(screen.getByLabelText(label));
+    expect(input).toHaveFocus();
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    fireEvent.keyDown(input, { key: "ArrowUp", repeat: true });
+    act(() => vi.advanceTimersByTime(425));
+    fireEvent.keyUp(input, { key: "ArrowUp" });
+    expect(read(usePageStore.getState().page)).toBe(second);
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(2);
+    act(() => usePageStore.temporal.getState().undo());
+    expect(usePageStore.getState().page).toEqual(after);
+    expect(input.value).toBe(String(first));
+    act(() => usePageStore.temporal.getState().undo());
+    expect(usePageStore.getState().page).toEqual(before);
+    act(() => usePageStore.temporal.getState().redo());
+    expect(usePageStore.getState().page).toEqual(after);
+  } finally { window.removeEventListener("wyrmetizer:numeric-preview", preview); }
+});
+it("keyboard repeat height starts at the clamped minimum without a dead range", () => {
+  vi.useFakeTimers();
+  const frames = structuredClone(usePageStore.getState().page.layout.compositions.canvas.placements);
+  render(<CompositionControls widgetId="a" />);
+  const input = screen.getByLabelText("Canvas height");
+  act(() => input.focus());
+  fireEvent.change(input, { target: { value: "50" } });
+  fireEvent.keyDown(input, { key: "ArrowUp" });
+  expect(input.value).toBe("441");
+  act(() => vi.advanceTimersByTime(500));
+  expect(input.value).toBe("444");
+  fireEvent.keyUp(input, { key: "ArrowUp" });
+  const c = usePageStore.getState().page.layout.compositions.canvas;
+  expect(c.profiles.desktop.height.valuePx).toBe(444);
+  expect(c.placements).toEqual(frames);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+});

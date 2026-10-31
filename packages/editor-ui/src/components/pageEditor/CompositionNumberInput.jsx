@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { IconButton } from "../ui/Button";
 
-export default function CompositionNumberInput({ value, label, disabled, min = -360000, max = 360000, step = 1, clampMin = false, onPreview, onCommit }) {
+export default function CompositionNumberInput({ value, label, disabled, min = -360000, max = 360000, step = 1, clampMin = false, normalizeValue = next => next, onPreview, onCommit }) {
   const [text, setText] = useState(String(value));
   const active = useRef(false), callbacks = useRef({ onPreview, onCommit });
   const input = useRef(null), draft = useRef(String(value)), hold = useRef(null), actions = useRef({});
@@ -26,13 +25,14 @@ export default function CompositionNumberInput({ value, label, disabled, min = -
     } else { callbacks.current.onPreview(null); setDraft(String(value)); }
   };
   const adjust = direction => {
-    const next = Math.max(min, Math.min(max, Number(((number(draft.current) ?? value) + direction * step).toFixed(10))));
+    const base = normalizeValue(number(draft.current) ?? value);
+    const next = normalizeValue(Math.max(min, Math.min(max, Number((base + direction * step).toFixed(10)))));
     active.current = true; setDraft(String(next)); callbacks.current.onPreview(next);
   };
   const stopHold = cancel => { if (hold.current) finish(cancel); };
-  const startHold = (element, pointerId, direction) => {
+  const startHold = (element, pointerId, direction, key) => {
     if (disabled || hold.current) return;
-    const session = { element, pointerId };
+    const session = { element, pointerId, key };
     hold.current = session;
     if (pointerId !== null) {
       input.current?.focus();
@@ -46,6 +46,12 @@ export default function CompositionNumberInput({ value, label, disabled, min = -
     }, 350);
   };
   useLayoutEffect(() => { actions.current = { adjust, stopHold }; });
+  useLayoutEffect(() => {
+    release();
+    if (active.current) callbacks.current.onPreview(null);
+    active.current = false;
+    setDraft(String(value));
+  }, [value]);
   useEffect(() => {
     const end = event => {
       if (hold.current?.pointerId !== null && hold.current?.pointerId === event.pointerId)
@@ -71,15 +77,19 @@ export default function CompositionNumberInput({ value, label, disabled, min = -
     onBlur={() => finish(false)} onKeyDown={event => {
       if (["ArrowUp", "ArrowDown"].includes(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
         event.preventDefault();
-        adjust(event.key === "ArrowUp" ? 1 : -1);
+        // Share the stepper timer rather than depending on OS key-repeat cadence.
+        if (hold.current && hold.current.key !== event.key) release();
+        startHold(event.currentTarget, null, event.key === "ArrowUp" ? 1 : -1, event.key);
       }
       if (event.key === "Escape") { event.preventDefault(); finish(true); event.currentTarget.blur(); }
       if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
+    }} onKeyUp={event => {
+      if (hold.current?.key === event.key) { event.preventDefault(); stopHold(false); }
     }} />
     <span className="absolute right-1 inset-y-1 flex flex-col justify-center">
       {[1, -1].map(direction => <IconButton key={direction} size="sm" disabled={disabled}
         aria-label={`${direction === 1 ? "Increase" : "Decrease"} ${label}`}
-        className="!p-0 w-4 h-4 rounded-sm disabled:opacity-40 touch-none select-none"
+        className="flex items-center justify-center !p-0 w-4 h-2.5 !rounded-none !transition-none hover:!bg-gray-200 hover:!shadow-none disabled:opacity-40 touch-none select-none"
         onPointerDown={event => { if (event.button === 0) { event.preventDefault(); startHold(event.currentTarget, event.pointerId, direction); } }}
         onLostPointerCapture={() => stopHold(true)}
         onBlur={() => stopHold(false)}
@@ -93,7 +103,9 @@ export default function CompositionNumberInput({ value, label, disabled, min = -
           if (event.detail !== 0) return;
           adjust(direction); finish(false);
         }}>
-        {direction === 1 ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
+        <svg width="7" height="4" viewBox="0 0 7 4" fill="currentColor" aria-hidden="true">
+          <path d={direction === 1 ? "M0 4 3.5 0 7 4Z" : "M0 0 7 0 3.5 4Z"} />
+        </svg>
       </IconButton>)}
     </span>
   </div>;

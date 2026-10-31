@@ -110,15 +110,15 @@ export default function CompositionControls({ widgetId, blockSelected = false })
           {!blockSelected && <p className="text-xs text-slate-500">Use ↑ ↓ to adjust values</p>}
           {!blockSelected && <label className="block text-xs">
             Rotation (° clockwise)
-            <CompositionNumberInput key={`${widgetId}:${context}:${found[1].placements[widgetId].frames.desktop.rotation || 0}`}
+            <CompositionNumberInput key={`${widgetId}:${context}`}
               label="Image rotation angle" value={found[1].placements[widgetId].frames.desktop.rotation || 0} step={0.1} disabled={context !== "desktop"}
               onPreview={(value, phase) => preview("rotation", value, phase)} onCommit={angle => rotateCompositionImage(widgetId, angle)} />
             Drag the circular handle; Shift snaps to 15°. Rotation rebases retained pins.
           </label>}
           <label className="block text-xs">
             Canvas height (px)
-            <CompositionNumberInput key={`${found[0]}:${context}:${found[1].profiles.desktop.height.valuePx}`}
-              label="Canvas height" value={found[1].profiles.desktop.height.valuePx} min={1} max={10000} clampMin disabled={context !== "desktop"}
+            <CompositionNumberInput key={`${found[0]}:${context}`}
+              label="Canvas height" value={found[1].profiles.desktop.height.valuePx} min={1} max={10000} clampMin normalizeValue={value => compositionHeightValue(found[0], value)} disabled={context !== "desktop"}
               onPreview={(value, phase) => preview("height", value, phase)} onCommit={value => run(() => setCompositionHeight(found[0], value))} />
           </label>
           <p className="text-xs text-slate-500">
