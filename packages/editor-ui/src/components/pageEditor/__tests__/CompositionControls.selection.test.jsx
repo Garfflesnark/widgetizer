@@ -31,6 +31,46 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); useAutoSave.getState().stopAutoSave(); });
 
+it("shows creation for freshly added Images before any size edit and leaves unchecked Images untouched", () => {
+  usePageStore.getState().setPage(initializeWyrmetizerPage({ id: "fresh", widgets: {}, widgetsOrder: [] }, compositionAdapters));
+  useWidgetStore.setState({ selectedWidgetId: null });
+  const imageIds = ["First", "Second", "Third"].map((name, index) => {
+    const id = useWidgetStore.getState().addWidget("image", index);
+    useWidgetStore.getState().updateWidgetSettingValues(id, { image: "/uploads/images/photo.jpg", name });
+    return id;
+  });
+  const before = structuredClone(usePageStore.getState().page);
+  expect(before.layout.compositions).toEqual({});
+  expect(imageIds.every(id => before.widgets[id].settings.image_transform === undefined)).toBe(true);
+  render(<CompositionControls widgetId={imageIds[0]} />);
+  const create = screen.getByRole("button", { name: "Create Composition Area" });
+  expect(create.disabled).toBe(true);
+  expect(screen.getAllByRole("checkbox")).toHaveLength(3);
+  fireEvent.click(screen.getByRole("checkbox", { name: "First" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Third" }));
+  expect(create.disabled).toBe(false);
+  expect(usePageStore.getState().page).toEqual(before);
+  fireEvent.click(create);
+  const page = saved(), area = Object.values(page.layout.areas)[0];
+  expect(page.layout.version).toBe(2);
+  expect(area.members).toEqual([imageIds[0], imageIds[2]]);
+  expect(area.flow.presentation[imageIds[0]].image_transform.version).toBe(2);
+  expect(page.widgets[imageIds[1]]).toEqual(before.widgets[imageIds[1]]);
+  expect(page.layout.contentOrder).toContainEqual({ kind: "widget", id: imageIds[1] });
+});
+
+it("keeps unsupported and empty Images out of the creation controls", () => {
+  const page = structuredClone(usePageStore.getState().page);
+  delete page.widgets.a.settings.image_transform;
+  page.widgets.a.settings.image = "";
+  page.widgets.b.settings.image_transform = { version: 99 };
+  page.widgets.c.settings.caption = "Captioned";
+  usePageStore.getState().setPage(page);
+  render(<CompositionControls widgetId="a" />);
+  expect(screen.queryByRole("button", { name: "Create Composition Area" })).toBeNull();
+  expect(useWidgetStore.getState().getCompositionCandidates()).toEqual([]);
+});
+
 it("keeps checkbox and Ctrl+Click selection through widget-panel remounts and combines only checked images", () => {
   const before = structuredClone(usePageStore.getState().page);
   const { rerender } = render(<CompositionControls key="a" widgetId="a" />);
@@ -61,6 +101,10 @@ it("keeps checkbox and Ctrl+Click selection through widget-panel remounts and co
 });
 
 it("offers the recovered checkboxes in an existing area's Flow view and adds without recreating members", () => {
+  const fresh = structuredClone(usePageStore.getState().page);
+  delete fresh.widgets.c.settings.image_transform;
+  fresh.widgets.c.settings.image_width_percent = 25;
+  usePageStore.getState().setPage(fresh);
   const { rerender } = render(<CompositionControls widgetId="a" />);
   fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
   fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
@@ -78,6 +122,7 @@ it("offers the recovered checkboxes in an existing area's Flow view and adds wit
   expect(area.members).toEqual(["a", "c"]);
   expect(area.composition.geometry.placements.a).toEqual(before.composition.geometry.placements.a);
   expect(area.flow.presentation.a).toEqual(before.flow.presentation.a);
+  expect(area.flow.presentation.c.image_transform.dimensions.width.value).toBe(25);
   expect(page.layout.contentOrder).toContainEqual({ kind: "widget", id: "b" });
   expect(screen.queryByRole("checkbox", { name: "C" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Create Composition Area" })).toBeNull();
@@ -87,6 +132,17 @@ it("offers the recovered checkboxes in an existing area's Flow view and adds wit
   act(() => usePageStore.temporal.getState().redo()); expect(usePageStore.getState().page).toEqual(afterPage);
   act(() => usePageStore.getState().setPage(JSON.parse(JSON.stringify(page))));
   expect(saved()).toEqual(page);
+});
+
+it("does not relax legacy-page gating for Images without explicit sizing", () => {
+  const page = structuredClone(usePageStore.getState().page);
+  delete page.wyrmetizerEditorLayout;
+  delete page.layout;
+  for (const id of ["a", "b", "c"]) delete page.widgets[id].settings.image_transform;
+  usePageStore.setState({ page });
+  render(<CompositionControls widgetId="a" />);
+  expect(screen.queryByRole("button", { name: "Create Composition Area" })).toBeNull();
+  expect(usePageStore.getState().page).toEqual(page);
 });
 
 it("rejects stale or foreign Ctrl+Click messages and scopes draft checks to the current page load", () => {

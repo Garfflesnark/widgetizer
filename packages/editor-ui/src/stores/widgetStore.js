@@ -1,7 +1,7 @@
 import { compositionFor } from "@widgetizer/core/composition";
 import { serializeWyrmetizerEditorPage, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, addWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
-import { applyCompositionGeometry } from "../lib/compositionActions";
+import { applyCompositionGeometry, compositionImageForCreation } from "../lib/compositionActions";
 import { DEFAULT_IMAGE_TRANSFORM, isImageTransform, supportsImageTransform, supportsImageUnits, defaultImageTransform } from "@widgetizer/core/imageTransform";
 import { IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, isImageWidth, isImageHeight, supportsImageResize, supportsImageStretch } from "@widgetizer/core/imageResize";
 import { SPACING_FIELDS, isImageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
@@ -190,8 +190,7 @@ const useWidgetStore = create((set, get) => ({
     if (!page?.wyrmetizerEditorLayout) return [];
     const members = new Set(Object.values(page.wyrmetizerEditorLayout.areas).flatMap(area => area.members));
     return (page.widgetsOrder || []).filter(id => !members.has(id) &&
-      get().schemas[page.widgets[id]?.type]?.compositionCapability === "image.v1" &&
-      compositionAdapters[page.widgets[id]?.type]?.supports(page.widgets[id]));
+      compositionImageForCreation(page.widgets[id], get().schemas[page.widgets[id]?.type], get().imageGeometry[id], true));
   },
   getCompositionSelection: (selection = get().compositionSelection) => {
     const state = usePageStore.getState();

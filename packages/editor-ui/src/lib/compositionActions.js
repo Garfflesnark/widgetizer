@@ -12,7 +12,7 @@ import {
   minimumCompositionHeight,
 } from "@widgetizer/core/composition";
 import { compositionAdapters, compositionImageRect } from "@widgetizer/core/compositionImage";
-import { transformRect, imageReference } from "@widgetizer/core/imageTransform";
+import { transformRect, imageReference, imageTransformV2, supportsImageUnits } from "@widgetizer/core/imageTransform";
 import usePageStore from "../stores/pageStore";
 import useWidgetStore from "../stores/widgetStore";
 import useAutoSave from "../stores/saveStore";
@@ -123,6 +123,17 @@ export function setCompositionHeight(id, requested) {
   next.layout.compositions[id].profiles.desktop.height.valuePx = value;
   return commitCompositionPage(next);
 }
+// Fresh modern Images use implicit sizing until a sizing control is edited.
+// Resolve that existing presentation for creation without editing the Flow widget.
+export function compositionImageForCreation(widget, schema, geometry, allowImplicitTransform = false) {
+  if (schema?.compositionCapability !== "image.v1") return null;
+  if (compositionAdapters[widget?.type]?.supports(widget)) return widget;
+  if (!allowImplicitTransform || !supportsImageUnits(widget, schema) ||
+      Object.hasOwn(widget.settings || {}, "image_transform")) return null;
+  const reference = imageReference(geometry?.containerWidth || 1200, geometry?.naturalWidth, geometry?.naturalHeight);
+  const candidate = { ...widget, settings: { ...widget.settings, image_transform: imageTransformV2(widget, reference) } };
+  return compositionAdapters[widget.type]?.supports(candidate) ? candidate : null;
+}
 function initialImageFrames(ids, width, height) {
   if (useWidgetStore.getState().compositionContext !== "desktop")
     throw new Error("Switch to Desktop to create a Composition Area.");
@@ -132,15 +143,16 @@ function initialImageFrames(ids, width, height) {
     throw new Error("Create a paired-layout copy before creating a Composition Area on this older page.");
   if (ids.some((id) => schemas[page.widgets[id]?.type]?.compositionCapability !== "image.v1"))
     throw new Error("Update the project's approved image theme files before conversion.");
-  const frames = {};
+  const frames = {}, widgets = { ...page.widgets };
   const c = { profiles: { desktop: { referenceWidthPx: width, height: { valuePx: height } } } };
   for (const [i, id] of ids.entries()) {
-    const w = page.widgets[id];
+    const geometry = useWidgetStore.getState().imageGeometry[id];
+    const w = compositionImageForCreation(page.widgets[id], schemas[page.widgets[id]?.type], geometry, true);
     if (useWidgetStore.getState().imageGeometry[id]?.hasCaption)
       throw new Error("Images with media captions are not supported inside Composition Areas yet.");
     if (!compositionAdapters[w?.type]?.supports(w))
       throw new Error("Only v2 Arch Images without captions are supported in this milestone.");
-    const geometry = useWidgetStore.getState().imageGeometry[id];
+    widgets[id] = w;
     const size = compositionImageRect(
       w,
       c,
@@ -152,11 +164,10 @@ function initialImageFrames(ids, width, height) {
     const rect = { ...size, left: Math.min(40 * i, width - size.width), top: Math.min(40 * i, height - size.height) };
     frames[id] = frameFromRect(rect, { x: 0, y: 0 }, width);
   }
-  return frames;
+  return { frames, page: { ...page, widgets } };
 }
 export function convertImages(ids, height = 1000) {
-  const width = 1200, frames = initialImageFrames(ids, width, height);
-  const { page } = usePageStore.getState();
+  const width = 1200, { frames, page } = initialImageFrames(ids, width, height);
   const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
   const next = createWyrmetizerComposition(canonical, `composition_${crypto.randomUUID()}`, ids, frames, width, height, compositionAdapters);
   const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
@@ -168,8 +179,8 @@ export function addImagesToComposition(areaId, ids) {
   const area = canonical.layout?.areas?.[areaId];
   if (!area) throw new Error("Select an existing Composition Area first.");
   const profile = area.composition.geometry.profiles.desktop;
-  const frames = initialImageFrames(ids, profile.referenceWidthPx, profile.height.valuePx);
-  const next = includeWyrmetizerWidgets(canonical, areaId, ids, frames, compositionAdapters);
+  const { frames, page } = initialImageFrames(ids, profile.referenceWidthPx, profile.height.valuePx);
+  const next = includeWyrmetizerWidgets(serializeWyrmetizerEditorPage(page, compositionAdapters), areaId, ids, frames, compositionAdapters);
   const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
   if (changed) useWidgetStore.getState().clearCompositionSelection();
   return changed;

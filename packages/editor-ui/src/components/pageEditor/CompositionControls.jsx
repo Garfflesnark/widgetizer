@@ -2,11 +2,11 @@ import { useState } from "react";
 import CompositionNumberInput from "./CompositionNumberInput";
 import WyrmetizerCompatibility from "./WyrmetizerCompatibility";
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
-import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import usePageStore from "../../stores/pageStore";
 import useWidgetStore from "../../stores/widgetStore";
 import {
   convertImages,
+  compositionImageForCreation,
   addImagesToComposition,
   layerImage,
   returnCompositionToFlow,
@@ -21,6 +21,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
   const page = usePageStore((s) => s.page),
     schemas = useWidgetStore((s) => s.schemas);
   const context = useWidgetStore((s) => s.compositionContext);
+  const imageGeometry = useWidgetStore(s => s.imageGeometry);
   const selection = useWidgetStore(s => s.compositionSelection);
   const ids = useWidgetStore.getState().getCompositionSelection(selection);
   const [height, setHeight] = useState(() => compositionFor(page, widgetId)?.[1].profiles.desktop.height.valuePx || 1000),
@@ -32,7 +33,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
       !compositionFor(page, id) &&
       schemas[w.type]?.compositionCapability === "image.v1" &&
       !Object.values(page?.wyrmetizerEditorLayout?.areas || {}).some(area => area.members.includes(id)) &&
-      compositionAdapters[w.type]?.supports(w),
+      compositionImageForCreation(w, schemas[w.type], imageGeometry[id], !!page?.wyrmetizerEditorLayout),
   );
   const run = (action) => {
     try {
