@@ -118,7 +118,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
           <label className="block text-xs">
             Canvas height (px)
             <CompositionNumberInput key={`${found[0]}:${context}`}
-              label="Canvas height" value={found[1].profiles.desktop.height.valuePx} min={1} max={10000} clampMin normalizeValue={value => compositionHeightValue(found[0], value)} disabled={context !== "desktop"}
+              label="Canvas height" value={found[1].profiles.desktop.height.valuePx} min={1} max={10000} clampMin keyboardFrameRepeat normalizeValue={value => compositionHeightValue(found[0], value)} disabled={context !== "desktop"}
               onPreview={(value, phase) => preview("height", value, phase)} onCommit={value => run(() => setCompositionHeight(found[0], value))} />
           </label>
           <p className="text-xs text-slate-500">

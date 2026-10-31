@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { IconButton } from "../ui/Button";
 
-export default function CompositionNumberInput({ value, label, disabled, min = -360000, max = 360000, step = 1, clampMin = false, normalizeValue = next => next, onPreview, onCommit }) {
+export default function CompositionNumberInput({ value, label, disabled, min = -360000, max = 360000, step = 1, clampMin = false, keyboardFrameRepeat = false, normalizeValue = next => next, onPreview, onCommit }) {
   const [text, setText] = useState(String(value));
   const active = useRef(false), callbacks = useRef({ onPreview, onCommit });
   const input = useRef(null), draft = useRef(String(value)), hold = useRef(null), actions = useRef({});
@@ -13,6 +13,7 @@ export default function CompositionNumberInput({ value, label, disabled, min = -
     hold.current = null;
     if (!session) return;
     clearTimeout(session.delay); clearInterval(session.repeat);
+    if (session.frame !== undefined) cancelAnimationFrame(session.frame);
     if (session.element.hasPointerCapture?.(session.pointerId)) session.element.releasePointerCapture(session.pointerId);
   };
   const finish = cancel => {
@@ -42,7 +43,16 @@ export default function CompositionNumberInput({ value, label, disabled, min = -
     session.delay = setTimeout(() => {
       if (hold.current !== session) return;
       actions.current.adjust(direction);
-      session.repeat = setInterval(() => actions.current.adjust(direction), 75);
+      if (keyboardFrameRepeat && key) {
+        // Height changes canvas layout: update once per paint instead of coarse
+        // timer steps. Native repeated keydown events never advance this loop.
+        const repeat = () => {
+          if (hold.current !== session) return;
+          actions.current.adjust(direction);
+          session.frame = requestAnimationFrame(repeat);
+        };
+        session.frame = requestAnimationFrame(repeat);
+      } else session.repeat = setInterval(() => actions.current.adjust(direction), 75);
     }, 350);
   };
   useLayoutEffect(() => { actions.current = { adjust, stopHold }; });
