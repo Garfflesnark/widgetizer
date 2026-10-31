@@ -48,7 +48,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
       context: compositionInteractionContext(), revision: compositionRevision(page.widgets[widgetId], found[1].placements[widgetId].frames.desktop),
     } }));
   };
-  const button = "border rounded px-2 py-1 text-xs text-pink-700 hover:bg-pink-50 disabled:opacity-40";
+  const button = "shadow-sm shadow-slate-100 hover:shadow-lg hover:shadow-slate-100 aria-pressed:ring-2 aria-pressed:ring-pink-200 aria-pressed:shadow-lg aria-pressed:shadow-pink-100 border rounded px-2 py-1 text-xs text-pink-700 hover:bg-pink-50 disabled:opacity-40";
   if (paired && paired[1].activeMode === "flow") return (
     <section className="p-3 border-b space-y-2" aria-label="Composition Area controls">
       <strong className="text-sm">Composition Area</strong>
@@ -107,6 +107,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
               Send Backward
             </button>
           </div>}
+          {!blockSelected && <p className="text-xs text-slate-500">Use ↑ ↓ to adjust values</p>}
           {!blockSelected && <label className="block text-xs">
             Rotation (° clockwise)
             <CompositionNumberInput key={`${widgetId}:${context}:${found[1].placements[widgetId].frames.desktop.rotation || 0}`}

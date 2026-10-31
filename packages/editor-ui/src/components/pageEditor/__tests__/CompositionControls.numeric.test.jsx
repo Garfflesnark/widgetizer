@@ -21,7 +21,7 @@ beforeEach(() => {
     selectedWidgetId: "a", selectedBlockId: null, selectedCompositionId: null,
     imageGeometry: { a: { containerWidth: 1200, width: 1200, height: 675, imageSource: "" } } });
 });
-afterEach(() => { cleanup(); useAutoSave.getState().stopAutoSave(); });
+afterEach(() => { cleanup(); useAutoSave.getState().stopAutoSave(); vi.useRealTimers(); });
 
 it.each([
   ["Image rotation angle", "rotation", "20", "30", page => page.layout.compositions.canvas.placements.a.frames.desktop.rotation],
@@ -68,4 +68,54 @@ it.each([["Enter", "50"], ["blur", "0"], ["blur", "-10"]])("clamps undersized he
   expect(committed.placements).toEqual(frames);
   expect(committed.profiles.desktop.overflow).toBe("clip");
   expect(screen.getByLabelText("Canvas height").value).toBe("540");
+});
+
+it("rounds the clamped height up for preview and commit while preserving rotated placements", () => {
+  const page = structuredClone(usePageStore.getState().page), c = page.layout.compositions.canvas;
+  page.widgets.b.settings.image_transform.dimensions.width = { unit: "%", value: 25.02083333 };
+  c.placements.b.version = 3;
+  Object.assign(c.placements.b.frames.desktop, { rotation: 90, rotationPivot: { x: 0, y: 0 } });
+  usePageStore.setState({ page });
+  const frames = structuredClone(c.placements), preview = vi.fn();
+  window.addEventListener("wyrmetizer:numeric-preview", preview);
+  try {
+    render(<CompositionControls widgetId="a" />);
+    const input = screen.getByLabelText("Canvas height");
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "50" } });
+    expect(preview.mock.lastCall[0].detail.value).toBe(541);
+    fireEvent.keyDown(input, { key: "Enter" });
+    const committed = usePageStore.getState().page.layout.compositions.canvas;
+    expect(committed.profiles.desktop.height.valuePx).toBe(541);
+    expect(committed.placements).toEqual(frames);
+    expect(screen.getByLabelText("Canvas height").value).toBe("541");
+  } finally { window.removeEventListener("wyrmetizer:numeric-preview", preview); }
+});
+function pointer(target, type) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 });
+  Object.defineProperty(event, "pointerId", { value: 7 });
+  fireEvent(target, event);
+}
+it.each(["Image rotation angle", "Canvas height"])("press-and-hold %s produces one reversible Undo entry per hold", label => {
+  vi.useFakeTimers();
+  const before = structuredClone(usePageStore.getState().page);
+  render(<CompositionControls widgetId="a" />);
+  pointer(screen.getByRole("button", { name: `Increase ${label}` }), "pointerdown");
+  act(() => vi.advanceTimersByTime(500));
+  expect(usePageStore.getState().page).toEqual(before);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  pointer(document, "pointerup");
+  const after = structuredClone(usePageStore.getState().page);
+  expect(after).not.toEqual(before);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  pointer(screen.getByRole("button", { name: `Increase ${label}` }), "pointerdown");
+  act(() => vi.advanceTimersByTime(425));
+  pointer(document, "pointerup");
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(2);
+  act(() => usePageStore.temporal.getState().undo());
+  expect(usePageStore.getState().page).toEqual(after);
+  act(() => usePageStore.temporal.getState().undo());
+  expect(usePageStore.getState().page).toEqual(before);
+  act(() => usePageStore.temporal.getState().redo());
+  expect(usePageStore.getState().page).toEqual(after);
 });
