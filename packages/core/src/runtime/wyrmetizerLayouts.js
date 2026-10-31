@@ -49,6 +49,7 @@ export function createWyrmetizerComposition(page, areaId, ids, frames, width, he
     const split = splitWidget(page.widgets[id]);
     next.widgets[id] = split.content;
     presentation[id] = split.presentation;
+    for (const area of Object.values(next.layout.areas)) if (area.detached) delete area.detached[id];
   }
   const order = next.layout.contentOrder;
   const first = order.findIndex(entry => entry.kind === "widget" && ids.includes(entry.id));
@@ -71,7 +72,7 @@ export function resolveWyrmetizerPage(page) {
     if (entry.kind === "widget") { contentOrder.push(clone(entry)); continue; }
     const area = page.layout.areas[entry.id], mode = area.activeMode;
     for (const id of area.members) next.widgets[id] = presented(page.widgets[id], area[mode].presentation[id]);
-    if (mode === "flow") contentOrder.push(...area.flow.order.map(id => ({ kind: "widget", id })));
+    if (mode === "flow" && area.members.length) contentOrder.push(...area.flow.order.map(id => ({ kind: "widget", id })));
     else {
       contentOrder.push({ kind: "composition", id: entry.id });
       compositions[entry.id] = clone(area.composition.geometry);
@@ -115,7 +116,9 @@ export function serializeWyrmetizerEditorPage(page, adapters) {
   for (const id of page.widgetsOrder) if (!members.has(id) && !listed.has(id)) layout.contentOrder.push({ kind: "widget", id });
   const rank = entry => entry.kind === "widget" ? page.widgetsOrder.indexOf(entry.id) :
     Math.min(...layout.areas[entry.id].members.map(id => page.widgetsOrder.indexOf(id)));
-  layout.contentOrder.sort((a, b) => rank(a) - rank(b));
+  const emptyArea = entry => entry.kind === "area" && !layout.areas[entry.id].members.length;
+  const ordered = layout.contentOrder.filter(entry => !emptyArea(entry)).sort((a, b) => rank(a) - rank(b));
+  layout.contentOrder = layout.contentOrder.map(entry => emptyArea(entry) ? entry : ordered.shift());
   next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
   validateWyrmetizerPage(next, adapters);
   return next;
@@ -135,7 +138,7 @@ export function validateWyrmetizerPage(page, adapters) {
     areaIds.push(entry.id);
     const area = layout.areas[entry.id];
     if (area?.version !== 1 || !["flow", "composition"].includes(area.activeMode) ||
-        !Array.isArray(area.members) || !area.members.length || !sameMembers(area.members, area.members)) fail("invalid Area");
+        !Array.isArray(area.members) || !sameMembers(area.members, area.members)) fail("invalid Area");
     if (!sameMembers(area.flow?.order, area.members) ||
         !sameMembers(area.composition?.geometry?.childrenOrder, area.members)) fail("inconsistent membership");
     for (const mode of ["flow", "composition"]) {
@@ -153,14 +156,25 @@ export function validateWyrmetizerPage(page, adapters) {
       for (const mode of ["flow", "composition"])
         if (!adapters[widget.type]?.supports(presented(widget, area[mode].presentation[id]))) fail("unsupported member");
     }
+    if (area.detached !== undefined) {
+      if (!record(area.detached)) fail("invalid restoration records");
+      for (const [id, saved] of Object.entries(area.detached)) {
+        if (!page.widgets[id] || !layout.contentOrder.some(entry => entry.kind === "widget" && entry.id === id) ||
+            !record(saved) || typeof saved.source !== "string" || !record(saved.presentation) ||
+            Object.keys(saved.presentation).some(key => !imagePresentationKeys.includes(key)) ||
+            [saved.flowIndex, saved.readingIndex, saved.stackIndex].some(index => !Number.isSafeInteger(index) || index < 0)) fail("invalid restoration record");
+        validateCompositionLayout({ widgets: { [id]: presented({ type: "image", settings: { image: saved.source } }, saved.presentation) }, widgetsOrder: [id],
+          layout: { version: 1, contentOrder: [{ kind: "composition", id: entry.id }], compositions: { [entry.id]: saved.geometry } } }, adapters);
+      }
+    }
   }
   if (!sameMembers(areaIds, Object.keys(layout.areas)) || owners.size !== Object.keys(page.widgets || {}).length) fail("orphan ownership");
   // Validate inactive composition geometry too, without including it in active rendering.
   const allComposition = clone(page);
   for (const area of Object.values(allComposition.layout.areas)) area.activeMode = "composition";
-  validateCompositionLayout(resolveWyrmetizerPage(allComposition), adapters);
+  validateCompositionLayout(resolveWyrmetizerPage(allComposition), adapters, { allowEmptyAreas: true });
   const active = resolveWyrmetizerPage(page);
-  validateCompositionLayout(active, adapters);
+  validateCompositionLayout(active, adapters, { allowEmptyAreas: true });
   if (JSON.stringify(active.widgetsOrder) !== JSON.stringify(page.widgetsOrder)) fail("order projection differs");
 }
 
@@ -199,24 +213,64 @@ export function switchWyrmetizerMode(page, areaId, mode, adapters) {
   return next;
 }
 
-export function includeWyrmetizerWidgets(page, areaId, ids, frames, adapters) {
+export function includeWyrmetizerWidgets(page, areaId, ids, frames, adapters, canRestore = (_id, saved, geometry) =>
+  geometry.profiles.desktop.referenceWidthPx === saved.geometry.profiles.desktop.referenceWidthPx &&
+  geometry.profiles.desktop.height.valuePx >= saved.geometry.profiles.desktop.height.valuePx) {
   validateWyrmetizerPage(page, adapters);
   if (!page.layout.areas[areaId] || !Array.isArray(ids) || !ids.length || new Set(ids).size !== ids.length ||
       ids.some(id => !page.widgets[id] || Object.values(page.layout.areas).some(area => area.members.includes(id))))
     fail("invalid existing Widget membership");
   const next = clone(page), area = next.layout.areas[areaId], geometry = area.composition.geometry;
+  const insertIndex = (saved, key, order) => Math.max(0, Math.min(order.length, saved[key] -
+    Object.values(area.detached || {}).filter(value => value[key] < saved[key]).length));
   for (const id of ids) {
     const split = splitWidget(page.widgets[id]);
+    const saved = area.detached?.[id];
+    const restore = saved && saved.source === page.widgets[id].settings.image &&
+      adapters[page.widgets[id].type]?.supports(presented(page.widgets[id], saved.presentation)) && canRestore(id, saved, geometry);
     next.widgets[id] = split.content;
     area.members.push(id);
-    area.flow.order.push(id);
+    area.flow.order.splice(restore ? insertIndex(saved, "flowIndex", area.flow.order) : area.flow.order.length, 0, id);
     area.flow.presentation[id] = clone(split.presentation);
-    area.composition.presentation[id] = clone(split.presentation);
-    geometry.childrenOrder.push(id);
-    geometry.stackOrder.push(id);
-    geometry.placements[id] = { version: 1, responsive: { mode: "inherit" }, frames: { desktop: clone(frames[id]) } };
+    area.composition.presentation[id] = clone(restore ? saved.presentation : split.presentation);
+    geometry.childrenOrder.splice(restore ? insertIndex(saved, "readingIndex", geometry.childrenOrder) : geometry.childrenOrder.length, 0, id);
+    geometry.stackOrder.splice(restore ? insertIndex(saved, "stackIndex", geometry.stackOrder) : geometry.stackOrder.length, 0, id);
+    geometry.placements[id] = restore ? clone(saved.geometry.placements[id]) :
+      { version: 1, responsive: { mode: "inherit" }, frames: { desktop: clone(frames[id]) } };
+    for (const other of Object.values(next.layout.areas)) if (other.detached) delete other.detached[id];
   }
   next.layout.contentOrder = next.layout.contentOrder.filter(entry => entry.kind !== "widget" || !ids.includes(entry.id));
+  next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
+  validateWyrmetizerPage(next, adapters);
+  return next;
+}
+
+export function removeWyrmetizerWidget(page, areaId, id, adapters) {
+  validateWyrmetizerPage(page, adapters);
+  if (!page.layout.areas[areaId]?.members.includes(id)) fail("Widget is not a member of this Area");
+  const next = clone(page), area = next.layout.areas[areaId], geometry = area.composition.geometry;
+  const savedGeometry = clone(geometry);
+  savedGeometry.childrenOrder = [id]; savedGeometry.stackOrder = [id];
+  savedGeometry.placements = { [id]: clone(geometry.placements[id]) };
+  area.detached ??= {};
+  const originalIndex = (key, index) => {
+    for (const value of Object.values(area.detached).sort((a, b) => a[key] - b[key])) if (value[key] <= index) index++;
+    return index;
+  };
+  area.detached[id] = { source: page.widgets[id].settings.image, geometry: savedGeometry,
+    presentation: clone(area.composition.presentation[id]), flowIndex: originalIndex("flowIndex", area.flow.order.indexOf(id)),
+    readingIndex: originalIndex("readingIndex", geometry.childrenOrder.indexOf(id)), stackIndex: originalIndex("stackIndex", geometry.stackOrder.indexOf(id)) };
+  next.widgets[id] = presented(page.widgets[id], area.flow.presentation[id]);
+  area.members = area.members.filter(value => value !== id);
+  area.flow.order = area.flow.order.filter(value => value !== id);
+  delete area.flow.presentation[id]; delete area.composition.presentation[id];
+  geometry.childrenOrder = geometry.childrenOrder.filter(value => value !== id);
+  geometry.stackOrder = geometry.stackOrder.filter(value => value !== id);
+  delete geometry.placements[id];
+  let index = next.layout.contentOrder.findIndex(entry => entry.kind === "area" && entry.id === areaId) + 1;
+  while (next.layout.contentOrder[index]?.kind === "widget" &&
+      area.detached[next.layout.contentOrder[index].id]?.flowIndex < area.detached[id].flowIndex) index++;
+  next.layout.contentOrder.splice(index, 0, { kind: "widget", id });
   next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
   validateWyrmetizerPage(next, adapters);
   return next;
@@ -290,6 +344,7 @@ export function deleteWyrmetizerWidget(page, id, adapters) {
   delete next.widgets[id];
   next.layout.contentOrder = next.layout.contentOrder.filter(entry => entry.kind !== "widget" || entry.id !== id);
   for (const [areaId, area] of Object.entries(next.layout.areas)) {
+    if (area.detached) delete area.detached[id];
     if (!area.members.includes(id)) continue;
     area.members = area.members.filter(value => value !== id);
     area.flow.order = area.flow.order.filter(value => value !== id);

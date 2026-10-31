@@ -12,7 +12,8 @@ import CompositionControls from "../CompositionControls";
 import usePageStore from "../../../stores/pageStore";
 import useWidgetStore from "../../../stores/widgetStore";
 import useAutoSave from "../../../stores/saveStore";
-import { compositionInteractionContext, handleCompositionSelectionMessage, switchPairedCompositionMode } from "../../../lib/compositionActions";
+import { compositionInteractionContext, handleCompositionSelectionMessage, switchPairedCompositionMode,
+  convertImages, removeImageFromComposition, addImagesToComposition } from "../../../lib/compositionActions";
 
 const saved = () => serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
 beforeEach(() => {
@@ -143,6 +144,83 @@ it("does not relax legacy-page gating for Images without explicit sizing", () =>
   render(<CompositionControls widgetId="a" />);
   expect(screen.queryByRole("button", { name: "Create Composition Area" })).toBeNull();
   expect(usePageStore.getState().page).toEqual(page);
+});
+
+it.each(["composition", "flow"])("removes a selected Image in %s with atomic history and restores its geometry on rejoin", mode => {
+  const { rerender } = render(<CompositionControls widgetId="a" />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "B" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
+  const areaId = Object.keys(saved().layout.areas)[0];
+  const authored = structuredClone(usePageStore.getState().page);
+  const geometry = authored.layout.compositions[areaId];
+  geometry.placements.a.version = 3;
+  Object.assign(geometry.placements.a.frames.desktop, { x: 0.4, y: 0.25, rotation: 30, rotationPivot: { x: 0.2, y: 0.8 } });
+  geometry.stackOrder.reverse();
+  authored.wyrmetizerEditorLayout.areas[areaId].flow.presentation.a.image_transform.dimensions.width.value = 173;
+  authored.wyrmetizerEditorLayout.areas[areaId].flow.presentation.a.top_spacing_px = 93;
+  act(() => {
+    usePageStore.getState().setPage(authored);
+    if (mode === "flow") switchPairedCompositionMode(areaId, mode);
+  });
+  const before = structuredClone(usePageStore.getState().page), canonical = saved();
+  usePageStore.temporal.getState().clear();
+  fireEvent.click(screen.getByRole("button", { name: "Remove from Composition" }));
+  const removed = saved(), area = removed.layout.areas[areaId];
+  expect(area.members).toEqual(["b"]);
+  expect(removed.widgets.a.settings).toEqual({ ...canonical.widgets.a.settings, ...canonical.layout.areas[areaId].flow.presentation.a });
+  expect(area.composition.geometry.placements.b).toEqual(canonical.layout.areas[areaId].composition.geometry.placements.b);
+  expect(removed.widgets.c).toEqual(canonical.widgets.c);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  const after = structuredClone(usePageStore.getState().page);
+  act(() => usePageStore.temporal.getState().undo()); expect(usePageStore.getState().page).toEqual(before);
+  act(() => usePageStore.temporal.getState().redo()); expect(usePageStore.getState().page).toEqual(after);
+  act(() => {
+    usePageStore.getState().setPage(JSON.parse(JSON.stringify(removed)));
+    useWidgetStore.getState().updateWidgetSettingValues("a", { top_spacing_px: 111,
+      image_transform: { ...removed.widgets.a.settings.image_transform,
+        dimensions: { width: { unit: "px", value: 500 }, height: { unit: "px", value: 1500 } } } });
+  });
+  rerender(<CompositionControls compositionId={areaId} widgetId="b" blockSelected />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add checked images to Composition Area" }));
+  expect(saved().layout.areas[areaId].composition).toEqual(canonical.layout.areas[areaId].composition);
+  expect(saved().layout.areas[areaId].flow.presentation.a.top_spacing_px).toBe(111);
+  expect(saved().layout.areas[areaId].flow.presentation.a.image_transform.dimensions.height.value).toBe(1500);
+});
+
+it("keeps the final empty Area editable through reload and permits rejoining it", () => {
+  const { rerender } = render(<CompositionControls widgetId="a" />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
+  const areaId = Object.keys(saved().layout.areas)[0], before = saved().layout.areas[areaId].composition;
+  fireEvent.click(screen.getByRole("button", { name: "Remove from Composition" }));
+  const page = saved();
+  expect(page.layout.areas[areaId].members).toEqual([]);
+  act(() => usePageStore.getState().setPage(JSON.parse(JSON.stringify(page))));
+  rerender(<CompositionControls compositionId={areaId} blockSelected />);
+  expect(screen.getByLabelText("Canvas height")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Remove from Composition" })).toBeNull();
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add checked images to Composition Area" }));
+  expect(saved().layout.areas[areaId].members).toEqual(["a"]);
+  expect(saved().layout.areas[areaId].composition).toEqual(before);
+});
+
+it.each(["source changed", "area shrunk"])("uses a fresh placement when saved geometry is unsafe: %s", reason => {
+  convertImages(["a"], 1000);
+  const areaId = Object.keys(saved().layout.areas)[0];
+  const authored = structuredClone(usePageStore.getState().page);
+  authored.layout.compositions[areaId].placements.a.frames.desktop.y = 0.6;
+  usePageStore.getState().setPage(authored);
+  removeImageFromComposition(areaId, "a");
+  const changed = structuredClone(usePageStore.getState().page);
+  if (reason === "source changed") changed.widgets.a.settings.image = "/different.jpg";
+  else changed.layout.compositions[areaId].profiles.desktop.height.valuePx = 250;
+  usePageStore.getState().setPage(changed);
+  expect(addImagesToComposition(areaId, ["a"])).toBe(true);
+  expect(saved().layout.areas[areaId].composition.geometry.placements.a.frames.desktop.y).toBe(0);
+  expect(saved().layout.areas[areaId].detached).toEqual({});
 });
 
 it("rejects stale or foreign Ctrl+Click messages and scopes draft checks to the current page load", () => {

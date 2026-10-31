@@ -1,6 +1,6 @@
 import { createComposition, dissolveComposition } from "@widgetizer/core/composition";
 import { defaultImageTransform } from "@widgetizer/core/imageTransform";
-import { initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
+import { initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget, switchWyrmetizerMode, editWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { after, before, it } from "node:test";
 import assert from "node:assert/strict";
@@ -208,6 +208,44 @@ it("saves added existing Image Widgets without duplicating members or changing i
   assert.deepEqual(restored.layout.areas.area.members, ["a", "b"]);
   assert.equal(restored.layout.areas.area.flow.presentation.b.top_spacing_px, 93);
   assert.equal(restored.widgets.b.settings.link, "/shared");
+});
+
+it("persists removed Images, the final empty Area and exact Composition restoration after reload", async () => {
+  const transform = defaultImageTransform();
+  transform.dimensions = { width: { unit: "px", value: 100 }, height: { unit: "px", value: 80 } };
+  const image = () => ({ type: "image", settings: { image: "/uploads/images/photo.jpg", image_transform: structuredClone(transform), link: "/shared" }, blocks: {}, blocksOrder: [] });
+  let page = initializeWyrmetizerPage({ id: "removed", slug: "removed", name: "Removed",
+    widgets: { a: image(), b: image() }, widgetsOrder: ["a", "b"] }, compositionAdapters);
+  const frame = { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } };
+  page = createWyrmetizerComposition(page, "area", ["a", "b"], { a: frame, b: { ...frame, x: 0.4 } }, 1200, 800, compositionAdapters);
+  page.layout.areas.area.composition.geometry.placements.a.version = 3;
+  Object.assign(page.layout.areas.area.composition.geometry.placements.a.frames.desktop,
+    { rotation: 30, rotationPivot: { x: 0.2, y: 0.8 } });
+  const original = structuredClone(page.layout.areas.area.composition);
+  page.layout.areas.area.flow.presentation.a.image_transform.dimensions.width.value = 173;
+  const req = body => ({ ...request(body), params: { id: page.id } });
+  const roundTrip = async value => {
+    const saved = response(); await savePageContent(req(value), saved);
+    assert.equal(saved.code, 200, JSON.stringify(saved.data));
+    const loaded = response(); await getPage(req(), loaded);
+    assert.equal(loaded.code, 200);
+    assert.deepEqual(loaded.data.layout, value.layout);
+    return loaded.data;
+  };
+  page = await roundTrip(page);
+  page = await roundTrip(removeWyrmetizerWidget(page, "area", "a", compositionAdapters));
+  assert.equal(page.widgets.a.settings.image_transform.dimensions.width.value, 173);
+  assert.equal(page.widgets.a.settings.link, "/shared");
+  assert.deepEqual(page.layout.areas.area.composition.geometry.placements.b, original.geometry.placements.b);
+  page = await roundTrip(removeWyrmetizerWidget(page, "area", "b", compositionAdapters));
+  assert.deepEqual(page.layout.areas.area.members, []);
+  const preview = response(); await generatePreview(req({ pageData: page, themeSettings, previewMode: "editor" }), preview);
+  assert.equal(preview.code, 200, JSON.stringify(preview.data));
+  assert.match(preview.html, /data-composition-id="area"/);
+  page = await roundTrip(includeWyrmetizerWidgets(page, "area", ["b", "a"], {}, compositionAdapters));
+  assert.deepEqual(page.layout.areas.area.composition, original);
+  assert.deepEqual(page.layout.areas.area.detached, {});
+  assert.deepEqual(Object.keys(page.widgets).sort(), ["a", "b"]);
 });
 
 it("does not let stale saves strip or downgrade a stored newer layout", async () => {

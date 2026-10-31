@@ -28,7 +28,7 @@ export function projectContentOrder(layout) {
     entry.kind === "widget" ? [entry.id] : layout.compositions[entry.id].childrenOrder,
   );
 }
-export function validateCompositionLayout(page, adapters = {}) {
+export function validateCompositionLayout(page, adapters = {}, { allowEmptyAreas = !!page.wyrmetizerEditorLayout } = {}) {
   if (page.layout === undefined || page.layout === null) return;
   if (page.layout.version === 2) return validateWyrmetizerPage(page, adapters);
   const l = page.layout;
@@ -52,7 +52,7 @@ export function validateCompositionLayout(page, adapters = {}) {
       if (c?.version !== 1 || c.type !== "composition-area") fail("unsupported Block");
       if (
         !unique(c.childrenOrder) ||
-        !c.childrenOrder.length ||
+        (!c.childrenOrder.length && !allowEmptyAreas) ||
         !unique(c.stackOrder) ||
         c.stackOrder.length !== c.childrenOrder.length ||
         c.stackOrder.some((id) => !c.childrenOrder.includes(id))

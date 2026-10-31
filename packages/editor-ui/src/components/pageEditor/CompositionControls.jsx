@@ -8,6 +8,7 @@ import {
   convertImages,
   compositionImageForCreation,
   addImagesToComposition,
+  removeImageFromComposition,
   layerImage,
   returnCompositionToFlow,
   compositionHeightValue,
@@ -17,7 +18,7 @@ import {
   compositionInteractionContext,
 } from "../../lib/compositionActions";
 
-export default function CompositionControls({ widgetId, blockSelected = false }) {
+export default function CompositionControls({ widgetId, compositionId, blockSelected = false }) {
   const page = usePageStore((s) => s.page),
     schemas = useWidgetStore((s) => s.schemas);
   const context = useWidgetStore((s) => s.compositionContext);
@@ -26,8 +27,9 @@ export default function CompositionControls({ widgetId, blockSelected = false })
   const ids = useWidgetStore.getState().getCompositionSelection(selection);
   const [height, setHeight] = useState(() => compositionFor(page, widgetId)?.[1].profiles.desktop.height.valuePx || 1000),
     [error, setError] = useState("");
-  const found = compositionFor(page, widgetId);
-  const paired = Object.entries(page?.wyrmetizerEditorLayout?.areas || {}).find(([, area]) => area.members.includes(widgetId));
+  const found = compositionId && page?.layout?.compositions?.[compositionId] ?
+    [compositionId, page.layout.compositions[compositionId]] : compositionFor(page, widgetId);
+  const paired = Object.entries(page?.wyrmetizerEditorLayout?.areas || {}).find(([id, area]) => id === compositionId || area.members.includes(widgetId));
   const eligible = Object.entries(page?.widgets || {}).filter(
     ([id, w]) =>
       !compositionFor(page, id) &&
@@ -46,7 +48,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
     }
   };
   const preview = (field, value, phase = value === null ? "cancel" : "preview") => {
-    if (!found) return;
+    if (!found || !found[1].placements[widgetId]) return;
     window.dispatchEvent(new CustomEvent("wyrmetizer:numeric-preview", { detail: {
       field, value: field === "height" && value !== null ? compositionHeightValue(found[0], value) : value, phase, widgetId,
       context: compositionInteractionContext(), revision: compositionRevision(page.widgets[widgetId], found[1].placements[widgetId].frames.desktop),
@@ -70,6 +72,9 @@ export default function CompositionControls({ widgetId, blockSelected = false })
     <button className={button} disabled={!ids.length || context !== "desktop"}
       onClick={() => run(() => addImagesToComposition(paired[0], ids))}>Add checked images to Composition Area</button>
   </div>;
+  const removeMember = paired && !blockSelected && paired[1].members.includes(widgetId) &&
+    <button className={button} disabled={context !== "desktop"}
+      onClick={() => run(() => removeImageFromComposition(paired[0], widgetId))}>Remove from Composition</button>;
   if (paired && paired[1].activeMode === "flow")
     return (
       <section
@@ -86,6 +91,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
           Switch to Composition
         </button>
         {addMembers}
+        {removeMember}
         {error && (
           <p role="alert" className="text-xs text-red-700">
             {error}
@@ -199,6 +205,7 @@ export default function CompositionControls({ widgetId, blockSelected = false })
             </button>
           </div>}
           {addMembers}
+          {removeMember}
         </>
       ) : page?.wyrmetizerEditorLayout ? (
         <>

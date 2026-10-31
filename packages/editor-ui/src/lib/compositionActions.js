@@ -1,6 +1,6 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget } from "@widgetizer/core/wyrmetizerLayouts";
 import {
   changeStack,
   compositionFor,
@@ -134,7 +134,7 @@ export function compositionImageForCreation(widget, schema, geometry, allowImpli
   const candidate = { ...widget, settings: { ...widget.settings, image_transform: imageTransformV2(widget, reference) } };
   return compositionAdapters[widget.type]?.supports(candidate) ? candidate : null;
 }
-function initialImageFrames(ids, width, height) {
+function initialImageFrames(ids, width, height, restored = {}) {
   if (useWidgetStore.getState().compositionContext !== "desktop")
     throw new Error("Switch to Desktop to create a Composition Area.");
   const { page } = usePageStore.getState(),
@@ -153,6 +153,10 @@ function initialImageFrames(ids, width, height) {
     if (!compositionAdapters[w?.type]?.supports(w))
       throw new Error("Only v2 Arch Images without captions are supported in this milestone.");
     widgets[id] = w;
+    if (restored[id]) {
+      frames[id] = restored[id].geometry.placements[id].frames.desktop;
+      continue;
+    }
     const size = compositionImageRect(
       w,
       c,
@@ -179,11 +183,28 @@ export function addImagesToComposition(areaId, ids) {
   const area = canonical.layout?.areas?.[areaId];
   if (!area) throw new Error("Select an existing Composition Area first.");
   const profile = area.composition.geometry.profiles.desktop;
-  const { frames, page } = initialImageFrames(ids, profile.referenceWidthPx, profile.height.valuePx);
-  const next = includeWyrmetizerWidgets(serializeWyrmetizerEditorPage(page, compositionAdapters), areaId, ids, frames, compositionAdapters);
+  const restored = {};
+  for (const id of ids) {
+    const saved = area.detached?.[id], widget = canonical.widgets[id];
+    if (!saved || saved.source !== widget?.settings.image) continue;
+    const shown = { ...widget, settings: { ...widget.settings, ...saved.presentation } };
+    const frame = saved.geometry.placements[id].frames.desktop;
+    const ref = useWidgetStore.getState().imageGeometry[id];
+    if (compositionAdapters[shown.type]?.supports(shown) && containedRect(
+      compositionImageRect(shown, area.composition.geometry, frame, ref?.naturalWidth, ref?.naturalHeight),
+      profile.referenceWidthPx, profile.height.valuePx, frame.rotation, frame.rotationPivot)) restored[id] = saved;
+  }
+  const { frames, page } = initialImageFrames(ids, profile.referenceWidthPx, profile.height.valuePx, restored);
+  const next = includeWyrmetizerWidgets(serializeWyrmetizerEditorPage(page, compositionAdapters), areaId, ids, frames, compositionAdapters, id => !!restored[id]);
   const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
   if (changed) useWidgetStore.getState().clearCompositionSelection();
   return changed;
+}
+export function removeImageFromComposition(areaId, widgetId) {
+  if (useWidgetStore.getState().compositionContext !== "desktop") return false;
+  const canonical = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  const next = removeWyrmetizerWidget(canonical, areaId, widgetId, compositionAdapters);
+  return commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
 }
 export function handleCompositionSelectionMessage(event, iframe, origin) {
   if (!iframe || origin === "*" || origin === "null" || event.source !== iframe || event.origin !== origin ||
