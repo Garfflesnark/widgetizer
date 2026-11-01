@@ -149,6 +149,22 @@ async function createTestPage(name = "Test Page", extraBody = {}) {
   return res._json;
 }
 
+// These fixtures contain independent Flow Widgets; their canonical order must
+// accompany content writes now that new pages have a paired-layout envelope.
+function flowContent(widgets, widgetsOrder = Object.keys(widgets)) {
+  return {
+    widgets,
+    widgetsOrder,
+    layout: { version: 2, areas: {}, contentOrder: widgetsOrder.map((id) => ({ kind: "widget", id })) },
+  };
+}
+
+function assertFlowContent(page, widgetsOrder) {
+  assert.deepEqual(page.widgetsOrder, widgetsOrder);
+  assert.deepEqual(page.layout, flowContent(page.widgets, widgetsOrder).layout);
+  assert.deepEqual([...widgetsOrder].sort(), Object.keys(page.widgets).sort());
+}
+
 // ============================================================================
 // Test setup
 // ============================================================================
@@ -563,15 +579,18 @@ describe("updatePage", () => {
     const page = await createTestPage("Widget Preserve");
     const pagePath = getPagePath(activeProject.folderName, page.slug);
     const onDisk = await fs.readJson(pagePath);
-    onDisk.widgets = { "widget-1": { type: "hero", settings: { title: "Hello" } } };
-    await fs.writeJson(pagePath, onDisk);
+    const content = flowContent({ "widget-1": { type: "hero", settings: { title: "Hello" } } });
+    await fs.writeJson(pagePath, { ...onDisk, ...content });
 
     // Update without sending widgets
     const res = await callController(updatePage, {
       params: { id: page.slug },
       body: { name: "Widget Preserve", slug: page.slug },
     });
+    assert.equal(res._status, 200, JSON.stringify(res._json));
     assert.equal(res._json.data.widgets["widget-1"].settings.title, "Hello");
+    assertFlowContent(res._json.data, ["widget-1"]);
+    assertFlowContent(await fs.readJson(pagePath), ["widget-1"]);
   });
 });
 
@@ -593,7 +612,7 @@ describe("savePageContent", () => {
 
     const res = await callController(savePageContent, {
       params: { id: page.slug },
-      body: { name: "Editor Page", slug: page.slug, widgets },
+      body: { ...page, ...flowContent(widgets, ["w2", "w1"]) },
     });
     assert.equal(res._status, 200);
     assert.equal(res._json.success, true);
@@ -602,6 +621,7 @@ describe("savePageContent", () => {
     const onDisk = await fs.readJson(getPagePath(activeProject.folderName, page.slug));
     assert.equal(Object.keys(onDisk.widgets).length, 2);
     assert.equal(onDisk.widgets.w1.settings.title, "Hero Title");
+    assertFlowContent(onDisk, ["w2", "w1"]);
   });
 
   it("preserves uuid and created date", async () => {
@@ -610,7 +630,7 @@ describe("savePageContent", () => {
     await new Promise((r) => setTimeout(r, 10));
     await callController(savePageContent, {
       params: { id: page.slug },
-      body: { name: "Preserve Check", slug: page.slug, widgets: { w: { type: "text" } } },
+      body: { ...page, ...flowContent({ w: { type: "text" } }) },
     });
 
     const onDisk = await fs.readJson(getPagePath(activeProject.folderName, page.slug));
@@ -625,7 +645,7 @@ describe("savePageContent", () => {
 
     const res = await callController(savePageContent, {
       params: { id: page.slug },
-      body: { name: "Old Slug", slug: "new-slug", widgets: {} },
+      body: { ...page, slug: "new-slug", ...flowContent({}) },
     });
     assert.equal(res._status, 200);
 
@@ -652,7 +672,7 @@ describe("savePageContent", () => {
 
     await callController(savePageContent, {
       params: { id: page.slug },
-      body: { name: "SEO Save", slug: page.slug, widgets: {}, seo },
+      body: { ...page, ...flowContent({}), seo },
     });
 
     const onDisk = await fs.readJson(getPagePath(activeProject.folderName, page.slug));
@@ -680,7 +700,7 @@ describe("savePageContent", () => {
       widgets[`w${i}`] = { type: "text", settings: {} };
       widgetsOrder.push(`w${i}`);
     }
-    return { widgets, widgetsOrder };
+    return flowContent(widgets, widgetsOrder);
   }
 
   it("rejects a page whose widget count exceeds the adapter limit", async () => {
@@ -854,11 +874,11 @@ describe("duplicatePage", () => {
     // Add widgets to the page on disk
     const pagePath = getPagePath(activeProject.folderName, page.slug);
     const onDisk = await fs.readJson(pagePath);
-    onDisk.widgets = { hero: { type: "hero", settings: { title: "Keep Me" } } };
-    await fs.writeJson(pagePath, onDisk);
+    await fs.writeJson(pagePath, { ...onDisk, ...flowContent({ hero: { type: "hero", settings: { title: "Keep Me" } } }) });
 
     const res = await callController(duplicatePage, { params: { id: page.slug } });
     assert.equal(res._json.widgets.hero.settings.title, "Keep Me");
+    assertFlowContent(res._json, ["hero"]);
   });
 
   it("increments copy number for multiple duplicates", async () => {
@@ -1106,11 +1126,16 @@ describe("listing anchor (one page per collection)", () => {
     );
   });
 
-  const saveWith = async (slug, name, widgets) =>
-    callController(savePageContent, {
+  const saveWith = async (slug, name, widgets) => {
+    const res = await callController(savePageContent, {
       params: { id: slug },
-      body: { name, slug, widgets, widgetsOrder: Object.keys(widgets) },
+      body: { name, slug, ...flowContent(widgets) },
     });
+    if (res._status === 200) {
+      assertFlowContent(await fs.readJson(getPagePath(activeProject.folderName, slug)), Object.keys(widgets));
+    }
+    return res;
+  };
 
   it("moves the anchor off the previous page and reports which", async () => {
     const first = await createTestPage("Blog");
@@ -1124,6 +1149,7 @@ describe("listing anchor (one page per collection)", () => {
 
     const firstRead = await callController(getPage, { params: { id: first.slug } });
     assert.equal(firstRead._json.widgets.w1.settings.listing_anchor, false);
+    assertFlowContent(firstRead._json, ["w1"]);
     const secondRead = await callController(getPage, { params: { id: second.slug } });
     assert.equal(secondRead._json.widgets.w1.settings.listing_anchor, true);
   });
@@ -1205,6 +1231,7 @@ describe("listing anchor (one page per collection)", () => {
     const copy = await callController(getPage, { params: { id: dup._json.slug } });
     assert.equal(copy._json.widgets.w1.settings.paginate, true);
     assert.equal(copy._json.widgets.w1.settings.listing_anchor, false);
+    assertFlowContent(copy._json, ["w1"]);
   });
 
   it("refuses items per page that are not a whole number of at least 1", async () => {
@@ -1262,16 +1289,18 @@ describe("listing anchor (one page per collection)", () => {
     };
     const refused = await callController(updatePage, {
       params: { id: page.slug },
-      body: { name: page.name, slug: page.slug, widgets: twoPagers },
+      body: { ...page, ...flowContent(twoPagers) },
     });
     assert.equal(refused._status, 422);
 
     const accepted = await callController(updatePage, {
       params: { id: page.slug },
-      body: { name: page.name, slug: page.slug, widgets: { w1: { type: "news-grid", settings: { paginate: true } } } },
+      body: { ...page, ...flowContent({ w1: { type: "news-grid", settings: { paginate: true } } }) },
     });
     assert.equal(accepted._status, 200);
     assert.equal(accepted._json.data.widgets.w1.settings.paginate, true);
+    assertFlowContent(accepted._json.data, ["w1"]);
+    assertFlowContent(await fs.readJson(getPagePath(activeProject.folderName, page.slug)), ["w1"]);
   });
 
   it("does not fail on a malformed widget schema, and a later paginator still works", async () => {
@@ -1399,15 +1428,17 @@ describe("pages in another language", () => {
 
     const saved = await callController(savePageContent, {
       params: { id: "ta-nea" },
-      body: { name: "Nea", slug: "ta-nea", widgets: { w1: { type: "text", settings: {} } }, ...EL },
+      body: { ...renamed._json.data, ...flowContent({ w1: { type: "text", settings: {} } }), ...EL },
     });
     assert.equal(saved._status, 200);
     assert.equal((await fs.readJson(greekPagePath("ta-nea"))).translationGroupId, page.uuid);
+    assertFlowContent(await fs.readJson(greekPagePath("ta-nea")), ["w1"]);
 
     const copy = await callController(duplicatePage, { params: { id: "ta-nea" }, query: EL });
     assert.equal(copy._status, 201);
     assert.equal(copy._json.language, "el");
     assert.equal(copy._json.translationGroupId, copy._json.uuid, "a copy starts its own group");
+    assertFlowContent(copy._json, ["w1"]);
     assert.equal(await fs.pathExists(greekPagePath(copy._json.slug)), true);
 
     const deleted = await callController(deletePage, { params: { id: "ta-nea" }, query: EL });
@@ -1422,13 +1453,14 @@ describe("pages in another language", () => {
   it("clears references to a deleted page in every language's pages and menus", async () => {
     const target = await createTestPage("Target");
     const greek = await createTestPage("Greek Linker", EL);
-    await callController(savePageContent, {
+    const saved = await callController(savePageContent, {
       params: { id: "greek-linker" },
       body: {
         ...greek,
-        widgets: { w1: { type: "cta", settings: { link: { href: "target.html", pageUuid: target.uuid } } } },
+        ...flowContent({ w1: { type: "cta", settings: { link: { href: "target.html", pageUuid: target.uuid } } } }),
       },
     });
+    assert.equal(saved._status, 200, JSON.stringify(saved._json));
     const menuPath = path.join(projectDir(), "menus", "el", "main.json");
     await fs.outputJson(menuPath, {
       id: "main",
@@ -1442,6 +1474,7 @@ describe("pages in another language", () => {
     const linker = await fs.readJson(greekPagePath("greek-linker"));
     assert.equal(linker.widgets.w1.settings.link.pageUuid, undefined);
     assert.equal(linker.widgets.w1.settings.link.href, "");
+    assertFlowContent(linker, ["w1"]);
     const menu = await fs.readJson(menuPath);
     assert.equal(menu.items[0].pageUuid, undefined);
     assert.equal(menu.items[0].link, "");

@@ -34,7 +34,17 @@ const storeStub = (state) => {
 };
 
 vi.mock("../../../stores/pageStore", () => storeStub({ page: null, updateWidgetSettings: vi.fn() }));
-vi.mock("../../../stores/widgetStore", () => storeStub({ schemas: {} }));
+vi.mock("../../../stores/widgetStore", () => storeStub({
+  schemas: {},
+  compositionContext: "desktop",
+  compositionSelection: { scope: null, ids: [] },
+  imageGeometry: {},
+  getCompositionSelection: vi.fn(() => []),
+  resetImageScale: vi.fn(),
+  updateWidgetSettingValues: vi.fn(),
+  updateGlobalWidgetSettings: vi.fn(),
+  updateBlockSettings: vi.fn(),
+}));
 vi.mock("../../../stores/saveStore", () => storeStub({ setThemeSettingsModified: vi.fn() }));
 vi.mock("../../../stores/toastStore", () => storeStub({ showToast: vi.fn() }));
 
