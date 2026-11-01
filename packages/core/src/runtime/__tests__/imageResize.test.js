@@ -53,6 +53,53 @@ function pinnedFixture(anchors = []) {
   controller.setSizes({ w1: { width: 100, height: 0, transform } }); render();
   return transform;
 }
+it.each([1, 2])("invalidates an unselected v%s image when its reference changes and skips unchanged references", (version) => {
+  modernFixture();
+  preview.mockImplementation(() => {});
+  const transform = version === 1
+    ? { version: 1, reference: "intrinsic-fit", scale: { width: 50, height: null }, flowInset: { inlinePercent: 0, blockPercent: 0 } }
+    : { version: 2, reference: "intrinsic-fit", alignment: "center", dimensions: {
+      width: { unit: "%", value: 50 }, height: { unit: "%", value: null },
+    }, flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  const sizes = { w1: { width: 100, height: 0, transform } };
+  const original = structuredClone(sizes);
+  let containerWidth = 1000;
+  target.parentElement.getBoundingClientRect = () => ({ width: containerWidth });
+  const widthWrites = vi.spyOn(target.style, "width", "set");
+  for (const width of [1000, 390, 1000, 390, 640, 1000]) {
+    containerWidth = width;
+    controller.setSizes(sizes);
+    expect(target.style.width).toBe(`${width / 2}px`);
+    expect(target.querySelector("img").style.height).toBe(`${width / 4}px`);
+    const writes = widthWrites.mock.calls.length;
+    controller.setSizes(sizes);
+    expect(widthWrites).toHaveBeenCalledTimes(writes);
+    render();
+    expect(target.style.width).toBe(`${width / 2}px`);
+    expect(target.querySelector("img").style.height).toBe(`${width / 4}px`);
+  }
+  expect(sizes).toEqual(original);
+  expect(commit).not.toHaveBeenCalled();
+});
+it("invalidates intrinsic dimensions and container width even above the intrinsic fit limit", () => {
+  pinnedFixture();
+  preview.mockImplementation(() => {});
+  const transform = { version: 2, reference: "intrinsic-fit", alignment: "center", dimensions: {
+    width: { unit: "%", value: 50 }, height: { unit: "%", value: null },
+  }, flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  const sizes = { w1: { width: 100, height: 0, transform } };
+  controller.setSizes(sizes);
+  target.parentElement.getBoundingClientRect = () => ({ width: 1200 });
+  controller.setSizes(sizes);
+  expect(target.style.width).toBe("500px");
+  expect(target.style.marginInlineStart).toBe("350px");
+  widget.dataset.imageNaturalWidth = "800";
+  controller.setSizes(sizes);
+  expect(target.style.width).toBe("400px");
+  widget.dataset.imageNaturalHeight = "400";
+  controller.setSizes(sizes);
+  expect(target.querySelector("img").style.height).toBe("200px");
+});
 it.each([["px", "px"], ["px", "%"], ["%", "px"], ["%", "%"]])("resizes a rotated %s/%s composition image in local axes and keeps its green pin", (widthUnit, heightUnit) => {
   const model = pinnedFixture(["nw"]);
   model.dimensions = { width: { unit: widthUnit, value: widthUnit === "px" ? 200 : 20 },
@@ -381,6 +428,27 @@ it("reconciles canvas height alone without moving or resizing composition images
     expect(child.style.left).toBe("20%");
     expect(widget.querySelector("img")).toBe(image);
   }
+});
+
+it("uses Composition reference width while preserving proportional viewport scaling", () => {
+  const { area, child, model } = compositionFixture();
+  preview.mockImplementation(() => {});
+  const widthWrites = vi.spyOn(child.style, "width", "set");
+  const authored = structuredClone(model);
+  // Mobile scales the area visually; its authored reference remains 1000px.
+  area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 390, height: 312 });
+  controller.setSizes();
+  expect(widthWrites).not.toHaveBeenCalled();
+  expect(child.style.width).toBe("50%");
+  expect(child.style.height).toBe("31.25%");
+  area.dataset.compositionWidth = "800";
+  controller.setSizes();
+  expect(widthWrites).toHaveBeenCalledTimes(1);
+  expect(child.style.width).toBe("50%");
+  expect(child.style.height).toBe("25%");
+  expect(child.style.left).toBe("20%");
+  expect(model).toEqual(authored);
+  expect(commit).not.toHaveBeenCalled();
 });
 
 it("keeps an idle selected image and its resize nodes unchanged through Shift press, repeat and release", () => {

@@ -1400,8 +1400,12 @@ function initializeRuntime() {
   setupOverlayClickHandler();
   window.addEventListener("message", handleMessage);
 
-  // Re-render overlay on window resize
-  window.addEventListener("resize", () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); renderOverlay(); });
+  // Reconcile every image before redrawing selection controls at the new viewport size.
+  window.addEventListener("resize", () => {
+    imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel();
+    imageResizeController?.setSizes();
+    renderOverlay();
+  });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

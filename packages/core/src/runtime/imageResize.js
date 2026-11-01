@@ -325,7 +325,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         contextKeys.delete(id);
       }
     },
-    setSizes(sizes = {}, force = false) {
+    setSizes(sizes = Object.fromEntries(canonicalValues), force = false) {
       // Undo can return to the last server-rendered state before its debounce
       // fires. Reconcile from store values even when no morph will be requested.
       for (const [widgetId, size] of Object.entries(sizes)) {
@@ -336,15 +336,17 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         if (size.transform !== undefined && size.transform !== null && (!transforms.has(widgetId) || !isImageTransform(size.transform))) continue;
         canonicalValues.set(widgetId, size);
         const composition = compositionContext(widget);
-        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing, composition?.frame, composition?.height]);
+        // Applied pixel dimensions depend on the current reference as well as authored values.
+        const basis = isImageTransform(size.transform) ? reference(widget) : null;
+        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing, composition?.frame, composition?.height, basis]);
         if (!force && canonicalSizes.get(widgetId) === key) continue;
         if (gesture?.widgetId === widgetId) finish(false);
         if (draft?.widgetId === widgetId || spacingDraft?.widgetId === widgetId) cancelDraft();
         applySpacing(widget, size.spacing);
-        if (isImageTransform(size.transform)) applyTransform(snapshot(widget), size.transform, reference(widget));
+        if (basis) applyTransform(snapshot(widget), size.transform, basis);
         else apply(snapshot(widget), size.width, twoAxes ? size.height : undefined);
         canonicalSizes.set(widgetId, key);
-        if (transforms.has(widgetId)) onContext?.({ widgetId, ...reference(widget), hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth), naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" });
+        if (transforms.has(widgetId)) onContext?.({ widgetId, ...(basis || reference(widget)), hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth), naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" });
       }
       onPreview();
     },

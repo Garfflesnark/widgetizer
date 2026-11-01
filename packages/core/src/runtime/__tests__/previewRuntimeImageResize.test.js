@@ -55,6 +55,43 @@ beforeAll(async () => {
   await import("../previewRuntime.js");
 });
 
+it("reconciles unselected images on repeated viewport switches before selection can cause a size jump", () => {
+  message("UPDATE_SELECTION", { widgetId: null, compositionId: null });
+  const widget = document.createElement("section");
+  Object.assign(widget.dataset, { widgetId: "responsive-image", widgetType: "image", imageWidth: "100", imageHeight: "0",
+    imageTransformCapable: "true", imageUnits: "2", imageNaturalWidth: "1000", imageNaturalHeight: "500" });
+  widget.innerHTML = '<div><div data-image-resize-target><img></div></div>';
+  document.body.append(widget);
+  const target = widget.querySelector("[data-image-resize-target]"), image = target.querySelector("img");
+  let width = 1000;
+  target.parentElement.getBoundingClientRect = () => ({ left: 0, top: 0, width });
+  const transform = { version: 2, reference: "intrinsic-fit", alignment: "center", dimensions: {
+    width: { unit: "%", value: 50 }, height: { unit: "%", value: null },
+  }, flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  const viewport = Object.getOwnPropertyDescriptor(window, "innerWidth");
+  try {
+    message("SET_IMAGE_RESIZE_SUPPORT", { widgetIds: ["responsive-image"], stretchWidgetIds: ["responsive-image"],
+      transformWidgetIds: ["responsive-image"], sizes: { "responsive-image": { width: 100, height: 0, transform } } });
+    sent.length = 0;
+    for (width of [390, 1000, 390, 640, 1000]) {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+      window.dispatchEvent(new Event("resize"));
+      expect(target.style.width).toBe(`${width / 2}px`);
+      expect(image.style.height).toBe(`${width / 4}px`);
+      const style = widget.innerHTML;
+      message("UPDATE_SELECTION", { widgetId: "responsive-image" });
+      expect(widget.innerHTML).toBe(style);
+      message("UPDATE_SELECTION", { widgetId: null });
+    }
+    expect(sent.some(event => event.type === "IMAGE_RESIZE_COMMIT")).toBe(false);
+  } finally {
+    Object.defineProperty(window, "innerWidth", viewport);
+    message("UPDATE_SELECTION", { widgetId: null });
+    message("SET_IMAGE_RESIZE_SUPPORT", { widgetIds: [] });
+    widget.remove();
+  }
+});
+
 it("selects genuine Flow containers and their nested children separately without applying canvas geometry", () => {
   const area = document.createElement("section");
   Object.assign(area.dataset, { compositionId: "flow-area", compositionMode: "flow" });
