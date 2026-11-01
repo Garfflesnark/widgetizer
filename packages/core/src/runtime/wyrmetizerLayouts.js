@@ -288,13 +288,13 @@ function validateMobileEnvelope(page, layout, adapters) {
     for (const mode of ["flow", "composition"]) {
       const modeData = value[mode];
       if (modeData === undefined) continue;
-      if (!record(modeData) || Object.keys(modeData).some(key => !["order", "presentation", "geometry"].includes(key))) fail("invalid Mobile mode");
+      const modeKeys = mode === "flow" ? ["order", "presentation"] : ["presentation", "geometry"];
+      if (!record(modeData) || Object.keys(modeData).some(key => !modeKeys.includes(key))) fail("invalid Mobile mode");
       if (modeData.order !== undefined && !sameMembers(modeData.order, members)) fail(`invalid Mobile ${mode} reading order`);
       const patches = modeData.presentation ?? {};
       if (!record(patches) || Object.keys(patches).some(id => !members.includes(id))) fail("invalid Mobile presentation membership");
       for (const [id, patch] of Object.entries(patches))
         validatePresentation(id, patch, desktop[mode].presentation[id]);
-      if (mode === "flow" && modeData.geometry !== undefined) fail("Flow cannot contain Mobile geometry");
       if (mode === "composition" && modeData.geometry !== undefined) validateMobileGeometry(modeData.geometry, members);
     }
   }

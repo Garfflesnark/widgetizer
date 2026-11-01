@@ -58,6 +58,7 @@ describe("Wyrmetizer version 3 schema", () => {
       page => { page.layout.mobile.areas = { canvas: { flow: { presentation: { stale: { fullwidth: false } } } } }; },
       page => { page.layout.mobile.presentation = { after: { fullwidth: false } }; },
       page => { page.layout.mobile.rootOrder = [{ kind: "widget", id: "after" }]; },
+      page => { page.layout.mobile.areas = { canvas: { composition: { order: ["a", "b"] } } }; },
       page => { page.layout.mobile.areas = { canvas: { composition: { geometry: {
         version: 1, referenceWidthPx: 390, heightPx: 600, readingOrder: ["a", "b"], stackOrder: ["a", "b"],
         placements: { a: { x: { value: 391, unit: "px" }, y: { value: 0, unit: "%" }, pivot: { x: 0, y: 0 } },

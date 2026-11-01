@@ -48,7 +48,8 @@
     "./composition": "./src/runtime/composition.js",
     "./compositionImage": "./src/runtime/compositionImage.js",
     "./rotationGeometry": "./src/runtime/rotationGeometry.js",
-    "./wyrmetizerLayouts": "./src/runtime/wyrmetizerLayouts.js"
+    "./wyrmetizerLayouts": "./src/runtime/wyrmetizerLayouts.js",
+    "./wyrmetizerPresentation": "./src/runtime/wyrmetizerPresentation.js"
   },
   "dependencies": {
     "liquidjs": "^10.26.0",

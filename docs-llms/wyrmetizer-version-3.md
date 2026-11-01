@@ -50,3 +50,19 @@ orders. No existing project file is upgraded automatically. Unknown versions,
 Mobile fields in a version-2 envelope, malformed Mobile data, and stale Widget
 references are rejected. A version-3 envelope must be preserved by writers;
 older versions cannot save it as version 2.
+
+## Read-only presentation resolver
+
+`resolveWyrmetizerPresentation(page, viewportWidthPx, options)` returns a
+disposable view model with resolved `widgets`, `rootOrder`, and active `areas`.
+It validates the canonical page and does not mutate it. Version 2 resolves to
+Desktop at every viewport width. Version 3 selects Mobile at 749px and below;
+Mobile presentation patches overlay their paired Desktop presentation by
+property. Omitted root and Flow orders inherit their Desktop orders. Composition
+Mobile reading and stack orders inherit independently when Mobile geometry is
+omitted; child anchors are then mapped proportionally into the 390px canvas.
+Supplying `options.imageDimensions` as a Widget-ID keyed map lets the resolver
+check effective child rectangles against their resolved parent canvas. When
+dimensions are not supplied, composition images use the existing 1600×900
+fallback convention. The resolver does not integrate with rendering, preview,
+or export.
