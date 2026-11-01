@@ -4,6 +4,8 @@ export const imagePresentationKeys = Object.freeze([
   "image_transform", "fullwidth", "image_width_percent", "image_height_px",
   "top_spacing", "top_spacing_px", "bottom_spacing", "bottom_spacing_px",
 ]);
+const mobilePresentationKeys = imagePresentationKeys;
+export const WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX = 390;
 const clone = value => structuredClone(value);
 const fail = message => { throw new Error(`Composition layout (Wyrmetizer): ${message}`); };
 const record = value => value && typeof value === "object" && !Array.isArray(value);
@@ -142,7 +144,7 @@ export function pasteWyrmetizerComposition(page, clipboard, areaId, childIds, ad
 // The resolver is a disposable adapter for existing renderers, never persisted.
 // Canonical member Widgets contain content; each arrangement owns presentation.
 export function resolveWyrmetizerPage(page) {
-  if (page.layout?.version !== 2) return page;
+  if (![2, 3].includes(page.layout?.version)) return page;
   const next = clone(page), contentOrder = [], compositions = {};
   for (const entry of page.layout.contentOrder) {
     if (entry.kind === "widget") { contentOrder.push(clone(entry)); continue; }
@@ -162,7 +164,7 @@ export function resolveWyrmetizerPage(page) {
 // This editor-only projection lets established controls keep their view model.
 // Serialization removes it and routes presentation back to its single owner.
 export function openWyrmetizerEditorPage(page, adapters) {
-  if (page.layout?.version !== 2) return page;
+  if (![2, 3].includes(page.layout?.version)) return page;
   validateWyrmetizerPage(page, adapters);
   return { ...resolveWyrmetizerPage(page), wyrmetizerEditorLayout: clone(page.layout) };
 }
@@ -202,7 +204,9 @@ export function serializeWyrmetizerEditorPage(page, adapters) {
 
 export function validateWyrmetizerPage(page, adapters) {
   const layout = page.layout;
-  if (layout?.version !== 2 || !record(layout.areas) || !Array.isArray(layout.contentOrder)) fail("unsupported envelope");
+  if (![2, 3].includes(layout?.version) || !record(layout.areas) || !Array.isArray(layout.contentOrder)) fail("unsupported envelope");
+  if (layout.version === 3) validateMobileEnvelope(page, layout, adapters);
+  else if (Object.hasOwn(layout, "mobile")) fail("version 2 cannot contain Mobile data");
   if (Object.keys(layout.areas).length > 20) fail("too many Areas");
   const owners = new Set(), areaIds = [];
   for (const entry of layout.contentOrder) {
@@ -252,6 +256,87 @@ export function validateWyrmetizerPage(page, adapters) {
   const active = resolveWyrmetizerPage(page);
   validateCompositionLayout(active, adapters, { allowEmptyAreas: true });
   if (JSON.stringify(active.widgetsOrder) !== JSON.stringify(page.widgetsOrder)) fail("order projection differs");
+}
+
+function validateMobileEnvelope(page, layout, adapters) {
+  const mobile = layout.mobile;
+  if (!record(mobile) || mobile.referenceWidthPx !== WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX ||
+      Object.keys(mobile).some(key => !["referenceWidthPx", "rootOrder", "presentation", "areas"].includes(key)))
+    fail("invalid Mobile envelope or reference width");
+  const rootEntries = layout.contentOrder;
+  const rootOrder = mobile.rootOrder;
+  if (rootOrder !== undefined && (!Array.isArray(rootOrder) ||
+      rootOrder.some(entry => !record(entry) || !["widget", "area"].includes(entry.kind) || typeof entry.id !== "string") ||
+      !sameMembers(rootOrder.map(entry => `${entry.kind}:${entry.id}`), rootEntries.map(entry => `${entry.kind}:${entry.id}`))))
+    fail("invalid Mobile root order");
+  const standalone = rootEntries.filter(entry => entry.kind === "widget").map(entry => entry.id);
+  const rootPresentation = mobile.presentation ?? {};
+  if (!record(rootPresentation) || Object.keys(rootPresentation).some(id => !standalone.includes(id)))
+    fail("invalid Mobile root presentation ownership");
+  const validatePresentation = (widgetId, patch, desktopPresentation = {}) => {
+    if (!record(patch) || Object.keys(patch).some(key => !mobilePresentationKeys.includes(key))) fail("unsupported Mobile presentation property");
+    const widget = page.widgets[widgetId];
+    if (!adapters[widget?.type]?.supports(presented(widget, { ...desktopPresentation, ...patch })))
+      fail("unsupported Mobile presentation value");
+  };
+  for (const [id, patch] of Object.entries(rootPresentation)) validatePresentation(id, patch);
+  const mobileAreas = mobile.areas ?? {};
+  if (!record(mobileAreas) || Object.keys(mobileAreas).some(id => !Object.hasOwn(layout.areas, id))) fail("invalid Mobile Area ownership");
+  for (const [areaId, value] of Object.entries(mobileAreas)) {
+    const desktop = layout.areas[areaId], members = desktop.members;
+    if (!record(value) || Object.keys(value).some(key => !["flow", "composition"].includes(key))) fail("invalid Mobile Area");
+    for (const mode of ["flow", "composition"]) {
+      const modeData = value[mode];
+      if (modeData === undefined) continue;
+      if (!record(modeData) || Object.keys(modeData).some(key => !["order", "presentation", "geometry"].includes(key))) fail("invalid Mobile mode");
+      if (modeData.order !== undefined && !sameMembers(modeData.order, members)) fail(`invalid Mobile ${mode} reading order`);
+      const patches = modeData.presentation ?? {};
+      if (!record(patches) || Object.keys(patches).some(id => !members.includes(id))) fail("invalid Mobile presentation membership");
+      for (const [id, patch] of Object.entries(patches))
+        validatePresentation(id, patch, desktop[mode].presentation[id]);
+      if (mode === "flow" && modeData.geometry !== undefined) fail("Flow cannot contain Mobile geometry");
+      if (mode === "composition" && modeData.geometry !== undefined) validateMobileGeometry(modeData.geometry, members);
+    }
+  }
+}
+
+function finiteNumber(value, min, max) {
+  return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
+}
+
+function validateMobileGeometry(geometry, members) {
+  if (!record(geometry) || geometry.version !== 1 || geometry.referenceWidthPx !== WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX ||
+      !finiteNumber(geometry.heightPx, 1, 10000) || !sameMembers(geometry.readingOrder, members) ||
+      !sameMembers(geometry.stackOrder, members) || !record(geometry.placements) ||
+      !sameMembers(Object.keys(geometry.placements), members) ||
+      Object.keys(geometry).some(key => !["version", "referenceWidthPx", "heightPx", "readingOrder", "stackOrder", "placements"].includes(key)))
+    fail("invalid Mobile Composition geometry or order");
+  for (const id of members) {
+    const placement = geometry.placements[id];
+    if (!record(placement) || Object.keys(placement).some(key => !["x", "y", "pivot"].includes(key)) ||
+        !record(placement.pivot) || !finiteNumber(placement.pivot.x, 0, 1) || !finiteNumber(placement.pivot.y, 0, 1))
+      fail(`invalid Mobile placement: ${id}`);
+    for (const axis of ["x", "y"]) {
+      const coordinate = placement[axis];
+      if (!record(coordinate) || !["px", "%"].includes(coordinate.unit) || !Number.isFinite(coordinate.value))
+        fail(`invalid Mobile ${axis} unit: ${id}`);
+      const extent = axis === "x" ? WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX : geometry.heightPx;
+      const px = coordinate.unit === "%" ? coordinate.value * extent / 100 : coordinate.value;
+      if (px < 0 || px > extent) fail(`Mobile ${axis} is outside its parent: ${id}`);
+    }
+  }
+}
+
+// Conversion adds the fixed reference convention but does not create Mobile
+// overrides or orders; omitted values continue to inherit the Desktop contract.
+export function convertWyrmetizerPageToV3(page, adapters) {
+  validateWyrmetizerPage(page, adapters);
+  if (page.layout.version === 3) return page;
+  const next = clone(page);
+  next.layout.version = 3;
+  next.layout.mobile = { referenceWidthPx: WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX };
+  validateWyrmetizerPage(next, adapters);
+  return next;
 }
 
 export function createWyrmetizerCopy(page, adapters) {

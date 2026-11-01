@@ -76,7 +76,7 @@ async function readWidgetSchema(storage, scope, type) {
 async function validateCompositionCapabilities(page, storage, scope) {
   validateCompositionLayout(page, compositionAdapters);
   if (!page.layout) return;
-  if (page.layout.version === 2) {
+  if ([2, 3].includes(page.layout.version)) {
     // Saved inactive geometry must remain valid against current shared media.
     page = structuredClone(page);
     for (const area of Object.values(page.layout.areas)) area.activeMode = "composition";
@@ -263,7 +263,8 @@ async function persistPageInSection({ scope, storage, pageId, pageData, previous
         const previous = JSON.parse(buf.toString("utf8"));
         if ((pageData.layout?.version === 2 && previous.layout?.version !== 2) ||
             (previous.layout && (!Object.hasOwn(pageData, "layout") ||
-            (previous.layout.version !== 1 && pageData.layout?.version !== previous.layout.version)))) {
+            (previous.layout.version !== 1 && pageData.layout?.version !== previous.layout.version &&
+              !(previous.layout.version === 2 && pageData.layout?.version === 3))))) {
           const error = new Error("This page requires a composition-aware editor.");
           error.code = "COMPOSITION_EDITOR_REQUIRED"; throw error;
         }

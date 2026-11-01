@@ -30,7 +30,7 @@ export function projectContentOrder(layout) {
 }
 export function validateCompositionLayout(page, adapters = {}, { allowEmptyAreas = !!page.wyrmetizerEditorLayout } = {}) {
   if (page.layout === undefined || page.layout === null) return;
-  if (page.layout.version === 2) return validateWyrmetizerPage(page, adapters);
+  if ([2, 3].includes(page.layout.version)) return validateWyrmetizerPage(page, adapters);
   const l = page.layout;
   if (l?.version !== 1) fail("unsupported version");
   if (
