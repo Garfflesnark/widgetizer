@@ -18,6 +18,7 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { spawnSync } from "node:child_process";
+import { defaultImageTransform, DEFAULT_IMAGE_TRANSFORM } from "@widgetizer/core/imageTransform";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
@@ -271,6 +272,45 @@ describe("theme skill validator catches invented theme features", () => {
       edit(widget(dir, "hero", "widget.liquid"), (source) => `${source}\n<p>{{ widget.settings.subtitle }}</p>\n`),
     );
     assert.ok(hasError(findings, "unknown-setting"), JSON.stringify(findings));
+  });
+
+  async function imageTransformFindings(name, transform, capable = true) {
+    return findingsAfter(name, async (dir) => {
+      await fs.outputJson(widget(dir, "image", "schema.json"), {
+        type: "image", displayName: "Image", imageTransformVersion: 2, imageSpacingVersion: 1,
+        compositionCapability: "image.v1",
+        settings: capable ? ["image_scale_width", "image_scale_height"].map((id) =>
+          ({ id, type: "range", label: id, min: 0, max: 400, default: 0 })) : [],
+      });
+      await fs.outputFile(widget(dir, "image", "widget.liquid"),
+        '<section data-widget-id="{{ widget.id }}">{{ widget.settings.image_transform | json }}</section>');
+      await editJson(path.join(dir, "templates", "index.json"), (page) => {
+        page.widgets.geometry = { type: "image", settings: { image_transform: transform } };
+        page.widgetsOrder.push("geometry");
+      });
+    });
+  }
+
+  it("accepts editor-owned image transforms only for capable Image Widgets", async () => {
+    for (const transform of [DEFAULT_IMAGE_TRANSFORM, defaultImageTransform()]) {
+      const findings = await imageTransformFindings(`image-transform-${transform.version}`, transform);
+      assert.ok(!hasError(findings, "unknown-setting"), JSON.stringify(findings));
+      assert.ok(!hasError(findings, "setting-value"), JSON.stringify(findings));
+      assert.ok(!findings.some((finding) => finding.rule === "unknown-schema-property"), JSON.stringify(findings));
+    }
+    const incapable = await imageTransformFindings("image-transform-incapable", defaultImageTransform(), false);
+    assert.ok(hasError(incapable, "unknown-setting"), JSON.stringify(incapable));
+    const otherWidget = await findingsAfter("image-transform-other-widget", (dir) =>
+      edit(widget(dir, "hero", "widget.liquid"), (source) => `${source}\n{{ widget.settings.image_transform | json }}`));
+    assert.ok(hasError(otherWidget, "unknown-setting"), JSON.stringify(otherWidget));
+  });
+
+  it("rejects malformed and unknown-version editor-owned image transforms", async () => {
+    for (const [name, transform] of [["malformed", {}], ["future", { ...defaultImageTransform(), version: 99 }]]) {
+      const findings = await imageTransformFindings(`image-transform-${name}`, transform);
+      assert.ok(hasError(findings, "setting-value"), JSON.stringify(findings));
+      assert.ok(!hasError(findings, "unknown-setting"), JSON.stringify(findings));
+    }
   });
 
   it("raw output of a plain text setting", async () => {

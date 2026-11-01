@@ -72,6 +72,8 @@ The heading rule above is an example appropriate for an opening section, not a g
 
 ## Editor integration
 
+**Contract:** Image Widgets with the supported `image_scale_width` and `image_scale_height` range controls (min 0, max 400, default 0) use an editor-owned `widget.settings.image_transform` record. Do not declare it as a settings control. The validator uses the same Image capability check and version-1/version-2 transform validation as the editor; other Widgets do not gain an implicit setting with that name. `imageTransformVersion: 2` enables mixed units; `imageSpacingVersion: 1` and `compositionCapability: "image.v1"` declare the corresponding editor capabilities. Ship the matching schema and template together in theme updates so installed projects receive both the controls and rendering support. Authored Widget values remain in page content.
+
 **Contract:** emit one targetable outer element per widget with `data-widget-id="{{ widget.id }}"`; use `data-widget-type` for identification and a unique `id` for instance targeting. Mark each block's element with its actual instance key as `data-block-id`. Mark editable output with the matching `data-setting` ID in the correct widget/block scope. These attributes support preview selection, highlighting, and targeted updates; do not replace them with theme-specific names.
 
 While the author types, the editor writes the new value straight into every element carrying that `data-setting`, replacing the element's whole content:

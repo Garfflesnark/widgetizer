@@ -19,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Hash, TokenKind, toValueSync } from "liquidjs";
 import { createLiquidEngine } from "@widgetizer/render-engine";
 import { splitAssetRef } from "@widgetizer/core/assetUrl";
+import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { isValidLanguageCode } from "@widgetizer/core/languages";
 import { validateCollectionSchema } from "../packages/builder-server/src/services/collectionService.js";
 import { isNewerVersion, sortVersions } from "../packages/builder-server/src/utils/semver.js";
@@ -169,9 +170,15 @@ export function validateTheme(dir) {
     "maxBlocks",
     "supportsTransparentHeader",
     "collection",
+    "imageTransformVersion",
+    "imageSpacingVersion",
+    "compositionCapability",
   ]);
   // The editor adds these two controls to a widget that declares a collection.
   const INJECTED_LISTING_SETTINGS = { listing_anchor: "checkbox", paginate: "checkbox" };
+
+  const hasEditorImageTransform = (schema) =>
+    Array.isArray(schema.settings) && supportsImageTransform(schema, schema);
 
   const VERSION_RE = /^\d+\.\d+\.\d+$/;
   const SLUG_RE = /^[a-z0-9-]+$/;
@@ -565,7 +572,7 @@ export function validateTheme(dir) {
   }
 
   /** Check a stored settings object (template instance, preset item, preset override) against definitions. */
-  function checkSettingValues(file, values, definitions, where, { unknownIsError = true } = {}) {
+  function checkSettingValues(file, values, definitions, where, { unknownIsError = true, imageTransform = false } = {}) {
     if (values === undefined) return;
     if (!isObject(values)) {
       error(
@@ -576,6 +583,11 @@ export function validateTheme(dir) {
       return;
     }
     for (const [id, value] of Object.entries(values)) {
+      // Geometry is editor-owned data, not an author-declared setting control.
+      if (id === "image_transform" && imageTransform) {
+        if (!isImageTransform(value)) error(file, "setting-value", `${where}: "${id}" must be a supported image transform.`);
+        continue;
+      }
       const setting = definitions.get(id);
       if (!setting) {
         const message = `${where}: "${id}" is not a setting of this ${where.includes("block") ? "block" : "widget"}.${didYouMean(id, definitions.keys())}`;
@@ -936,6 +948,7 @@ export function validateTheme(dir) {
       if (owner === "widget" && group === "settings" && widget) {
         if (widget.settings.has(id) || (widget.schema.collection && Object.hasOwn(INJECTED_LISTING_SETTINGS, id)))
           continue;
+        if (id === "image_transform" && hasEditorImageTransform(widget.schema)) continue;
         error(
           file,
           "unknown-setting",
@@ -1482,6 +1495,7 @@ export function validateTheme(dir) {
         blocks: widget.blocks,
         maxBlocks: widget.schema.maxBlocks,
         collection: widget.schema.collection,
+        imageTransform: hasEditorImageTransform(widget.schema),
       };
     if (Object.hasOwn(CORE_WIDGETS, type)) {
       if (theme.manifest?.useCoreWidgets === false) return null;
@@ -1553,7 +1567,7 @@ export function validateTheme(dir) {
     if (definitions.collection) {
       for (const [id, type] of Object.entries(INJECTED_LISTING_SETTINGS)) settingDefinitions.set(id, { id, type });
     }
-    checkSettingValues(file, instance.settings, settingDefinitions, where);
+    checkSettingValues(file, instance.settings, settingDefinitions, where, { imageTransform: definitions.imageTransform });
     checkLinkTargets(file, where, settingDefinitions, instance.settings, pageSlugs, menuIds);
 
     const blocks = instance.blocks;
