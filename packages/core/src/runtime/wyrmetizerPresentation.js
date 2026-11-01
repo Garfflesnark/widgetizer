@@ -17,6 +17,7 @@ const fail = message => { throw new Error(`Wyrmetizer presentation: ${message}`)
 export function resolveWyrmetizerPresentation(page, viewportWidthPx, {
   adapters = compositionAdapters,
   imageDimensions = {},
+  deferBoundsValidation = false,
 } = {}) {
   if (typeof viewportWidthPx !== "number" || !Number.isFinite(viewportWidthPx) || viewportWidthPx <= 0)
     fail("viewport width must be a positive CSS-pixel value");
@@ -57,6 +58,7 @@ export function resolveWyrmetizerPresentation(page, viewportWidthPx, {
       widgets,
       imageDimensions,
       mobile,
+      deferBoundsValidation,
     });
     areas[entry.id] = { mode, ...composition };
   }
@@ -77,7 +79,7 @@ function present(widget, patch, desktopPresentation = {}) {
   return { ...clone(widget), settings: { ...clone(widget.settings ?? {}), ...clone(desktopPresentation), ...clone(patch) } };
 }
 
-function resolveCompositionGeometry({ areaId, desktopGeometry, mobileGeometry, widgets, imageDimensions, mobile }) {
+function resolveCompositionGeometry({ areaId, desktopGeometry, mobileGeometry, widgets, imageDimensions, mobile, deferBoundsValidation }) {
   const desktopProfile = desktopGeometry.profiles.desktop;
   const widthPx = mobile ? WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX : desktopProfile.referenceWidthPx;
   const heightPx = mobile
@@ -126,7 +128,7 @@ function resolveCompositionGeometry({ areaId, desktopGeometry, mobileGeometry, w
       width: size.width,
       height: size.height,
     };
-    if (!containedRect(rect, widthPx, heightPx, rotation, rotationPivot))
+    if (!deferBoundsValidation && !containedRect(rect, widthPx, heightPx, rotation, rotationPivot))
       fail(`effective Composition child ${id} exceeds Area ${areaId} bounds`);
     placements[id] = { xPx: anchor.x, yPx: anchor.y, pivot: anchor.pivot, rotation, rotationPivot: rotationPivot ? clone(rotationPivot) : null, rect };
   }

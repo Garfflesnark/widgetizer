@@ -64,5 +64,8 @@ omitted; child anchors are then mapped proportionally into the 390px canvas.
 Supplying `options.imageDimensions` as a Widget-ID keyed map lets the resolver
 check effective child rectangles against their resolved parent canvas. When
 dimensions are not supplied, composition images use the existing 1600×900
-fallback convention. The resolver does not integrate with rendering, preview,
-or export.
+fallback convention. The shared render-engine `renderPageContent` uses this
+resolver to emit Desktop and Mobile variants behind the 750px media breakpoint.
+Preview and export both call that same renderer. It reads actual natural image
+dimensions from rendered Widget markup and validates final Composition bounds
+before returning HTML. The canonical page remains unchanged.

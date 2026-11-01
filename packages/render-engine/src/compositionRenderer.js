@@ -2,6 +2,7 @@ import { validateCompositionLayout, compositionRevision } from "@widgetizer/core
 import { compositionImageRenderer } from "./compositionImageRenderer.js";
 import { escapeHtml } from "@widgetizer/core/escapeHtml";
 import { resolveWyrmetizerPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
 
 export const compositionRenderAdapters = { image: compositionImageRenderer };
 
@@ -10,6 +11,7 @@ export const compositionRenderAdapters = { image: compositionImageRenderer };
 export async function renderPageContent(page, renderWidget, adapters = compositionRenderAdapters) {
   page = serializeWyrmetizerEditorPage(page, adapters);
   validateCompositionLayout(page, adapters);
+  if (page.layout?.version === 3) return renderResponsiveWyrmetizerPage(page, renderWidget, adapters);
   const pairedLayout = page.layout?.version === 2 ? page.layout : null;
   page = resolveWyrmetizerPage(page);
   let index = 0;
@@ -62,4 +64,105 @@ export async function renderPageContent(page, renderWidget, adapters = compositi
       </style>${children}</section>`;
   }
   return html;
+}
+
+async function renderResponsiveWyrmetizerPage(page, renderWidget, adapters) {
+  const desktopDraft = resolveWyrmetizerPresentation(page, 750, { adapters, deferBoundsValidation: true });
+  const mobileDraft = resolveWyrmetizerPresentation(page, 390, { adapters, deferBoundsValidation: true });
+  const desktopRendered = await renderVariantWidgets(desktopDraft, renderWidget);
+  const mobileRendered = await renderVariantWidgets(mobileDraft, renderWidget);
+  const imageDimensions = collectRenderedImageDimensions(desktopRendered, mobileRendered);
+  // Theme output exposes the actual media dimensions. Resolve again with those
+  // dimensions before generating Composition placement CSS so bounds failures
+  // are accurate and leave the canonical page untouched.
+  const desktop = resolveWyrmetizerPresentation(page, 750, { adapters, imageDimensions });
+  const mobile = resolveWyrmetizerPresentation(page, 390, { adapters, imageDimensions });
+  const desktopHtml = renderResolvedPresentation(desktop, desktopRendered, adapters);
+  const mobileHtml = renderResolvedPresentation(mobile, mobileRendered, adapters);
+  return `<style data-wyrmetizer-responsive-style>
+    [data-wyrmetizer-responsive]>[data-wyrmetizer-presentation]{display:contents}
+    [data-wyrmetizer-responsive]>[data-wyrmetizer-presentation="mobile"]{display:none}
+    @media(max-width:749px){
+      [data-wyrmetizer-responsive]>[data-wyrmetizer-presentation="desktop"]{display:none!important}
+      [data-wyrmetizer-responsive]>[data-wyrmetizer-presentation="mobile"]{display:contents}
+    }
+  </style><div data-wyrmetizer-responsive>
+    <div data-wyrmetizer-presentation="desktop">${desktopHtml}</div>
+    <div data-wyrmetizer-presentation="mobile">${mobileHtml}</div>
+  </div>`;
+}
+
+async function renderVariantWidgets(view, renderWidget) {
+  const rendered = new Map();
+  let index = 0;
+  for (const entry of view.rootOrder) {
+    if (entry.kind === "widget") {
+      rendered.set(entry.id, scopeVariantStyles(await renderWidget(entry.id, view.widgets[entry.id], ++index), view.presentation));
+      continue;
+    }
+    const area = view.areas[entry.id];
+    const order = area.mode === "flow" ? area.order : area.readingOrder;
+    for (const id of order) rendered.set(id, scopeVariantStyles(await renderWidget(id, view.widgets[id], ++index), view.presentation));
+  }
+  return rendered;
+}
+
+function scopeVariantStyles(html, presentation) {
+  const media = presentation === "mobile" ? "max-width:749px" : "min-width:750px";
+  return String(html).replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi, `$1@media(${media}){$2}$3`);
+}
+
+function collectRenderedImageDimensions(...variants) {
+  const dimensions = {};
+  for (const variant of variants) for (const [id, html] of variant) {
+    const width = Number(html?.match(/data-image-natural-width="([0-9.]+)"/)?.[1]);
+    const height = Number(html?.match(/data-image-natural-height="([0-9.]+)"/)?.[1]);
+    if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)
+      dimensions[id] = { width, height };
+  }
+  return dimensions;
+}
+
+function renderResolvedPresentation(view, renderedWidgets, adapters) {
+  let html = "";
+  for (const entry of view.rootOrder) {
+    if (entry.kind === "widget") {
+      html += renderedWidgets.get(entry.id) ?? "";
+      continue;
+    }
+    const area = view.areas[entry.id];
+    if (area.mode === "flow") {
+      const children = area.order.map(id => renderedWidgets.get(id) ?? "").join("");
+      html += `<section data-composition-id="${escapeHtml(entry.id)}" data-composition-mode="flow" aria-label="Composition Area" id="fruitform-${escapeHtml(entry.id)}--${view.presentation}" style="display:flow-root;min-height:${area.order.length ? 0 : 48}px">${children}</section>`;
+      continue;
+    }
+    html += renderResolvedComposition(entry.id, area, view.widgets, renderedWidgets, adapters, view.presentation);
+  }
+  return html;
+}
+
+function renderResolvedComposition(areaId, area, widgets, renderedWidgets, adapters, presentation) {
+  const { widthPx: width, heightPx: height, placements } = area.geometry;
+  const prefix = `fruitform-${areaId}--${presentation}`;
+  let children = "", rules = "";
+  for (const id of area.readingOrder) {
+    const widget = widgets[id], placement = placements[id];
+    const frame = { x: placement.xPx / width, y: placement.yPx / width, pivot: placement.pivot,
+      ...(placement.rotation ? { rotation: placement.rotation } : {}),
+      ...(placement.rotationPivot ? { rotationPivot: placement.rotationPivot } : {}) };
+    const composition = { profiles: { desktop: { referenceWidthPx: width, height: { valuePx: height } } } };
+    const rendered = adapters[widget.type].render(renderedWidgets.get(id) ?? "", widget, composition, frame);
+    const rect = rendered.rect;
+    const selector = `#${prefix} > [data-composition-child="${id}"]`;
+    rules += `${selector}{left:${100 * rect.left / width}%;top:${100 * rect.top / height}%;width:${100 * rect.width / width}%;height:${100 * rect.height / height}%;z-index:${area.stackOrder.indexOf(id) + 1}}`;
+    if (placement.rotation) rules += `${selector}{transform:rotate(${placement.rotation}deg);transform-origin:${100 * (placement.rotationPivot?.x ?? 0.5)}% ${100 * (placement.rotationPivot?.y ?? 0.5)}%}`;
+    children += `<div data-composition-child="${escapeHtml(id)}" data-composition-frame="${escapeHtml(JSON.stringify(frame))}">${rendered.html}</div>`;
+  }
+  return `<section data-composition-id="${escapeHtml(areaId)}" data-composition-mode="composition" data-composition-width="${width}" data-composition-height="${height}" aria-label="Composition Area" style="width:100%;max-width:${width}px;margin-inline:auto;position:relative;isolation:isolate;aspect-ratio:${width}/${height};overflow:clip" id="${prefix}"><style>
+    #${prefix}>[data-composition-child]{position:absolute;box-sizing:border-box}
+    #${prefix}>[data-composition-child] :is(.widget,.widget-container,.widget-content,.image-resize-target,.image-wrapper,.image-link,.image-figure){width:100%!important;max-width:none!important;height:100%!important;margin:0!important;padding:0!important;container-type:normal!important}
+    #${prefix}>[data-composition-child] img{width:100%!important;max-width:100%!important;height:100%!important;object-fit:fill}
+    #${prefix}>[data-composition-child] .reveal{opacity:1!important;transform:none!important;transition:none!important}
+    ${rules}
+  </style>${children}</section>`;
 }
