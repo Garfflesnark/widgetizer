@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 // LocalStorageAdapter.list() uses this to hide orphan tmps left by a process
 // that died after creating the tmp but before the rename.
 const ATOMIC_TMP_RE = /\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/i;
+const WINDOWS_RENAME_RETRY_DELAYS = [10, 20, 40, 80, 100];
 
 /**
  * @param {string} filename - a bare filename or path
@@ -35,7 +36,20 @@ export async function writeFileAtomic(targetPath, content) {
   try {
     // "wx" fails if tmpPath somehow already exists (guards an unlucky UUID clash).
     await fs.writeFile(tmpPath, content, { flag: "wx" });
-    await fs.rename(tmpPath, targetPath);
+    let retries = 0;
+    for (;;) {
+      try {
+        await fs.rename(tmpPath, targetPath);
+        break;
+      } catch (error) {
+        if (process.platform !== "win32" || error.code !== "EPERM" || retries >= WINDOWS_RENAME_RETRY_DELAYS.length) {
+          throw error;
+        }
+        // Windows can transiently deny simultaneous replacements of one target.
+        // Retry only promotion, keeping the completed staging file intact.
+        await new Promise((resolve) => setTimeout(resolve, WINDOWS_RENAME_RETRY_DELAYS[retries++]));
+      }
+    }
   } finally {
     // After a successful rename the tmp is gone (no-op); on any error this
     // removes the orphan staging file so tmps never leak.
