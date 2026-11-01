@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import fs from "fs-extra";
 import path from "path";
 import os from "os";
+import { withFsFailure } from "./helpers/fsFailure.js";
 
 // ============================================================================
 // Isolated test environment (env set before the dynamic config import)
@@ -110,12 +111,10 @@ describe("buildLatestSnapshot atomicity", () => {
     // have been restored first, so a serving latest/ still exists.
     const poison = path.join(themeDir, "poison.liquid");
     await fs.outputFile(poison, "unreadable");
-    await fs.chmod(poison, 0o000);
     try {
-      await assert.rejects(() => buildLatestSnapshot(THEME_ID));
+      await withFsFailure(poison, ["copy"], () => assert.rejects(() => buildLatestSnapshot(THEME_ID)));
       assert.equal((await fs.readJson(path.join(latestDir, "theme.json"))).version, "1.1.0");
     } finally {
-      await fs.chmod(poison, 0o644);
       await fs.remove(poison);
     }
 
@@ -129,23 +128,21 @@ describe("buildLatestSnapshot atomicity", () => {
     const themeDir = getThemeDir(THEME_ID);
     const latestDir = getThemeLatestDir(THEME_ID);
 
-    // A good snapshot whose tree can't be recursively removed (unreadable
-    // subdir) — after promotion, deleting it as latest.old will fail.
+    // Deny deletion only after promotion has parked the previous snapshot.
     await buildLatestSnapshot(THEME_ID);
     const locked = path.join(latestDir, "locked");
     await fs.outputFile(path.join(locked, "secret.txt"), "x"); // non-empty: deletion must list it
-    await fs.chmod(locked, 0o000);
 
     const oldDir = path.join(themeDir, "latest.old");
     try {
       // The new snapshot went live, so the build must still resolve…
-      await buildLatestSnapshot(THEME_ID);
+      await withFsFailure(oldDir, ["remove"], () => buildLatestSnapshot(THEME_ID),
+        () => fs.pathExists(path.join(oldDir, "locked")));
       assert.equal((await fs.readJson(path.join(latestDir, "theme.json"))).version, "1.1.0");
       assert.equal(await fs.pathExists(path.join(latestDir, "locked")), false);
       // …with the undeletable old tree left parked (cleaned by a later build).
       assert.equal(await fs.pathExists(oldDir), true);
     } finally {
-      await fs.chmod(path.join(oldDir, "locked"), 0o755).catch(() => {});
       await fs.remove(oldDir);
     }
   });
@@ -164,16 +161,14 @@ describe("buildLatestSnapshot atomicity", () => {
     await fs.outputJson(path.join(v120, "theme.json"), { name: "Atomic", version: "1.2.0" });
     const unreadable = path.join(v120, "broken.liquid");
     await fs.outputFile(unreadable, "unreadable");
-    await fs.chmod(unreadable, 0o000);
 
     try {
       // Silently promoting base + "whatever applied" as the newest version is
       // the failure mode this pins against: the build must reject…
-      await assert.rejects(() => buildLatestSnapshot(THEME_ID));
+      await withFsFailure(unreadable, ["copy"], () => assert.rejects(() => buildLatestSnapshot(THEME_ID)));
       // …and the previous complete snapshot must still be what readers see.
       assert.equal((await fs.readJson(path.join(latestDir, "theme.json"))).version, "1.1.0");
     } finally {
-      await fs.chmod(unreadable, 0o644);
       await fs.remove(v120);
     }
   });
@@ -192,13 +187,12 @@ describe("buildLatestSnapshot atomicity", () => {
       version: "1.2.0",
     });
     // …but the rebuild will fail midway: an unreadable file in the theme root
-    // makes the base-copy phase throw (mode 000; validation never reads it).
+    // makes the base-copy phase throw (validation never reads it).
     const poison = path.join(themeDir, "poison.liquid");
     await fs.outputFile(poison, "unreadable");
-    await fs.chmod(poison, 0o000);
 
     try {
-      await assert.rejects(() => buildLatestSnapshot(THEME_ID));
+      await withFsFailure(poison, ["copy"], () => assert.rejects(() => buildLatestSnapshot(THEME_ID)));
 
       // Readers must still find the complete previous snapshot, not a missing
       // or half-built latest/.
@@ -207,7 +201,6 @@ describe("buildLatestSnapshot atomicity", () => {
       assert.equal(await fs.readFile(path.join(latestDir, "layout.liquid"), "utf8"), "<!-- v1.1.0 -->");
       assert.equal(await fs.pathExists(path.join(themeDir, "latest.tmp")), false, "temp left behind");
     } finally {
-      await fs.chmod(poison, 0o644);
       await fs.remove(poison);
       await fs.remove(path.join(themeDir, "updates", "1.2.0"));
     }

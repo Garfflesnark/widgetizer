@@ -61,7 +61,8 @@ describe("resolveInside", () => {
   });
 
   it("rejects a path behind a symlinked directory", async () => {
-    symlinkSync(path.join(root, "projects", "theirs", "widgets"), path.join(projectDir, "borrowed"));
+    symlinkSync(path.join(root, "projects", "theirs", "widgets"), path.join(projectDir, "borrowed"),
+      process.platform === "win32" ? "junction" : "dir");
     expect(await resolveInside(projectDir, "borrowed", "hero", "widget.liquid")).toBeNull();
   });
 
@@ -74,7 +75,7 @@ describe("resolveInside", () => {
 
   it("tolerates a symlinked base — data dirs are allowed to be mount points", async () => {
     const linkedRoot = path.join(root, "linked-project");
-    symlinkSync(projectDir, linkedRoot);
+    symlinkSync(projectDir, linkedRoot, process.platform === "win32" ? "junction" : "dir");
     const got = await resolveInside(linkedRoot, "widgets", "hero", "widget.liquid");
     expect(got).toBe(path.join(linkedRoot, "widgets", "hero", "widget.liquid"));
   });

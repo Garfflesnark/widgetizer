@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import fs from "fs-extra";
 import path from "path";
 import os from "os";
+import { withFsFailure } from "./helpers/fsFailure.js";
 
 const TEST_ROOT = path.join(os.tmpdir(), `widgetizer-structural-${Date.now()}`);
 const TEST_DATA_DIR = path.join(TEST_ROOT, "data");
@@ -31,7 +32,6 @@ const { closeDb } = await import("../db/index.js");
 const projectRepo = await import("../db/repositories/projectRepository.js");
 
 const THEME = "__structural_theme__";
-const UNREADABLE = 0o000;
 
 function mockReq({ params = {}, body = {} } = {}) {
   return {
@@ -56,14 +56,9 @@ function mockRes() {
   return res;
 }
 
-/** Run `body` with `target` unreadable, restoring the mode whatever happens. */
-async function withUnreadable(target, mode, body) {
-  await fs.chmod(target, UNREADABLE);
-  try {
-    return await body();
-  } finally {
-    await fs.chmod(target, mode);
-  }
+/** Deny only this source's reads/copies, then restore the real filesystem. */
+async function withUnreadable(target, body) {
+  return withFsFailure(target, ["copy", "readFile", "readJson", "readJSON", "readdir"], body);
 }
 
 async function writeTheme(version) {
@@ -137,7 +132,7 @@ describe("a theme update that cannot be applied", () => {
     await writeTheme("2.0.0");
 
     const res = mockRes();
-    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), 0o644, () =>
+    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), () =>
       applyProjectThemeUpdate(mockReq({ params: { id: project.id } }), res),
     );
 
@@ -154,7 +149,7 @@ describe("a theme update that cannot be applied", () => {
     await writeTheme("2.0.0");
 
     const res = mockRes();
-    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), 0o644, () =>
+    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), () =>
       applyProjectThemeUpdate(mockReq({ params: { id: project.id } }), res),
     );
 
@@ -173,7 +168,7 @@ describe("a theme update that cannot be applied", () => {
     await writeTheme("2.0.0");
 
     const res = mockRes();
-    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), 0o644, () =>
+    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), () =>
       applyProjectThemeUpdate(mockReq({ params: { id: project.id } }), res),
     );
 
@@ -188,7 +183,7 @@ describe("a theme update that cannot be applied", () => {
     await writeTheme("2.0.0");
 
     const failed = mockRes();
-    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), 0o644, () =>
+    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), () =>
       applyProjectThemeUpdate(mockReq({ params: { id: project.id } }), failed),
     );
     assert.equal(failed._status, 500);
@@ -209,7 +204,7 @@ describe("a theme update that cannot be applied", () => {
     await writeTheme("2.0.0");
 
     const res = mockRes();
-    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), 0o644, () =>
+    await withUnreadable(path.join(getThemeDir(THEME), "layout.liquid"), () =>
       applyProjectThemeUpdate(mockReq({ params: { id: project.id } }), res),
     );
 
@@ -548,7 +543,7 @@ describe("a preset that cannot be applied", () => {
     const presetDir = await writePreset("fancy");
     const before = projectRepo.getAllProjects().length;
 
-    const res = await withUnreadable(path.join(presetDir, "menus"), 0o755, () => create("Preset Target", { preset: "fancy" }));
+    const res = await withUnreadable(path.join(presetDir, "menus"), () => create("Preset Target", { preset: "fancy" }));
 
     assert.equal(res._status, 500, JSON.stringify(res._json));
     assert.match(res._json.error, /nothing was created|could not be/i);
@@ -560,7 +555,7 @@ describe("a preset that cannot be applied", () => {
     const presetDir = await writePreset("fancy");
     const before = projectRepo.getAllProjects().length;
 
-    const res = await withUnreadable(path.join(presetDir, "collections", "news", "hello.json"), 0o644, () =>
+    const res = await withUnreadable(path.join(presetDir, "collections", "news", "hello.json"), () =>
       create("Preset Items", { preset: "fancy" }),
     );
 
@@ -571,7 +566,7 @@ describe("a preset that cannot be applied", () => {
 
   it("can be retried once the cause is gone, and then applies the whole preset", async () => {
     const presetDir = await writePreset("fancy");
-    const failed = await withUnreadable(path.join(presetDir, "menus"), 0o755, () =>
+    const failed = await withUnreadable(path.join(presetDir, "menus"), () =>
       create("Preset Retry", { preset: "fancy" }),
     );
     assert.equal(failed._status, 500);
