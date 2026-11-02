@@ -5,6 +5,9 @@ import CompositionAreaDeletionDialog from "./CompositionAreaDeletionDialog";
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
 import usePageStore from "../../stores/pageStore";
 import useWidgetStore from "../../stores/widgetStore";
+import { serializeWyrmetizerEditorPage, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX } from "@widgetizer/core/wyrmetizerLayouts";
+import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import {
   convertImages,
   compositionImageForCreation,
@@ -17,6 +20,7 @@ import {
   rotateCompositionImage,
   switchPairedCompositionMode,
   compositionInteractionContext,
+  resetMobileModePresentation,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, compositionId, blockSelected = false }) {
@@ -32,6 +36,9 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
   const found = compositionId && page?.layout?.compositions?.[compositionId] ?
     [compositionId, page.layout.compositions[compositionId]] : compositionFor(page, widgetId);
   const paired = Object.entries(page?.wyrmetizerEditorLayout?.areas || {}).find(([id, area]) => id === compositionId || area.members.includes(widgetId));
+  const mobileArea = paired && context === "mobile" ? resolveWyrmetizerPresentation(
+    serializeWyrmetizerEditorPage(page, compositionAdapters), WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, { deferBoundsValidation: true },
+  ).areas[paired[0]] : null;
   const eligible = Object.entries(page?.widgets || {}).filter(
     ([id, w]) =>
       !compositionFor(page, id) &&
@@ -96,6 +103,8 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
       >
         <strong className="block text-sm font-semibold text-slate-900">Composition Area</strong>
         <p className="form-description">Flow arrangement active. Your Composition arrangement is preserved.</p>
+        {mobileArea && <p className="form-description">Mobile Flow · Area order editing is unsupported in this stage.</p>}
+        {mobileArea && compositionId && <button className={button} onClick={() => run(() => resetMobileModePresentation("flow"))}>Reset Current Mobile Mode</button>}
         <button
           className={button}
           disabled={context !== "desktop"}
@@ -131,11 +140,12 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
               : `${context}: generated Proportional${found[1].placements[widgetId]?.responsive.mode === "custom" || found[1].responsive.defaultMode === "custom" ? " (Custom not initialized)" : ""} · geometry read-only`}
           </p>
           <p className="form-description">
-            Dimensions are desktop design units. Proportional scales both dimensions and positions on smaller screens.
+            {mobileArea ? "Canvas height shows the resolved Mobile value. Area geometry overrides are unsupported in this stage." : "Dimensions are desktop design units. Proportional scales both dimensions and positions on smaller screens."}
           </p>
+          {mobileArea && compositionId && <button className={button} onClick={() => run(() => resetMobileModePresentation("composition"))}>Reset Current Mobile Mode</button>}
           {context !== "desktop" && (
             <p className="form-description">
-              Return to Desktop to edit image properties. Custom/Reflow authoring is not included yet.
+              {paired && context === "mobile" ? "Select an image to edit Mobile presentation below. Area height, rotation, movement and order are unsupported Mobile controls in this stage." : "Return to Desktop to edit image properties. Custom/Reflow authoring is not included yet."}
             </p>
           )}
           <button className={button} onClick={() => useWidgetStore.getState().setSelectedCompositionId(found[0])}>
@@ -198,7 +208,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
               <CompositionNumberInput
                 key={`${found[0]}:${context}`}
                 label="Canvas height"
-                value={found[1].profiles.desktop.height.valuePx}
+                value={mobileArea?.geometry?.heightPx ?? found[1].profiles.desktop.height.valuePx}
                 min={1}
                 max={10000}
                 clampMin

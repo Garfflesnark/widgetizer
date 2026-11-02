@@ -1,4 +1,8 @@
 import CompositionControls from "./CompositionControls";
+import { imagePresentationKeys } from "@widgetizer/core/wyrmetizerLayouts";
+import { defaultImageTransform, DEFAULT_IMAGE_TRANSFORM } from "@widgetizer/core/imageTransform";
+import { mobilePresentationControlState, mobileImageControlGeometry } from "../../lib/mobilePresentationControls";
+import { beginMobilePresentationTransaction, stageMobilePresentationValue, commitMobilePresentationTransaction, resetMobilePresentationProperty, resetMobileWidgetPresentation, resetMobileModePresentation } from "../../lib/compositionActions";
 import { compositionFor } from "@widgetizer/core/composition";
 import { SCALE_WIDTH, SCALE_HEIGHT, supportsImageTransform, legacyImageTransform, supportsImageUnits, imageTransformV2, imageDimensionValue, isDefaultImageScale } from "@widgetizer/core/imageTransform";
 import { editedImageTransform, changeImageUnit } from "../../lib/imageResizeBridge";
@@ -35,7 +39,6 @@ export default function SettingsPanel({
   const { page, globalWidgets, updateThemeSetting } = usePageStore();
   const { imageGeometry, resetImageScale, updateWidgetSettingValues, updateGlobalWidgetSettings, updateBlockSettings } = useWidgetStore();
   const compositionContext = useWidgetStore((state) => state.compositionContext);
-  const responsiveMobileReadOnly = page?.wyrmetizerEditorLayout?.version === 3 && compositionContext === "mobile";
   const { markWidgetModified, setThemeSettingsModified } = useAutoSave();
   const showToast = useToastStore((state) => state.showToast);
 
@@ -47,7 +50,9 @@ export default function SettingsPanel({
   const isThemeSettings = !!selectedThemeGroup;
   const globalWidget = isGlobalWidget ? globalWidgets[selectedGlobalWidgetId] : null;
 
-  const currentWidget = isGlobalWidget ? globalWidget : selectedWidget;
+  const mobile = compositionContext === "mobile" && !isGlobalWidget && !isThemeSettings && !selectedBlockId
+    ? mobilePresentationControlState(page, selectedWidgetId) : null;
+  const currentWidget = isGlobalWidget ? globalWidget : mobile?.widget || selectedWidget;
   const currentWidgetSchema = isGlobalWidget
     ? globalWidget
       ? widgetSchemas?.[globalWidget.type] || {}
@@ -86,8 +91,12 @@ export default function SettingsPanel({
   }
 
   const handleSettingChange = (settingId, value) => {
-    if (responsiveMobileReadOnly && !isGlobalWidget && !isThemeSettings && !selectedBlockId &&
-        [SCALE_WIDTH, SCALE_HEIGHT, IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, ...Object.keys(SPACING_FIELDS)].includes(settingId)) return false;
+    if (mobile && (imagePresentationKeys.includes(settingId) || [SCALE_WIDTH, SCALE_HEIGHT].includes(settingId))) {
+      const property = [SCALE_WIDTH, SCALE_HEIGHT].includes(settingId) ? "image_transform" : settingId;
+      const next = property === "image_transform" && settingId !== property ? editedImageTransform(selectedWidgetId, settingId, value) : value;
+      if (next === null) return false;
+      return runMobile(() => commitMobilePresentationTransaction(stageMobilePresentationValue(beginMobilePresentationTransaction(mobile.target), property, next)));
+    }
     if (!isGlobalWidget && !isThemeSettings && !selectedBlockId && [SCALE_WIDTH, SCALE_HEIGHT].includes(settingId)) {
       const transform = editedImageTransform(selectedWidgetId, settingId, value);
       if (transform) { const accepted = updateWidgetSettingValues(selectedWidgetId, { image_transform: transform }); if (accepted !== false) markWidgetModified(selectedWidgetId); return accepted; }
@@ -129,6 +138,24 @@ export default function SettingsPanel({
       updateWidgetSettingValues(selectedWidgetId, values);
       markWidgetModified(selectedWidgetId);
     }
+  };
+
+  function runMobile(action) {
+    try { return action(); }
+    catch (error) { showToast(error.message, "error"); return false; }
+  }
+  const resetScale = () => {
+    if (!mobile) return resetImageScale(selectedWidgetId);
+    return runMobile(() => {
+      let transaction = beginMobilePresentationTransaction(mobile.target);
+      const values = supportsImageUnits(currentWidget, currentWidgetSchema)
+        ? { image_transform: defaultImageTransform(currentWidget.settings?.image_transform?.alignment || "center"), fullwidth: false }
+        : supportsImageTransform(currentWidget, currentWidgetSchema)
+          ? { image_transform: structuredClone(DEFAULT_IMAGE_TRANSFORM), fullwidth: false }
+          : { image_width_percent: 100, image_height_px: 0, fullwidth: false };
+      for (const [property, value] of Object.entries(values)) transaction = stageMobilePresentationValue(transaction, property, value);
+      return commitMobilePresentationTransaction(transaction);
+    });
   };
 
   // Calculate display name with priority: custom name > block name > widget schema name > fallback
@@ -222,7 +249,12 @@ export default function SettingsPanel({
       </div>
       <div className="px-3 pb-4 flex-1 overflow-y-auto">
         {!isGlobalWidget && !isThemeSettings && !selectedBlockId && <CompositionControls key={selectedWidgetId} widgetId={selectedWidgetId} />}
-        <fieldset disabled={!!compositionFor(page, selectedWidgetId) && useWidgetStore.getState().compositionContext !== "desktop"} inert={!!compositionFor(page, selectedWidgetId) && useWidgetStore.getState().compositionContext !== "desktop" ? true : undefined} className="disabled:opacity-60">
+        {mobile && <div className="text-xs space-y-2 py-3" aria-label="Mobile presentation">
+          <p>Mobile · {mobile.mode}. Image presentation is independent; content settings are shared across viewports.</p>
+          <button type="button" className="underline mr-3" onClick={() => runMobile(() => resetMobileWidgetPresentation(mobile.target))}>Reset Widget</button>
+          <button type="button" className="underline" onClick={() => runMobile(() => resetMobileModePresentation(mobile.mode))}>Reset Current Mobile Mode</button>
+        </div>}
+        <fieldset disabled={!!compositionFor(page, selectedWidgetId) && compositionContext !== "desktop" && !mobile} className="disabled:opacity-60">
         <div
           key={
             isThemeSettings
@@ -236,76 +268,93 @@ export default function SettingsPanel({
           className="page-editor-settings space-y-4"
         >
           {allSettings?.map((setting, index) => {
-            // Create a unique key that includes widget/block/theme context to force React to remount on switch
-            const contextKey = isThemeSettings
-              ? `theme-${selectedThemeGroup}`
-              : selectedBlockId
-                ? `block-${selectedBlockId}`
-                : isGlobalWidget
-                  ? `global-${selectedGlobalWidgetId}`
-                  : `widget-${selectedWidgetId}`;
-            const imageSettings = !isGlobalWidget && !selectedBlockId && !isThemeSettings &&
-              supportsImageResize(currentWidget, currentWidgetSchema);
-            const modernImage = imageSettings && supportsImageTransform(currentWidget, currentWidgetSchema);
-            if (imageSettings && Object.hasOwn(SPACING_FIELDS, setting.id) && supportsImageSpacing(currentWidget, currentWidgetSchema)) {
-              const side = SPACING_FIELDS[setting.id];
-              if (currentValues?.[`${side}_spacing`] !== "px") return null;
-              return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
-                value={currentValues?.[setting.id] ?? 0} label={`${side === "top" ? "Top" : "Bottom"} Spacing (px)`} onChange={handleSettingChange} disabled={responsiveMobileReadOnly} />;
-            }
-            if (modernImage && [IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING].includes(setting.id)) return null;
-            if (modernImage && [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id)) {
-              const geometry = imageGeometry[selectedWidgetId];
-              const ready = geometry?.imageSource === (currentWidget.settings?.image || "");
-              if (supportsImageUnits(currentWidget, currentWidgetSchema)) {
-                const transform = ready ? imageTransformV2(currentWidget, geometry) : null;
-                const axis = setting.id === SCALE_WIDTH ? "width" : "height";
-                const unit = transform?.dimensions[axis].unit || "%";
-                return <ImageDimensionInput key={`${contextKey}-${setting.id}-${unit}`} widgetId={selectedWidgetId}
-                  setting={{ ...setting, min: 1, max: unit === "px" ? 10000 : 400, sliderMax: unit === "px" ? 2000 : 111, unit }} value={transform ? imageDimensionValue(transform, axis, geometry) : 100}
-                  label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready || responsiveMobileReadOnly} naturalScale={transform?.dimensions[axis].value === null}
-                  onUnitChange={(next) => { if (!changeImageUnit(selectedWidgetId, axis, next)) showToast(`Cannot preserve this size within ${next === "%" ? "1–400%" : "1–10,000px"}. Resize this dimension first.`, "error"); }} />;
+            const renderSetting = () => {
+              // Create a unique key that includes widget/block/theme context to force React to remount on switch
+              const contextKey = isThemeSettings
+                ? `theme-${selectedThemeGroup}`
+                : selectedBlockId
+                  ? `block-${selectedBlockId}`
+                  : isGlobalWidget
+                    ? `global-${selectedGlobalWidgetId}`
+                    : `widget-${selectedWidgetId}`;
+              const imageSettings = !isGlobalWidget && !selectedBlockId && !isThemeSettings &&
+                supportsImageResize(currentWidget, currentWidgetSchema);
+              const modernImage = imageSettings && supportsImageTransform(currentWidget, currentWidgetSchema);
+              if (imageSettings && Object.hasOwn(SPACING_FIELDS, setting.id) && supportsImageSpacing(currentWidget, currentWidgetSchema)) {
+                const side = SPACING_FIELDS[setting.id];
+                if (currentValues?.[`${side}_spacing`] !== "px") return null;
+                return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
+                  value={currentValues?.[setting.id] ?? 0} label={`${side === "top" ? "Top" : "Bottom"} Spacing (px)`} onChange={handleSettingChange} />;
               }
-              const transform = ready ? legacyImageTransform(currentWidget, geometry) : null;
-              const value = transform?.scale[setting.id === SCALE_WIDTH ? "width" : "height"];
-              return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
-                value={value == null ? 0 : Math.round(value * 100) / 100} label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready || responsiveMobileReadOnly} />;
-            }
-            if (imageSettings && (setting.id === IMAGE_WIDTH_SETTING ||
-                (setting.id === IMAGE_HEIGHT_SETTING && supportsImageStretch(currentWidget, currentWidgetSchema)))) {
+              if (modernImage && [IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING].includes(setting.id)) return null;
+              if (modernImage && [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id)) {
+                const geometry = mobileImageControlGeometry(mobile, imageGeometry[selectedWidgetId]);
+                const ready = geometry?.imageSource === (currentWidget.settings?.image || "");
+                if (supportsImageUnits(currentWidget, currentWidgetSchema)) {
+                  const transform = ready ? imageTransformV2(currentWidget, geometry) : null;
+                  const axis = setting.id === SCALE_WIDTH ? "width" : "height";
+                  const unit = transform?.dimensions[axis].unit || "%";
+                  return <ImageDimensionInput key={`${contextKey}-${setting.id}-${unit}`} widgetId={selectedWidgetId}
+                    setting={{ ...setting, min: 1, max: unit === "px" ? 10000 : 400, sliderMax: unit === "px" ? 2000 : 111, unit }} value={transform ? imageDimensionValue(transform, axis, geometry) : 100}
+                    label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready} naturalScale={transform?.dimensions[axis].value === null}
+                    onUnitChange={(next) => { if (!runMobile(() => changeImageUnit(selectedWidgetId, axis, next))) showToast(`Cannot preserve this size within ${next === "%" ? "1–400%" : "1–10,000px"}. Resize this dimension first.`, "error"); }} />;
+                }
+                const transform = ready ? legacyImageTransform(currentWidget, geometry) : null;
+                const value = transform?.scale[setting.id === SCALE_WIDTH ? "width" : "height"];
+                return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
+                  value={value == null ? 0 : Math.round(value * 100) / 100} label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready} />;
+              }
+              if (imageSettings && (setting.id === IMAGE_WIDTH_SETTING ||
+                  (setting.id === IMAGE_HEIGHT_SETTING && supportsImageStretch(currentWidget, currentWidgetSchema)))) {
+                return (
+                  <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
+                    value={currentValues?.[setting.id]} label={tTheme(setting.label)} onChange={handleSettingChange} />
+                );
+              }
+              if (imageSettings && setting.id === "fullwidth") {
+                return <div key={`${contextKey}-default-scale`}>
+                  <div className="flex items-center justify-between gap-3"><label htmlFor={`${selectedWidgetId}-default-scale`} className="text-sm font-medium text-slate-700">Default Scale</label>
+                    <CheckboxInput id={`${selectedWidgetId}-default-scale`} value={isDefaultImageScale(currentWidget, mobileImageControlGeometry(mobile, imageGeometry[selectedWidgetId]))}
+                      onChange={resetScale} /></div>
+                  <p className="text-xs text-slate-500 mt-1">Restore natural proportions and fitted intrinsic dimensions. Alignment is preserved. Edit a dimension to leave Default Scale.</p>
+                  {modernImage && !mobile && <p className="text-xs text-slate-500 mt-1">Shift scales proportionally. Double-click a resize node to pin/unpin it (green). Pins can lock resizing; editing a dimension clears them.</p>}
+                  {modernImage && !currentWidget.settings?.image_transform && <p className="text-xs text-slate-500 mt-1">Legacy appearance is preserved until you edit a scale or use Default Scale.</p>}
+                </div>;
+              }
               return (
-                <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
-                  value={currentValues?.[setting.id]} label={tTheme(setting.label)} onChange={handleSettingChange} disabled={responsiveMobileReadOnly} />
+                <SettingsRenderer
+                  key={`${contextKey}-${setting.id}`}
+                  setting={setting}
+                  value={currentValues?.[setting.id]}
+                  onChange={handleSettingChange}
+                  isFirst={index === 0}
+                  allowExpand
+                  // The richtext stable-link picker is offered everywhere, theme
+                  // settings included. It was withheld from them while nothing
+                  // maintained a reference stored there — the picker would have
+                  // produced links that never resolved, never followed a rename and
+                  // were never cleared on deletion. Theme settings now go through the
+                  // same resolution, seeding, duplication and cleanup as widgets, so
+                  // the reason no longer holds.
+                  allowInternalLinkTargets
+                />
               );
-            }
-            if (imageSettings && setting.id === "fullwidth") {
-              return <div key={`${contextKey}-default-scale`}>
-                <div className="flex items-center justify-between gap-3"><label htmlFor={`${selectedWidgetId}-default-scale`} className="text-sm font-medium text-slate-700">Default Scale</label>
-                  <CheckboxInput id={`${selectedWidgetId}-default-scale`} value={isDefaultImageScale(currentWidget, imageGeometry[selectedWidgetId])}
-                    onChange={() => resetImageScale(selectedWidgetId)} disabled={responsiveMobileReadOnly} /></div>
-                <p className="text-xs text-slate-500 mt-1">Restore natural proportions and fitted intrinsic dimensions. Alignment is preserved. Edit a dimension to leave Default Scale.</p>
-                {modernImage && <p className="text-xs text-slate-500 mt-1">Shift scales proportionally. Double-click a resize node to pin/unpin it (green). Pins can lock resizing; editing a dimension clears them.</p>}
-                {modernImage && !currentWidget.settings?.image_transform && <p className="text-xs text-slate-500 mt-1">Legacy appearance is preserved until you edit a scale or use Default Scale.</p>}
-              </div>;
-            }
-            return (
-              <SettingsRenderer
-                key={`${contextKey}-${setting.id}`}
-                setting={setting}
-                value={currentValues?.[setting.id]}
-                onChange={handleSettingChange}
-                isFirst={index === 0}
-                allowExpand
-                // The richtext stable-link picker is offered everywhere, theme
-                // settings included. It was withheld from them while nothing
-                // maintained a reference stored there — the picker would have
-                // produced links that never resolved, never followed a rename and
-                // were never cleared on deletion. Theme settings now go through the
-                // same resolution, seeding, duplication and cleanup as widgets, so
-                // the reason no longer holds.
-                allowInternalLinkTargets
-              />
-            );
+            };
+            const control = renderSetting();
+            if (!control || !mobile || setting.type === "header") return control;
+            const properties = [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id) ? ["image_transform"]
+              : setting.id === "fullwidth" && supportsImageTransform(currentWidget, currentWidgetSchema) ? ["image_transform", "fullwidth"] : [setting.id];
+            const supported = properties.every(property => imagePresentationKeys.includes(property));
+            return <div key={`${selectedWidgetId}-${compositionContext}-${setting.id}`}>
+              {control}
+              {supported ? <div className="text-xs text-slate-500 mt-1">
+                {properties.map(property => <div key={property}>
+                  <span>{properties.length > 1 ? `${property}: ` : ""}{Object.hasOwn(mobile.patch, property) ? "Overridden" : "Inherited"}</span>
+                  <button type="button" className="underline ml-2" aria-label={`Reset Property ${property}`} disabled={!Object.hasOwn(mobile.patch, property)}
+                    onClick={() => runMobile(() => resetMobilePresentationProperty(mobile.target, property))}>Reset Property</button>
+                </div>)}
+              </div> : <p className="text-xs text-slate-500 mt-1">Shared across viewports · Mobile override unsupported.</p>}
+            </div>;
           })}
         </div>
       </fieldset>

@@ -15,6 +15,19 @@ import { SPACING_FIELDS, isImageSpacing, supportsImageSpacing } from "@widgetize
 import useWidgetStore from "../stores/widgetStore";
 import usePageStore from "../stores/pageStore";
 import useAutoSave from "../stores/saveStore";
+import { mobilePresentationControlState, mobileImageControlGeometry } from "./mobilePresentationControls";
+import { beginMobilePresentationTransaction, stageMobilePresentationValue, commitMobilePresentationTransaction } from "./compositionActions";
+
+function settingsWidget(widgetId) {
+  const page = usePageStore.getState().page;
+  return (useWidgetStore.getState().compositionContext === "mobile" ? mobilePresentationControlState(page, widgetId)?.widget : null) || page?.widgets?.[widgetId];
+}
+
+function settingsGeometry(widgetId) {
+  const store = useWidgetStore.getState();
+  const mobile = store.compositionContext === "mobile" ? mobilePresentationControlState(usePageStore.getState().page, widgetId) : null;
+  return mobileImageControlGeometry(mobile, store.imageGeometry[widgetId]);
+}
 
 export function supportedImageWidgetIds(page, schemas) {
   return Object.entries(page?.widgets || {})
@@ -80,7 +93,7 @@ export function handleImageResizeMessage(event, iframeWindow, origin) {
 export const IMAGE_SIZE_PREVIEW_EVENT = "widgetizer:image-size-preview";
 export function imageSizePreview(widgetId, settingId, value, phase = "preview") {
   const store = useWidgetStore.getState();
-  const widget = usePageStore.getState().page?.widgets?.[widgetId];
+  const widget = settingsWidget(widgetId);
   if (
     !widget ||
     store.selectedWidgetId !== widgetId ||
@@ -116,8 +129,8 @@ export function imageSizePreview(widgetId, settingId, value, phase = "preview") 
 
 export function editedImageTransform(widgetId, settingId, value) {
   const store = useWidgetStore.getState();
-  const widget = usePageStore.getState().page?.widgets?.[widgetId];
-  const reference = store.imageGeometry[widgetId];
+  const widget = settingsWidget(widgetId);
+  const reference = settingsGeometry(widgetId);
   if (!widget || !reference || reference.imageSource !== (widget.settings?.image || "") ||
       !supportsImageTransform(widget, store.schemas[widget.type]) || !Number.isFinite(value)) return null;
   if (supportsImageUnits(widget, store.schemas[widget.type])) {
@@ -139,12 +152,17 @@ export function editedImageTransform(widgetId, settingId, value) {
 
 export function changeImageUnit(widgetId, axis, unit) {
   const store = useWidgetStore.getState();
-  const widget = usePageStore.getState().page?.widgets?.[widgetId];
-  const ref = store.imageGeometry[widgetId];
+  const widget = settingsWidget(widgetId);
+  const ref = settingsGeometry(widgetId);
   if (!widget || !ref || ref.imageSource !== (widget.settings?.image || "") || !supportsImageUnits(widget, store.schemas[widget.type])) return false;
   const transform = switchImageUnit(imageTransformV2(widget, ref), axis, unit, ref);
   if (!transform) return false;
   if (JSON.stringify(widget.settings?.image_transform) === JSON.stringify(transform)) return true;
+  if (store.compositionContext === "mobile") {
+    const mobile = mobilePresentationControlState(usePageStore.getState().page, widgetId);
+    if (!mobile) return false;
+    return commitMobilePresentationTransaction(stageMobilePresentationValue(beginMobilePresentationTransaction(mobile.target), "image_transform", transform));
+  }
   store.updateWidgetSettingValues(widgetId, { image_transform: transform });
   useAutoSave.getState().markWidgetModified(widgetId);
   return true;

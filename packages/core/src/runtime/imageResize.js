@@ -81,11 +81,11 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     const target = widget?.querySelector("[data-image-resize-target]");
     return { target, image: target?.querySelector("img") || target };
   }
-  function eligible(widget, blockId) {
+  function eligible(widget, blockId, settingsPreview = false) {
     return (
       !blockId &&
-      activePresentation(document) !== "mobile" &&
-      (compositionContext(widget)?.editable ?? true) &&
+      (settingsPreview || activePresentation(document) !== "mobile") &&
+      (settingsPreview || (compositionContext(widget)?.editable ?? true)) &&
       supported.has(widget?.dataset.widgetId) &&
       widget?.dataset.widgetType === "image" &&
       !["header", "footer"].includes(widget?.dataset.widgetId) &&
@@ -373,7 +373,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       }
       const widget = find(widgetId);
       if (spacing !== undefined) {
-        if (!eligible(widget, null) || widget.dataset.imageSpacing !== "1" || !spacing ||
+        if (!eligible(widget, null, true) || widget.dataset.imageSpacing !== "1" || !spacing ||
           !Object.entries(spacing).every(([side, value]) => ["top", "bottom"].includes(side) && isImageSpacing(value))) return;
         const container = widget.querySelector(".widget-container");
         if (!container) return;
@@ -387,7 +387,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         onPreview(); return;
       }
       if (transform !== undefined) {
-        if (!eligible(widget, null) || !transforms.has(widgetId) || !isImageTransform(transform)) return;
+        if (!eligible(widget, null, true) || !transforms.has(widgetId) || !isImageTransform(transform)) return;
         finish(false);
         if (draft?.widgetId !== widgetId) { cancelDraft(); draft = snapshot(widget); }
         draft.transform = transform;
@@ -396,7 +396,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         onPreview(); return;
       }
       if (
-        !eligible(widget, null) ||
+        !eligible(widget, null, true) ||
         !isImageWidth(width) ||
         (height !== undefined && (!stretch.has(widgetId) || !isImageHeight(height)))
       )

@@ -1080,7 +1080,7 @@ function handleMessage(event) {
   if (event.data?.type === "IMAGE_SIZE_PREVIEW") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     const payload = event.data.payload;
-    if ((activePresentation(document) && (activePresentation(document) !== "desktop" || !matchesResponsiveMessage(payload))) ||
+    if ((activePresentation(document) && !matchesResponsiveMessage(payload)) ||
         !payload || payload.widgetId !== currentSelectedWidgetId || currentSelectedBlockId ||
         !["preview", "commit", "cancel"].includes(payload.phase)) return;
     imageResizeController?.preview(payload);

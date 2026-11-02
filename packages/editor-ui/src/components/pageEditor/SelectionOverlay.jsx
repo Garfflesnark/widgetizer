@@ -169,7 +169,6 @@ export default function SelectionOverlay({
     };
     const preview = (event) => {
       const context = responsiveContextRef.current;
-      if (responsiveV3(page) && context.presentation !== "desktop") return;
       iframe.contentWindow?.postMessage({ type: "IMAGE_SIZE_PREVIEW", payload: {
         ...event.detail,
         ...(responsiveV3(page) ? { presentation: context.presentation, presentationEpoch: context.epoch, syncRevision: responsiveSyncSequenceRef.current } : {}),

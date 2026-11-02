@@ -46,6 +46,35 @@ function modernFixture() {
   controller.setSupported(["w1"], ["w1"], ["w1"]);
   render();
 }
+it("previews and cancels Mobile settings drafts on the active instance without enabling resize handles", () => {
+  modernFixture();
+  const root = document.createElement("div");
+  root.setAttribute("data-wyrmetizer-responsive", "");
+  const mobile = document.createElement("div");
+  mobile.dataset.wyrmetizerPresentation = "mobile";
+  const desktop = document.createElement("div");
+  desktop.dataset.wyrmetizerPresentation = "desktop";
+  desktop.append(widget.cloneNode(true));
+  mobile.append(widget);
+  root.append(desktop, mobile);
+  document.body.prepend(root);
+  const originalMatch = window.matchMedia;
+  window.matchMedia = () => ({ matches: true });
+  try {
+    target.parentElement.getBoundingClientRect = () => ({ width: 390 });
+    const transform = { version: 2, reference: "intrinsic-fit", alignment: "center",
+      dimensions: { width: { unit: "%", value: 50 }, height: { unit: "%", value: null } },
+      flowInset: { inlinePercent: 0, blockPercent: 0 } };
+    controller.preview({ widgetId: "w1", transform, phase: "preview" });
+    expect(target.style.width).toBe("195px");
+    expect(desktop.querySelector("[data-image-resize-target]").style.width).toBe("");
+    render();
+    expect(overlay.querySelector("button")).toBeNull();
+    controller.preview({ widgetId: "w1", phase: "cancel" });
+    expect(target.style.width).toBe("");
+    expect(commit).not.toHaveBeenCalled();
+  } finally { window.matchMedia = originalMatch; }
+});
 function pinnedFixture(anchors = []) {
   modernFixture(); widget.dataset.imageUnits = "2";
   const transform = { version: 2, reference: "intrinsic-fit", alignment: "left", anchors,

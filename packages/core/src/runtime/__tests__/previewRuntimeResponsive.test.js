@@ -22,6 +22,36 @@ afterEach(() => {
   observed.length = 0;
 });
 
+it("accepts current Mobile settings drafts and rejects stale or foreign presentation messages", () => {
+  width = 749;
+  const image = '<section data-widget-id="draft" data-widget-type="image" data-image-width="100" data-image-height="0"><div><div data-image-resize-target><img></div></div></section>';
+  document.body.innerHTML = `<div data-wyrmetizer-responsive><div data-wyrmetizer-presentation="desktop">${image}</div><div data-wyrmetizer-presentation="mobile">${image}</div></div>`;
+  const send = (type, payload) => window.dispatchEvent(new MessageEvent("message", {
+    origin: window.location.origin, source: window.parent, data: { type, payload },
+  }));
+  window.dispatchEvent(new Event("resize"));
+  send("UPDATE_SELECTION", { widgetId: "draft", blockId: null });
+  const metadata = sent.findLast(item => item.type === "PRESENTATION_CONTEXT").payload;
+  const context = { presentation: "mobile", presentationEpoch: metadata.epoch, syncRevision: metadata.syncRevision };
+  send("SET_IMAGE_RESIZE_SUPPORT", { ...context, widgetIds: ["draft"], stretchWidgetIds: ["draft"], transformWidgetIds: ["draft"] });
+  const mobile = document.querySelector('[data-wyrmetizer-presentation="mobile"] [data-image-resize-target]');
+  const desktop = document.querySelector('[data-wyrmetizer-presentation="desktop"] [data-image-resize-target]');
+  mobile.parentElement.getBoundingClientRect = () => ({ width: 390 });
+  const transform = { version: 2, reference: "intrinsic-fit", alignment: "center",
+    dimensions: { width: { unit: "%", value: 50 }, height: { unit: "%", value: null } },
+    flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  const draft = { ...context, widgetId: "draft", transform, phase: "preview" };
+  send("IMAGE_SIZE_PREVIEW", { ...draft, presentation: "desktop" });
+  expect(mobile.style.width).toBe("");
+  send("IMAGE_SIZE_PREVIEW", { ...draft, presentationEpoch: context.presentationEpoch - 1 });
+  expect(mobile.style.width).toBe("");
+  send("IMAGE_SIZE_PREVIEW", draft);
+  expect(mobile.style.width).toBe("195px");
+  expect(desktop.style.width).toBe("");
+  send("IMAGE_SIZE_PREVIEW", { ...draft, phase: "cancel" });
+  expect(mobile.style.width).toBe("");
+});
+
 it("targets active bounds and rebinds selection and ResizeObserver on 749/750px transitions", () => {
   width = 749;
   document.body.innerHTML = `<div data-wyrmetizer-responsive>

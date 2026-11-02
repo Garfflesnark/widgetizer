@@ -69,3 +69,32 @@ resolver to emit Desktop and Mobile variants behind the 750px media breakpoint.
 Preview and export both call that same renderer. It reads actual natural image
 dimensions from rendered Widget markup and validates final Composition bounds
 before returning HTML. The canonical page remains unchanged.
+
+## Mobile settings controls (Stage C2)
+
+On paired-layout pages, the Mobile settings panel reads the shared responsive
+resolver. Image dimensions, unit selectors, Default Scale, spacing presets and
+pixel spacing commit through the C1 sparse presentation transactions. Transform
+dimensions share the `image_transform` property: its ownership indicator and
+Reset Property action apply to the entire transform. Default Scale can commit
+both `image_transform` and `fullwidth` in one history step. Invalid adapter
+values are reported without committing the page.
+
+Each supported property shows Inherited or Overridden based on presence in the
+current Mobile patch. Reset Property removes that property; Reset Widget removes
+the selected Widget's presentation patch in its current mode. Reset Current
+Mobile Mode uses C1's page-wide mode reset, including any saved arrangement
+overrides in that mode. Flow and Composition presentation remain independent.
+Content, links, media and names continue to edit shared settings.
+
+Numeric image controls preview immediately and discard drafts on Escape. Only
+a committed change upgrades a version-2 page to version 3; cancellation and
+no-ops do not create history or change the version. Committed edits and resets
+support one-step Undo/Redo and canonical save/reload. The allowlist, validation
+and breakpoint rules are unchanged.
+
+Area canvas height displays the resolved Mobile value but remains disabled.
+Area geometry, numeric rotation, pointer movement, resize nodes, rotation
+gestures, pivot dragging and independent ordering are unsupported Mobile controls
+in C2. C3/C4 must supply their approved geometry/order transactions before these
+interactions can be enabled. Native visual acceptance remains a human check.
