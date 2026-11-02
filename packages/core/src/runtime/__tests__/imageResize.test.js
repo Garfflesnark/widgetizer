@@ -109,6 +109,40 @@ it("keeps Desktop image sizing out of the active Mobile instance and reapplies i
     else window.matchMedia = previousMatchMedia;
   }
 });
+
+it("measures the active Mobile image reference without applying Desktop image sizes to either instance", () => {
+  const responsive = document.createElement("div");
+  responsive.dataset.wyrmetizerResponsive = "";
+  const desktopPresentation = document.createElement("div");
+  desktopPresentation.dataset.wyrmetizerPresentation = "desktop";
+  const mobilePresentation = document.createElement("div");
+  mobilePresentation.dataset.wyrmetizerPresentation = "mobile";
+  const desktopWidget = widget.cloneNode(true);
+  Object.assign(desktopWidget.dataset, { imageNaturalWidth: "1000", imageNaturalHeight: "500", imageSource: "image.jpg" });
+  Object.assign(widget.dataset, { imageNaturalWidth: "1000", imageNaturalHeight: "500", imageSource: "image.jpg" });
+  desktopWidget.querySelector("[data-image-resize-target]").parentElement.getBoundingClientRect = () => ({ width: 1200 });
+  widget.querySelector("[data-image-resize-target]").parentElement.getBoundingClientRect = () => ({ width: 390 });
+  desktopPresentation.append(desktopWidget);
+  mobilePresentation.append(widget);
+  responsive.append(desktopPresentation, mobilePresentation);
+  document.body.replaceChildren(responsive, overlay);
+  const previousMatchMedia = window.matchMedia;
+  const onContext = vi.fn();
+  const measurementController = createImageResizeController({ document, onContext, onPreview: vi.fn() });
+  window.matchMedia = () => ({ matches: true });
+  try {
+    measurementController.setSupported(["w1"], [], ["w1"]);
+    measurementController.setSizes({ w1: { width: 50, height: 0, transform: null } });
+    expect(onContext).toHaveBeenCalledOnce();
+    expect(onContext.mock.calls[0][0].containerWidth).toBe(390);
+    expect(desktopWidget.querySelector("[data-image-resize-target]").style.width).toBe("");
+    expect(widget.querySelector("[data-image-resize-target]").style.width).toBe("");
+  } finally {
+    measurementController.destroy();
+    if (previousMatchMedia === undefined) delete window.matchMedia;
+    else window.matchMedia = previousMatchMedia;
+  }
+});
 it("invalidates intrinsic dimensions and container width even above the intrinsic fit limit", () => {
   pinnedFixture();
   preview.mockImplementation(() => {});

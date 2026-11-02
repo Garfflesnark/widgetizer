@@ -195,7 +195,7 @@ function renderResolvedComposition(areaId, area, widgets, renderedWidgets, adapt
     const selector = `#${prefix} > [data-composition-child="${id}"]`;
     rules += `${selector}{left:${100 * rect.left / width}%;top:${100 * rect.top / height}%;width:${100 * rect.width / width}%;height:${100 * rect.height / height}%;z-index:${area.stackOrder.indexOf(id) + 1}}`;
     if (placement.rotation) rules += `${selector}{transform:rotate(${placement.rotation}deg);transform-origin:${100 * (placement.rotationPivot?.x ?? 0.5)}% ${100 * (placement.rotationPivot?.y ?? 0.5)}%}`;
-    children += `<div data-composition-child="${escapeHtml(id)}" data-composition-frame="${escapeHtml(JSON.stringify(frame))}">${rendered.html}</div>`;
+    children += `<div data-composition-child="${escapeHtml(id)}" data-composition-revision="${escapeHtml(compositionRevision(widget, frame))}" data-composition-frame="${escapeHtml(JSON.stringify(frame))}">${rendered.html}</div>`;
   }
   return `<section data-composition-id="${escapeHtml(areaId)}" data-composition-mode="composition" data-composition-width="${width}" data-composition-height="${height}" aria-label="Composition Area" style="width:100%;max-width:${width}px;margin-inline:auto;position:relative;isolation:isolate;aspect-ratio:${width}/${height};overflow:clip" id="${prefix}"><style>
     #${prefix}>[data-composition-child]{position:absolute;box-sizing:border-box}

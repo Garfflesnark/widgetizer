@@ -328,7 +328,14 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     },
     setSizes(sizes = Object.fromEntries(canonicalValues), force = false) {
       if (activePresentation(document) === "mobile") {
-        for (const [widgetId, size] of Object.entries(sizes)) if (size) canonicalValues.set(widgetId, size);
+        for (const [widgetId, size] of Object.entries(sizes)) {
+          if (!size) continue;
+          canonicalValues.set(widgetId, size);
+          const widget = find(widgetId);
+          if (transforms.has(widgetId) && widget) onContext?.({ widgetId, ...reference(widget),
+            hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth),
+            naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" });
+        }
         return;
       }
       // Undo can return to the last server-rendered state before its debounce

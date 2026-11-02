@@ -34,6 +34,8 @@ export default function SettingsPanel({
   const { tTheme } = useThemeLocale();
   const { page, globalWidgets, updateThemeSetting } = usePageStore();
   const { imageGeometry, resetImageScale, updateWidgetSettingValues, updateGlobalWidgetSettings, updateBlockSettings } = useWidgetStore();
+  const compositionContext = useWidgetStore((state) => state.compositionContext);
+  const responsiveMobileReadOnly = page?.wyrmetizerEditorLayout?.version === 3 && compositionContext === "mobile";
   const { markWidgetModified, setThemeSettingsModified } = useAutoSave();
   const showToast = useToastStore((state) => state.showToast);
 
@@ -84,6 +86,8 @@ export default function SettingsPanel({
   }
 
   const handleSettingChange = (settingId, value) => {
+    if (responsiveMobileReadOnly && !isGlobalWidget && !isThemeSettings && !selectedBlockId &&
+        [SCALE_WIDTH, SCALE_HEIGHT, IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING, ...Object.keys(SPACING_FIELDS)].includes(settingId)) return false;
     if (!isGlobalWidget && !isThemeSettings && !selectedBlockId && [SCALE_WIDTH, SCALE_HEIGHT].includes(settingId)) {
       const transform = editedImageTransform(selectedWidgetId, settingId, value);
       if (transform) { const accepted = updateWidgetSettingValues(selectedWidgetId, { image_transform: transform }); if (accepted !== false) markWidgetModified(selectedWidgetId); return accepted; }
@@ -247,7 +251,7 @@ export default function SettingsPanel({
               const side = SPACING_FIELDS[setting.id];
               if (currentValues?.[`${side}_spacing`] !== "px") return null;
               return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
-                value={currentValues?.[setting.id] ?? 0} label={`${side === "top" ? "Top" : "Bottom"} Spacing (px)`} onChange={handleSettingChange} />;
+                value={currentValues?.[setting.id] ?? 0} label={`${side === "top" ? "Top" : "Bottom"} Spacing (px)`} onChange={handleSettingChange} disabled={responsiveMobileReadOnly} />;
             }
             if (modernImage && [IMAGE_WIDTH_SETTING, IMAGE_HEIGHT_SETTING].includes(setting.id)) return null;
             if (modernImage && [SCALE_WIDTH, SCALE_HEIGHT].includes(setting.id)) {
@@ -259,26 +263,26 @@ export default function SettingsPanel({
                 const unit = transform?.dimensions[axis].unit || "%";
                 return <ImageDimensionInput key={`${contextKey}-${setting.id}-${unit}`} widgetId={selectedWidgetId}
                   setting={{ ...setting, min: 1, max: unit === "px" ? 10000 : 400, sliderMax: unit === "px" ? 2000 : 111, unit }} value={transform ? imageDimensionValue(transform, axis, geometry) : 100}
-                  label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready} naturalScale={transform?.dimensions[axis].value === null}
+                  label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready || responsiveMobileReadOnly} naturalScale={transform?.dimensions[axis].value === null}
                   onUnitChange={(next) => { if (!changeImageUnit(selectedWidgetId, axis, next)) showToast(`Cannot preserve this size within ${next === "%" ? "1–400%" : "1–10,000px"}. Resize this dimension first.`, "error"); }} />;
               }
               const transform = ready ? legacyImageTransform(currentWidget, geometry) : null;
               const value = transform?.scale[setting.id === SCALE_WIDTH ? "width" : "height"];
               return <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
-                value={value == null ? 0 : Math.round(value * 100) / 100} label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready} />;
+                value={value == null ? 0 : Math.round(value * 100) / 100} label={tTheme(setting.label)} onChange={handleSettingChange} disabled={!ready || responsiveMobileReadOnly} />;
             }
             if (imageSettings && (setting.id === IMAGE_WIDTH_SETTING ||
                 (setting.id === IMAGE_HEIGHT_SETTING && supportsImageStretch(currentWidget, currentWidgetSchema)))) {
               return (
                 <ImageDimensionInput key={`${contextKey}-${setting.id}`} widgetId={selectedWidgetId} setting={setting}
-                  value={currentValues?.[setting.id]} label={tTheme(setting.label)} onChange={handleSettingChange} />
+                  value={currentValues?.[setting.id]} label={tTheme(setting.label)} onChange={handleSettingChange} disabled={responsiveMobileReadOnly} />
               );
             }
             if (imageSettings && setting.id === "fullwidth") {
               return <div key={`${contextKey}-default-scale`}>
                 <div className="flex items-center justify-between gap-3"><label htmlFor={`${selectedWidgetId}-default-scale`} className="text-sm font-medium text-slate-700">Default Scale</label>
                   <CheckboxInput id={`${selectedWidgetId}-default-scale`} value={isDefaultImageScale(currentWidget, imageGeometry[selectedWidgetId])}
-                    onChange={() => resetImageScale(selectedWidgetId)} /></div>
+                    onChange={() => resetImageScale(selectedWidgetId)} disabled={responsiveMobileReadOnly} /></div>
                 <p className="text-xs text-slate-500 mt-1">Restore natural proportions and fitted intrinsic dimensions. Alignment is preserved. Edit a dimension to leave Default Scale.</p>
                 {modernImage && <p className="text-xs text-slate-500 mt-1">Shift scales proportionally. Double-click a resize node to pin/unpin it (green). Pins can lock resizing; editing a dimension clears them.</p>}
                 {modernImage && !currentWidget.settings?.image_transform && <p className="text-xs text-slate-500 mt-1">Legacy appearance is preserved until you edit a scale or use Default Scale.</p>}

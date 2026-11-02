@@ -110,6 +110,11 @@ export async function fetchRenderedWidget(widgetId, widget, themeSettings, curre
   }
 }
 
+export function requiresFullPagePreview(newState, oldState) {
+  const isResponsiveV3 = (state) => state?.page?.wyrmetizerEditorLayout?.version === 3 || state?.page?.layout?.version === 3;
+  return isResponsiveV3(newState) || isResponsiveV3(oldState);
+}
+
 /**
  * Update preview for CONTENT CHANGES ONLY (settings, blocks).
  * This function should NOT be called for structural changes (add/remove/reorder widgets).
@@ -129,6 +134,7 @@ export async function updatePreview(iframe, newState, oldState) {
   if (!iframe?.contentWindow || !newState) {
     return;
   }
+  if (requiresFullPagePreview(newState, oldState)) return;
 
   const safeOldState = oldState || {};
   const { widgets: newWidgets = {}, globalWidgets: newGlobalWidgets = {}, themeSettings: newThemeSettings } = newState;

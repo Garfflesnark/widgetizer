@@ -46,6 +46,22 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(mobile.widgets.b.settings.image_transform).toEqual(page.layout.areas.canvas.composition.presentation.b.image_transform);
   });
 
+  it("propagates shared content and inherited Desktop presentation changes without replacing Mobile overrides", () => {
+    const page = v3();
+    page.layout.areas.canvas.composition.presentation.a.fullwidth = true;
+    page.layout.mobile.areas = { canvas: { composition: { presentation: { a: { fullwidth: false } } } } };
+    const before = structuredClone(page);
+
+    page.widgets.a.settings.name = "Updated shared name";
+    page.layout.areas.canvas.composition.presentation.a.top_spacing_px = 36;
+    const desktop = resolveWyrmetizerPresentation(page, 750);
+    const mobile = resolveWyrmetizerPresentation(page, 390);
+
+    expect(desktop.widgets.a.settings).toMatchObject({ name: "Updated shared name", fullwidth: true, top_spacing_px: 36 });
+    expect(mobile.widgets.a.settings).toMatchObject({ name: "Updated shared name", fullwidth: false, top_spacing_px: 36 });
+    expect(page.layout.mobile.areas.canvas.composition.presentation.a).toEqual(before.layout.mobile.areas.canvas.composition.presentation.a);
+  });
+
   it("keeps root, Area Flow and Composition reading and visual orders distinct", () => {
     let page = switchWyrmetizerMode(v3(), "canvas", "flow", adapters);
     page.layout.mobile.rootOrder = [{ kind: "area", id: "canvas" }, { kind: "widget", id: "after" }];

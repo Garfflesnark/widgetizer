@@ -4,7 +4,7 @@ import { compositionFor } from "@widgetizer/core/composition";
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useThemeLocale } from "../../hooks/useThemeLocale";
-import { fetchPreviewToken, scrollElementIntoView, updatePreview } from "../../queries/previewManager";
+import { fetchPreviewToken, requiresFullPagePreview, scrollElementIntoView, updatePreview } from "../../queries/previewManager";
 import usePageStore from "../../stores/pageStore";
 import useProjectStore from "../../stores/projectStore";
 import useWidgetStore from "../../stores/widgetStore";
@@ -179,6 +179,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
 
   // A single ref to hold the entire previous state for comparison
   const previousStateRef = useRef(null);
+  const previewUpdateSequenceRef = useRef(0);
 
   // Track structural reload state to prevent SelectionOverlay from scrolling prematurely.
   // The ref is set synchronously during render so child effects can read it immediately.
@@ -215,7 +216,8 @@ const PreviewPanel = forwardRef(function PreviewPanel(
     if (contentChanged) {
       const newState = { page, widgets, globalWidgets, themeSettings };
       const { isStructural } = detectChangeType(newState, prev);
-      if (isStructural && !structuralReloadRef.current) {
+      const fullPagePreview = isStructural || requiresFullPagePreview(newState, prev);
+      if (fullPagePreview && !structuralReloadRef.current) {
         structuralReloadRef.current = true;
         // Capture scrollY now while the old iframe content is still present
         let scrollY = 0;
@@ -369,13 +371,14 @@ const PreviewPanel = forwardRef(function PreviewPanel(
 
     const newState = { page, widgets, globalWidgets, themeSettings };
     const { isStructural } = detectChangeType(newState, previousState);
-    if (isCompositionGeometryOnlyChange(previousState, newState)) {
+    const fullPagePreview = isStructural || requiresFullPagePreview(newState, previousState);
+    if (!fullPagePreview && isCompositionGeometryOnlyChange(previousState, newState)) {
       previousStateRef.current = { ...newState, selectedWidgetId, selectedBlockId, selectedGlobalWidgetId };
       return;
     }
 
     // Immediate visual feedback for simple setting changes (text/images)
-    if (!isStructural && iframeRef.current?.contentWindow && previousState?.widgets) {
+    if (!fullPagePreview && iframeRef.current?.contentWindow && previousState?.widgets) {
       Object.entries(widgets || {}).forEach(([widgetId, widget]) => {
         const oldWidget = previousState.widgets[widgetId];
         if (!oldWidget) return;
@@ -496,14 +499,17 @@ const PreviewPanel = forwardRef(function PreviewPanel(
     }
 
     // Debounced update - either full reload or morph depending on change type
+    const updateSequence = ++previewUpdateSequenceRef.current;
     const timeoutId = setTimeout(async () => {
       try {
-        if (isStructural) {
+        if (updateSequence !== previewUpdateSequenceRef.current) return;
+        if (fullPagePreview) {
           // STRUCTURAL CHANGE: Full page reload
           console.log("[Preview] FULL PAGE RELOAD (structural change)");
 
           const enhancedPageData = { ...page, globalWidgets };
           const { token } = await fetchPreviewToken(enhancedPageData, themeSettings, runtimeMode);
+          if (updateSequence !== previewUpdateSequenceRef.current) return;
           setPreviewSrc(buildPreviewUrl(token));
           // PREVIEW_READY handler will restore scroll + ungate SelectionOverlay
         } else {
@@ -528,6 +534,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
           };
 
           await updatePreview(iframeRef.current, updateState, previousState || {});
+          if (updateSequence !== previewUpdateSequenceRef.current) return;
 
           // Restore scroll position after morph
           try {
@@ -538,17 +545,20 @@ const PreviewPanel = forwardRef(function PreviewPanel(
           setPreviewReadyKey((prev) => prev + 1);
         }
       } catch (err) {
+        if (updateSequence !== previewUpdateSequenceRef.current) return;
         console.error("Preview update error:", err);
         // Fallback to full reload on any error
         try {
           const enhancedPageData = { ...page, globalWidgets };
           const { token } = await fetchPreviewToken(enhancedPageData, themeSettings, runtimeMode);
+          if (updateSequence !== previewUpdateSequenceRef.current) return;
           setPreviewSrc(buildPreviewUrl(token));
         } catch (fallbackErr) {
           console.error("Preview fallback reload error:", fallbackErr);
         }
       }
 
+      if (updateSequence !== previewUpdateSequenceRef.current) return;
       previousStateRef.current = {
         page,
         widgets,
@@ -650,6 +660,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
           onGlobalWidgetSelect={onGlobalWidgetSelect}
           previewReadyKey={previewReadyKey}
           structuralReloadRef={structuralReloadRef}
+          previewMode={previewMode}
         />
       )}
     </div>

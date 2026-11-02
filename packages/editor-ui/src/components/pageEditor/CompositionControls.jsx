@@ -160,14 +160,14 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
             <div className="flex flex-wrap gap-2">
               <button
                 className={button}
-                disabled={found[1].stackOrder.at(-1) === widgetId}
+                disabled={context !== "desktop" || found[1].stackOrder.at(-1) === widgetId}
                 onClick={() => run(() => layerImage(widgetId, "forward"))}
               >
                 Bring Forward
               </button>
               <button
                 className={button}
-                disabled={found[1].stackOrder[0] === widgetId}
+                disabled={context !== "desktop" || found[1].stackOrder[0] === widgetId}
                 onClick={() => run(() => layerImage(widgetId, "backward"))}
               >
                 Send Backward
@@ -214,7 +214,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
             <p className="form-description">
               Your Flow and Composition arrangements are preserved independently.
             </p>
-            <button className={button} onClick={() => run(() => returnCompositionToFlow(found[0]))}>
+            <button className={button} disabled={context !== "desktop"} onClick={() => run(() => returnCompositionToFlow(found[0]))}>
               Switch to Flow
             </button>
           </div>}

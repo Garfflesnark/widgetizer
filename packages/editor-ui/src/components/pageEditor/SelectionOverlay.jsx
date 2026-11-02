@@ -1,15 +1,68 @@
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
+import { compositionAdapters } from "@widgetizer/core/compositionImage";
+import { serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
 import { handleCompositionMessage, handleCompositionSelectionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext, handleCompositionLockMessage, pruneCompositionMovementLocks } from "../../lib/compositionActions";
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
 import { supportsImageStretch, imageWidth, imageHeight } from "@widgetizer/core/imageResize";
 import { handleImageResizeMessage, handleImageGeometryMessage, handleImageAlignmentMessage, supportedImageWidgetIds, IMAGE_SIZE_PREVIEW_EVENT } from "../../lib/imageResizeBridge";
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import useWidgetStore from "../../stores/widgetStore";
 import usePageStore from "../../stores/pageStore";
 import { scrollElementIntoView } from "../../queries/previewManager";
 import { getPreviewTargetOrigin } from "../../lib/previewBase";
+
+function responsiveV3(page) {
+  return page?.wyrmetizerEditorLayout?.version === 3 || page?.layout?.version === 3;
+}
+
+function responsiveSyncData(page, schemas, viewportWidthPx) {
+  const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  const view = resolveWyrmetizerPresentation(canonical, viewportWidthPx, { adapters: compositionAdapters });
+  const widgetIds = supportedImageWidgetIds(canonical, schemas);
+  const sizes = Object.fromEntries(widgetIds.map((id) => {
+    const widget = view.widgets[id] || canonical.widgets[id];
+    return [id, {
+      width: imageWidth(widget.settings?.image_width_percent),
+      height: imageHeight(widget.settings?.image_height_px),
+      transform: isImageTransform(widget.settings?.image_transform) ? widget.settings.image_transform : null,
+      ...(supportsImageSpacing(widget, schemas[widget.type]) ? { spacing: imageSpacing(widget.settings) } : {}),
+    }];
+  }));
+  const areas = {};
+  const revisions = {};
+  for (const [areaId, area] of Object.entries(view.areas)) {
+    if (area.mode !== "composition") continue;
+    const { widthPx, heightPx, placements } = area.geometry;
+    areas[areaId] = { mode: area.mode, widthPx, heightPx, readingOrder: area.readingOrder,
+      stackOrder: area.stackOrder, placements: {} };
+    for (const [id, placement] of Object.entries(placements)) {
+      const frame = { x: placement.xPx / widthPx, y: placement.yPx / widthPx, pivot: placement.pivot,
+        ...(placement.rotation ? { rotation: placement.rotation } : {}),
+        ...(placement.rotationPivot ? { rotationPivot: placement.rotationPivot } : {}) };
+      areas[areaId].placements[id] = { frame, rect: placement.rect };
+      revisions[id] = compositionRevision(view.widgets[id], frame);
+    }
+  }
+  return { presentation: view.presentation, sizes, areas, revisions };
+}
+
+function currentResponsiveMessage(payload, context, sequence) {
+  return payload?.presentation === context?.presentation && payload?.presentationEpoch === context?.epoch &&
+    payload?.syncRevision === sequence;
+}
+
+const RESPONSIVE_RUNTIME_MESSAGES = [
+  "COMPOSITION_TOGGLE_IMAGE", "COMPOSITION_SELECTED", "ORDER_SELECTION", "IMAGE_ALIGN", "COMPOSITION_LOCK",
+  "COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT", "IMAGE_GEOMETRY_CONTEXT",
+  "IMAGE_RESIZE_COMMIT", "REORDER_WIDGET", "WIDGET_SELECTED",
+];
+const RESPONSIVE_DESKTOP_ONLY_MESSAGES = [
+  "COMPOSITION_TOGGLE_IMAGE", "ORDER_SELECTION", "IMAGE_ALIGN", "COMPOSITION_LOCK", "COMPOSITION_MOVE",
+  "COMPOSITION_ROTATE", "COMPOSITION_PIVOT", "IMAGE_RESIZE_COMMIT", "REORDER_WIDGET",
+];
 
 /**
  * SelectionOverlay - Message relay between React stores and the preview iframe.
@@ -39,12 +92,28 @@ export default function SelectionOverlay({
   previewReadyKey,
   structuralReloadRef,
   editorZoom = 1,
+  previewMode = "desktop",
 }) {
+  const page = usePageStore((state) => state.page);
+  const responsiveContextRef = useRef({ presentation: previewMode === "mobile" ? "mobile" : "desktop", epoch: 0 });
+  const responsiveSyncSequenceRef = useRef(0);
+  const updateResponsiveContext = useCallback((payload) => {
+    responsiveContextRef.current = { presentation: payload?.presentation, epoch: payload?.epoch,
+      syncRevision: responsiveSyncSequenceRef.current };
+    if (payload?.presentation) useWidgetStore.getState().setCompositionContext(payload.presentation === "mobile" ? "mobile" : previewMode);
+  }, [previewMode]);
   useEffect(() => {
-    const preview = event => iframeRef?.current?.contentWindow?.postMessage({ type: "COMPOSITION_NUMERIC_PREVIEW", payload: event.detail }, getPreviewTargetOrigin());
+    const preview = event => {
+      const context = responsiveContextRef.current;
+      if (responsiveV3(page) && context.presentation !== "desktop") return;
+      iframeRef?.current?.contentWindow?.postMessage({ type: "COMPOSITION_NUMERIC_PREVIEW", payload: {
+        ...event.detail,
+        ...(responsiveV3(page) ? { presentation: context.presentation, presentationEpoch: context.epoch, syncRevision: responsiveSyncSequenceRef.current } : {}),
+      } }, getPreviewTargetOrigin());
+    };
     window.addEventListener("wyrmetizer:numeric-preview", preview);
     return () => window.removeEventListener("wyrmetizer:numeric-preview", preview);
-  }, [iframeRef]);
+  }, [iframeRef, page]);
   useEffect(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
@@ -57,44 +126,73 @@ export default function SelectionOverlay({
   const sidebarHoveredWidgetId = useWidgetStore((state) => state.hoveredWidgetId);
   const sidebarHoveredBlockId = useWidgetStore((state) => state.hoveredBlockId);
   const reorderWidgets = useWidgetStore((state) => state.reorderWidgets);
-  const page = usePageStore((state) => state.page);
   const schemas = useWidgetStore((state) => state.schemas);
   const movementLocks = useWidgetStore((state) => state.compositionMovementLocks);
   const compositionLayoutContext = useWidgetStore((state) => state.compositionContext);
-
   useEffect(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
     const sync = (force = false) => {
-      const widgetIds = supportedImageWidgetIds(page, schemas);
+      const isResponsive = responsiveV3(page);
+      let widgetIds = supportedImageWidgetIds(page, schemas);
       const stretchWidgetIds = widgetIds.filter((id) =>
         supportsImageStretch(page.widgets[id], schemas[page.widgets[id].type]),
       );
-      const sizes = Object.fromEntries(widgetIds.map((id) => [id, {
+      let sizes = Object.fromEntries(widgetIds.map((id) => [id, {
         width: imageWidth(page.widgets[id].settings?.image_width_percent),
         height: imageHeight(page.widgets[id].settings?.image_height_px),
         transform: isImageTransform(page.widgets[id].settings?.image_transform) ? page.widgets[id].settings.image_transform : null,
         ...(supportsImageSpacing(page.widgets[id], schemas[page.widgets[id].type]) ? { spacing: imageSpacing(page.widgets[id].settings) } : {}),
       }]));
-      iframe.contentWindow?.postMessage({ type: "COMPOSITION_SYNC", force: force === true, context: compositionInteractionContext(), movementLocks: pruneCompositionMovementLocks(), payload: page?.layout, sizes, revisions: Object.fromEntries(widgetIds.filter(id => compositionFor(page, id)).map(id => [id, compositionRevision(page.widgets[id], compositionFor(page, id)[1].placements[id].frames.desktop)])) }, getPreviewTargetOrigin());
+      let revisions = Object.fromEntries(widgetIds.filter(id => compositionFor(page, id)).map(id => [id, compositionRevision(page.widgets[id], compositionFor(page, id)[1].placements[id].frames.desktop)]));
+      let responsivePresentation;
+      let syncRevision;
+      let presentationEpoch;
+      if (isResponsive) {
+        let viewportWidthPx = previewMode === "mobile" ? 390 : previewMode === "tablet" ? 900 : 1200;
+        try { if (iframe.contentWindow?.innerWidth > 0) viewportWidthPx = iframe.contentWindow.innerWidth; } catch { /* use editor preview width */ }
+        const resolved = responsiveSyncData(page, schemas, viewportWidthPx);
+        widgetIds = supportedImageWidgetIds(serializeWyrmetizerEditorPage(page, compositionAdapters), schemas);
+        sizes = resolved.sizes;
+        revisions = resolved.revisions;
+        responsivePresentation = { presentation: resolved.presentation, areas: resolved.areas };
+        presentationEpoch = responsiveContextRef.current.epoch;
+        syncRevision = ++responsiveSyncSequenceRef.current;
+        responsiveContextRef.current = { ...responsiveContextRef.current, presentation: resolved.presentation, syncRevision };
+      }
+      iframe.contentWindow?.postMessage({ type: "COMPOSITION_SYNC", force: force === true, context: compositionInteractionContext(), movementLocks: pruneCompositionMovementLocks(), payload: page?.layout, sizes, revisions,
+        ...(isResponsive ? { responsive: true, presentation: responsivePresentation.presentation, presentationEpoch, syncRevision, resolvedPresentation: responsivePresentation } : {}) }, getPreviewTargetOrigin());
       iframe.contentWindow?.postMessage({
-        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes },
+        type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes,
+          ...(isResponsive ? { responsive: true, presentation: responsivePresentation.presentation, presentationEpoch, syncRevision } : {}) },
       }, getPreviewTargetOrigin());
     };
-    const preview = (event) => iframe.contentWindow?.postMessage(
-      { type: "IMAGE_SIZE_PREVIEW", payload: event.detail }, getPreviewTargetOrigin(),
-    );
+    const preview = (event) => {
+      const context = responsiveContextRef.current;
+      if (responsiveV3(page) && context.presentation !== "desktop") return;
+      iframe.contentWindow?.postMessage({ type: "IMAGE_SIZE_PREVIEW", payload: {
+        ...event.detail,
+        ...(responsiveV3(page) ? { presentation: context.presentation, presentationEpoch: context.epoch, syncRevision: responsiveSyncSequenceRef.current } : {}),
+      } }, getPreviewTargetOrigin());
+    };
     const reconcile = () => sync(true);
+    const presentationChanged = (event) => {
+      if (event.source !== iframe.contentWindow || event.origin !== getPreviewTargetOrigin() || event.data?.type !== "PRESENTATION_CONTEXT") return;
+      updateResponsiveContext(event.data.payload);
+      if (responsiveV3(page)) sync(true);
+    };
     window.addEventListener("widgetizer:composition-reconcile", reconcile);
     window.addEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
+    window.addEventListener("message", presentationChanged);
     sync();
     iframe.addEventListener("load", sync);
     return () => {
       iframe.removeEventListener("load", sync);
       window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
       window.removeEventListener("widgetizer:composition-reconcile", reconcile);
+      window.removeEventListener("message", presentationChanged);
     };
-  }, [iframeRef, page, schemas, previewReadyKey, compositionLayoutContext, movementLocks]);
+  }, [iframeRef, page, schemas, previewReadyKey, compositionLayoutContext, movementLocks, previewMode, updateResponsiveContext]);
 
   useEffect(() => {
     const iframe = iframeRef?.current;
@@ -147,6 +245,15 @@ export default function SelectionOverlay({
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      if (event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin() && event.data?.type === "PRESENTATION_CONTEXT") {
+        updateResponsiveContext(event.data.payload);
+        return;
+      }
+      if (responsiveV3(page) && event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin() &&
+          RESPONSIVE_RUNTIME_MESSAGES.includes(event.data?.type)) {
+        if (!currentResponsiveMessage(event.data.payload, responsiveContextRef.current, responsiveSyncSequenceRef.current)) return;
+        if (responsiveContextRef.current.presentation !== "desktop" && RESPONSIVE_DESKTOP_ONLY_MESSAGES.includes(event.data.type)) return;
+      }
       if (event.data?.type === "COMPOSITION_TOGGLE_IMAGE") {
         handleCompositionSelectionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }
@@ -222,7 +329,7 @@ export default function SelectionOverlay({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [effectiveWidgetId, selectedBlockId, onWidgetSelect, onBlockSelect, onGlobalWidgetSelect, iframeRef, page, reorderWidgets]);
+  }, [effectiveWidgetId, selectedBlockId, onWidgetSelect, onBlockSelect, onGlobalWidgetSelect, iframeRef, page, reorderWidgets, updateResponsiveContext]);
 
   // Send sidebar hover state to iframe
   useEffect(() => {

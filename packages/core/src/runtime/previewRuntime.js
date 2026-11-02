@@ -23,6 +23,28 @@ import { createImageResizeController } from "./imageResize.js";
 import { getStandalonePreviewTarget } from "./standalonePreviewTarget.js";
 import { activeArea, activePresentation, activeWidget, isActivePresentation, scopeInstanceIds } from "./responsiveDOM.js";
 
+let responsivePresentationEpoch = 0;
+let lastCompositionSyncRevision = -1;
+
+function responsiveMetadata() {
+  const presentation = activePresentation(document);
+  return presentation ? { presentation, presentationEpoch: responsivePresentationEpoch, syncRevision: lastCompositionSyncRevision } : {};
+}
+const withResponsiveMetadata = (payload) => ({ ...payload, ...responsiveMetadata() });
+
+function matchesResponsiveMessage(payload) {
+  const presentation = activePresentation(document);
+  return !presentation || (payload?.presentation === presentation && payload.presentationEpoch === responsivePresentationEpoch &&
+    payload.syncRevision === lastCompositionSyncRevision);
+}
+
+function notifyPresentationContext() {
+  const presentation = activePresentation(document);
+  if (presentation) postToParent({ type: "PRESENTATION_CONTEXT", payload: {
+    presentation, epoch: responsivePresentationEpoch, syncRevision: lastCompositionSyncRevision,
+  } });
+}
+
 // ── PostMessage ─────────────────────────────────────────────────────────────
 
 // The editor frames this runtime and passes its own origin on the iframe URL
@@ -595,14 +617,14 @@ function setupInteractionHandler() {
           !event.target.closest('button, input, select, textarea, video, audio, [role="button"]')) {
         event.preventDefault();
         event.stopPropagation();
-        postToParent({ type: "COMPOSITION_TOGGLE_IMAGE", payload: {
+        postToParent({ type: "COMPOSITION_TOGGLE_IMAGE", payload: withResponsiveMetadata({
           widgetId: widgetEl.dataset.widgetId, interactionContext: compositionInteractionContext,
-        } });
+        }) });
         return;
       }
       if (PREVIEW_MODE === "editor" && area && !widgetEl) {
         updateSelection(null, null, area.dataset.compositionId);
-        postToParent({ type: "COMPOSITION_SELECTED", payload: { compositionId: area.dataset.compositionId } });
+        postToParent({ type: "COMPOSITION_SELECTED", payload: withResponsiveMetadata({ compositionId: area.dataset.compositionId }) });
         return;
       }
       if (PREVIEW_MODE === "editor" && widgetEl) updateSelection(widgetEl.dataset.widgetId, blockEl?.dataset.blockId || null);
@@ -626,10 +648,10 @@ function setupInteractionHandler() {
         if (widgetEl) {
           postToParent({
             type: "WIDGET_SELECTED",
-            payload: {
+            payload: withResponsiveMetadata({
               widgetId: widgetEl.getAttribute("data-widget-id"),
               blockId: blockEl ? blockEl.getAttribute("data-block-id") : null,
-            },
+            }),
           });
         }
         return;
@@ -645,10 +667,10 @@ function setupInteractionHandler() {
         if (widgetEl) {
           postToParent({
             type: "WIDGET_SELECTED",
-            payload: {
+            payload: withResponsiveMetadata({
               widgetId: widgetEl.getAttribute("data-widget-id"),
               blockId: blockEl ? blockEl.getAttribute("data-block-id") : null,
-            },
+            }),
           });
         }
         return;
@@ -661,7 +683,7 @@ function setupInteractionHandler() {
         const widgetId = widgetEl.getAttribute("data-widget-id");
         const blockId = blockEl ? blockEl.getAttribute("data-block-id") : null;
 
-        postToParent({ type: "WIDGET_SELECTED", payload: { widgetId, blockId } });
+        postToParent({ type: "WIDGET_SELECTED", payload: withResponsiveMetadata({ widgetId, blockId }) });
       }
     },
     true,
@@ -919,18 +941,18 @@ function setupOverlayClickHandler() {
         const locked = compositionMovementLocks[currentSelectedWidgetId] !== context.area.dataset.compositionId;
         if (locked) compositionMovementLocks[currentSelectedWidgetId] = context.area.dataset.compositionId;
         else delete compositionMovementLocks[currentSelectedWidgetId];
-        postToParent({ type: "COMPOSITION_LOCK", payload: { widgetId: currentSelectedWidgetId, compositionId: context.area.dataset.compositionId, interactionContext: compositionInteractionContext, locked } });
+        postToParent({ type: "COMPOSITION_LOCK", payload: withResponsiveMetadata({ widgetId: currentSelectedWidgetId, compositionId: context.area.dataset.compositionId, interactionContext: compositionInteractionContext, locked }) });
         renderOverlay();
         overlayContainer.querySelector("[data-composition-lock]")?.focus();
       }
       return;
     }
     const compositionButton = event.target.closest("[data-select-composition]");
-    if (compositionButton) { updateSelection(null, null, compositionButton.dataset.selectComposition); postToParent({ type: "COMPOSITION_SELECTED", payload: { compositionId: compositionButton.dataset.selectComposition } }); return; }
+    if (compositionButton) { updateSelection(null, null, compositionButton.dataset.selectComposition); postToParent({ type: "COMPOSITION_SELECTED", payload: withResponsiveMetadata({ compositionId: compositionButton.dataset.selectComposition }) }); return; }
     const orderButton = event.target.closest("[data-order-scope]");
     if (orderButton) {
       event.preventDefault(); event.stopPropagation();
-      if (!orderButton.disabled) postToParent({ type: "ORDER_SELECTION", payload: { scope: orderButton.dataset.orderScope, id: orderButton.dataset.orderId, direction: orderButton.dataset.reorder } });
+      if (!orderButton.disabled) postToParent({ type: "ORDER_SELECTION", payload: withResponsiveMetadata({ scope: orderButton.dataset.orderScope, id: orderButton.dataset.orderId, direction: orderButton.dataset.reorder }) });
       return;
     }
     const menuButton = event.target.closest("[data-image-align-menu]");
@@ -942,7 +964,7 @@ function setupOverlayClickHandler() {
     }
     const alignment = event.target.closest("[data-image-align]")?.dataset.imageAlign;
     if (alignment && imageAlignmentMenuFor === currentSelectedWidgetId) {
-      postToParent({ type: "IMAGE_ALIGN", payload: { widgetId: currentSelectedWidgetId, alignment } });
+      postToParent({ type: "IMAGE_ALIGN", payload: withResponsiveMetadata({ widgetId: currentSelectedWidgetId, alignment }) });
       imageAlignmentMenuFor = null;
       renderOverlay();
       overlayContainer.querySelector('[data-image-align-menu]')?.focus();
@@ -954,7 +976,7 @@ function setupOverlayClickHandler() {
     const widgetId = btn.getAttribute("data-widget-reorder");
     const direction = btn.getAttribute("data-reorder");
 
-    postToParent({ type: "REORDER_WIDGET", payload: { widgetId, direction } });
+    postToParent({ type: "REORDER_WIDGET", payload: withResponsiveMetadata({ widgetId, direction }) });
   });
   document.addEventListener("pointerdown", (event) => {
     if (imageAlignmentMenuFor && !event.target.closest(".wz-image-controls")) { imageAlignmentMenuFor = null; renderOverlay(); }
@@ -979,41 +1001,74 @@ function handleMessage(event) {
     imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); renderOverlay(); return;
   }
   if (event.data?.type === "COMPOSITION_NUMERIC_PREVIEW") {
-    if (event.source === window.parent && PARENT_ORIGIN && event.origin === PARENT_ORIGIN) compositionNumericPreview?.preview(event.data.payload);
+    const payload = event.data.payload;
+    if (event.source === window.parent && PARENT_ORIGIN && event.origin === PARENT_ORIGIN &&
+        (!activePresentation(document) || (activePresentation(document) === "desktop" && matchesResponsiveMessage(payload)))) compositionNumericPreview?.preview(payload);
     return;
   }
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
-    if (activePresentation(document) === "mobile") return;
+    const presentation = activePresentation(document);
+    if (event.data.responsive === true) {
+      if (!presentation || event.data.presentation !== presentation || event.data.presentationEpoch !== responsivePresentationEpoch ||
+          !Number.isInteger(event.data.syncRevision) || event.data.syncRevision <= lastCompositionSyncRevision ||
+          event.data.resolvedPresentation?.presentation !== presentation) return;
+      lastCompositionSyncRevision = event.data.syncRevision;
+    } else if (presentation) return;
     compositionNumericPreview?.cancel();
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionRotateController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionPivotController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     if (typeof event.data.context === "string") compositionInteractionContext = event.data.context;
+    const compositions = event.data.responsive === true ? event.data.resolvedPresentation.areas : event.data.payload?.compositions;
     compositionMovementLocks = Object.fromEntries(Object.entries(event.data.movementLocks || {}).filter(([id, area]) =>
-      typeof area === "string" && event.data.payload?.compositions?.[area]?.childrenOrder?.includes(id)));
-    for (const [id, c] of Object.entries(event.data.payload?.compositions || {})) {
-      const desktop = document.querySelector('[data-wyrmetizer-presentation="desktop"]');
-      const area = desktop ? Array.from(desktop.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id) : activeArea(document, id);
+      typeof area === "string" && (event.data.responsive === true
+        ? compositions?.[area]?.placements?.[id]
+        : compositions?.[area]?.childrenOrder?.includes(id))));
+    for (const [id, c] of Object.entries(compositions || {})) {
+      if (event.data.responsive === true && c.mode !== "composition") continue;
+      const area = activeArea(document, id);
       if (!area || area.dataset.compositionMode === "flow") continue;
-      if (c.profiles?.desktop) {
-        area.dataset.compositionHeight = String(c.profiles.desktop.height.valuePx);
-        area.style.aspectRatio = `${c.profiles.desktop.referenceWidthPx}/${c.profiles.desktop.height.valuePx}`;
-      }
-      for (const child of area.querySelectorAll(":scope > [data-composition-child]")) {
-        const widgetId = child.dataset.compositionChild, frame = c.placements?.[widgetId]?.frames?.desktop;
-        if (!frame || !Number.isFinite(frame.x) || !Number.isFinite(frame.y)) continue;
-        if (compositionPivotController?.active && widgetId === currentSelectedWidgetId) continue;
-        child.dataset.compositionFrame = JSON.stringify(frame);
-        if (!compositionRotateController?.active) {
-          child.style.transform = `rotate(${frame.rotation || 0}deg)`;
-          child.style.transformOrigin = `${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%`;
+      if (event.data.responsive === true) {
+        area.dataset.compositionWidth = String(c.widthPx);
+        area.dataset.compositionHeight = String(c.heightPx);
+        area.style.aspectRatio = `${c.widthPx}/${c.heightPx}`;
+        for (const child of area.querySelectorAll(":scope > [data-composition-child]")) {
+          const widgetId = child.dataset.compositionChild, placement = c.placements?.[widgetId];
+          if (!placement) continue;
+          if (compositionPivotController?.active && widgetId === currentSelectedWidgetId) continue;
+          child.dataset.compositionFrame = JSON.stringify(placement.frame);
+          if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
+          if (!compositionRotateController?.active) {
+            child.style.transform = `rotate(${placement.frame.rotation || 0}deg)`;
+            child.style.transformOrigin = `${100 * (placement.frame.rotationPivot?.x ?? 0.5)}% ${100 * (placement.frame.rotationPivot?.y ?? 0.5)}%`;
+          }
+          child.style.left = `${100 * placement.rect.left / c.widthPx}%`;
+          child.style.top = `${100 * placement.rect.top / c.heightPx}%`;
+          child.style.width = `${100 * placement.rect.width / c.widthPx}%`;
+          child.style.height = `${100 * placement.rect.height / c.heightPx}%`;
+          child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
         }
-        if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
-        child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
+      } else {
+        if (c.profiles?.desktop) {
+          area.dataset.compositionHeight = String(c.profiles.desktop.height.valuePx);
+          area.style.aspectRatio = `${c.profiles.desktop.referenceWidthPx}/${c.profiles.desktop.height.valuePx}`;
+        }
+        for (const child of area.querySelectorAll(":scope > [data-composition-child]")) {
+          const widgetId = child.dataset.compositionChild, frame = c.placements?.[widgetId]?.frames?.desktop;
+          if (!frame || !Number.isFinite(frame.x) || !Number.isFinite(frame.y)) continue;
+          if (compositionPivotController?.active && widgetId === currentSelectedWidgetId) continue;
+          child.dataset.compositionFrame = JSON.stringify(frame);
+          if (!compositionRotateController?.active) {
+            child.style.transform = `rotate(${frame.rotation || 0}deg)`;
+            child.style.transformOrigin = `${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%`;
+          }
+          if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
+          child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
+        }
       }
     }
-    if (activePresentation(document) !== "mobile") imageResizeController?.setSizes(event.data.sizes || {}, event.data.force === true);
+    imageResizeController?.setSizes(event.data.sizes || {}, event.data.force === true);
     renderOverlay(); return;
   }
   if (event.data?.type === "EDITOR_HISTORY_STATE") {
@@ -1025,13 +1080,15 @@ function handleMessage(event) {
   if (event.data?.type === "IMAGE_SIZE_PREVIEW") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     const payload = event.data.payload;
-    if (!payload || payload.widgetId !== currentSelectedWidgetId || currentSelectedBlockId ||
+    if ((activePresentation(document) && (activePresentation(document) !== "desktop" || !matchesResponsiveMessage(payload))) ||
+        !payload || payload.widgetId !== currentSelectedWidgetId || currentSelectedBlockId ||
         !["preview", "commit", "cancel"].includes(payload.phase)) return;
     imageResizeController?.preview(payload);
     return;
   }
   if (event.data?.type === "SET_IMAGE_RESIZE_SUPPORT") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    if (activePresentation(document) && !matchesResponsiveMessage(event.data.payload)) return;
     const ids = event.data.payload?.widgetIds;
     if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) return;
     const stretchIds = event.data.payload?.stretchWidgetIds || [];
@@ -1076,6 +1133,7 @@ function handleMessage(event) {
       renderOverlay();
       break;
     case "UPDATE_WIDGET_SETTINGS":
+      if (activePresentation(document)) break;
       updateWidgetSettings(payload.widgetId, payload.changes, payload.fieldTypes);
       break;
     case "GET_ELEMENT_BOUNDS":
@@ -1385,13 +1443,13 @@ function initializeRuntime() {
     document.addEventListener("pointerdown", () => compositionNumericPreview?.cancel(), true);
     compositionPivotController = createWyrmetizerPivotController({ document, selected: () => currentSelectedWidgetId, getContext: () => compositionInteractionContext,
       onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); },
-      onPreview: renderOverlay, onCommit: payload => postToParent({ type: "COMPOSITION_PIVOT", payload }) });
+      onPreview: renderOverlay, onCommit: payload => postToParent({ type: "COMPOSITION_PIVOT", payload: withResponsiveMetadata(payload) }) });
     compositionRotateController = createCompositionRotateController({ document, selected: () => currentSelectedWidgetId,
       getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); },
-      onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_ROTATE", payload }) });
-    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
+      onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_ROTATE", payload: withResponsiveMetadata(payload) }) });
+    compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload: withResponsiveMetadata(payload) }) });
     imageResizeController = createImageResizeController({
-      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(activeWidget(document, payload.widgetId)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
+      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload: withResponsiveMetadata(payload) }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: withResponsiveMetadata({ ...payload, ...(compositionContext(activeWidget(document, payload.widgetId)) ? { interactionContext: compositionInteractionContext } : {}) }) }), onPreview: renderOverlay,
     });
   }
   if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
@@ -1413,6 +1471,7 @@ function initializeRuntime() {
     const nextPresentation = activePresentation(document);
     if (nextPresentation && nextPresentation !== lastResponsivePresentation) {
       lastResponsivePresentation = nextPresentation;
+      responsivePresentationEpoch++;
       widgetResizeObserver?.disconnect();
       widgetResizeObserver = null;
       imageResizeController?.invalidatePresentation();
@@ -1432,10 +1491,10 @@ function initializeRuntime() {
         if (currentSelectedBlockId) nextSelectedElement.dispatchEvent(new CustomEvent("widget:block-select", { bubbles: true, detail: { blockId: currentSelectedBlockId } }));
       }
       document.dispatchEvent(new CustomEvent("wyrmetizer:presentationchange", { detail: { presentation: nextPresentation } }));
-      if (nextPresentation === "desktop") imageResizeController?.setSizes(undefined, true);
       observeWidgetResize(currentSelectedWidgetId);
       reportElementBounds(currentSelectedWidgetId, currentSelectedBlockId);
       reportHoverBounds();
+      notifyPresentationContext();
     } else {
       if (nextPresentation !== "mobile") imageResizeController?.setSizes();
     }
@@ -1444,9 +1503,11 @@ function initializeRuntime() {
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
+      notifyPresentationContext();
       postToParent({ type: "PREVIEW_READY" });
     });
   } else {
+    notifyPresentationContext();
     postToParent({ type: "PREVIEW_READY" });
   }
 }

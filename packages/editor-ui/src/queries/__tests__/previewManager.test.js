@@ -11,11 +11,23 @@ vi.mock("../../lib/apiFetch", () => ({
   throwApiError: vi.fn(),
 }));
 
-import { fetchRenderedWidget, updatePreview } from "../previewManager";
+import { fetchRenderedWidget, requiresFullPagePreview, updatePreview } from "../previewManager";
 import { editorFetch } from "../../lib/apiFetch";
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe("responsive v3 preview updates", () => {
+  it("uses full-page rendering for canonical v3 pages and never morphs a single widget", async () => {
+    const page = { page: { layout: { version: 1 }, wyrmetizerEditorLayout: { version: 3 } }, widgets: { a: { settings: { title: "new" } } } };
+    const postMessage = vi.fn();
+    expect(requiresFullPagePreview(page, null)).toBe(true);
+    expect(requiresFullPagePreview({ page: { layout: { version: 2 } } }, null)).toBe(false);
+    await updatePreview({ contentWindow: { postMessage } }, page, { widgets: { a: { settings: { title: "old" } } } });
+    expect(postMessage).not.toHaveBeenCalled();
+    expect(editorFetch).not.toHaveBeenCalled();
+  });
 });
 
 describe("fetchRenderedWidget — currentCanonicalPath forwarding (D3)", () => {
