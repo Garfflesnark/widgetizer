@@ -1,6 +1,7 @@
 import { compositionContext, unrotatedCompositionRect } from "./compositionDOM.js";
 import { containedRect, minimumCompositionHeight } from "./composition.js";
 import { normalizeAngle } from "./rotationGeometry.js";
+import { activeWidget } from "./responsiveDOM.js";
 
 export function createWyrmetizerNumericPreview({ document, selected, selectedComposition = () => null, getContext, onPreview }) {
   let draft = null;
@@ -18,7 +19,7 @@ export function createWyrmetizerNumericPreview({ document, selected, selectedCom
     preview(payload) {
       if (payload?.phase === "cancel") { cancel(); return; }
       if (!payload || payload.context !== getContext()) return;
-      const widget = Array.from(document.querySelectorAll("[data-widget-id]")).find(el => el.dataset.widgetId === payload.widgetId);
+      const widget = activeWidget(document, payload.widgetId);
       const area = widget?.closest("[data-composition-id]");
       // Area selection clears the selected image. Height still belongs to that
       // area, whereas rotation continues to require the selected image itself.

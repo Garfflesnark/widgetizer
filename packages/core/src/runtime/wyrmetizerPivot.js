@@ -1,10 +1,11 @@
 import { compositionContext, unrotatedCompositionRect, applyCompositionRect } from "./compositionDOM.js";
 import { centerRotationPivot, rebaseRotationPivot, rotatedPoint, rotateVector } from "./rotationGeometry.js";
+import { activeWidget } from "./responsiveDOM.js";
 
 export function createWyrmetizerPivotController({ document, selected, getContext, onStart, onPreview, onCommit }) {
   const view = document.defaultView;
   let session = null;
-  const current = () => compositionContext(Array.from(document.querySelectorAll("[data-widget-id]")).find(el => el.dataset.widgetId === selected()));
+  const current = () => compositionContext(activeWidget(document, selected()));
   const payload = (context, pivot) => ({ widgetId: selected(), compositionId: context.area.dataset.compositionId,
     startRevision: context.child.dataset.compositionRevision, interactionContext: getContext(), startFrame: context.frame, rotationPivot: pivot });
   const finish = commit => {

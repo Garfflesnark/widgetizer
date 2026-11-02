@@ -81,6 +81,34 @@ it.each([1, 2])("invalidates an unselected v%s image when its reference changes 
   expect(sizes).toEqual(original);
   expect(commit).not.toHaveBeenCalled();
 });
+
+it("keeps Desktop image sizing out of the active Mobile instance and reapplies it on Desktop", () => {
+  const responsive = document.createElement("div");
+  responsive.dataset.wyrmetizerResponsive = "";
+  const desktopPresentation = document.createElement("div");
+  desktopPresentation.dataset.wyrmetizerPresentation = "desktop";
+  const mobilePresentation = document.createElement("div");
+  mobilePresentation.dataset.wyrmetizerPresentation = "mobile";
+  const desktopWidget = widget.cloneNode(true);
+  desktopPresentation.append(desktopWidget);
+  mobilePresentation.append(widget);
+  responsive.append(desktopPresentation, mobilePresentation);
+  document.body.replaceChildren(responsive, overlay);
+  const previousMatchMedia = window.matchMedia;
+  window.matchMedia = () => ({ matches: true });
+  try {
+    controller.setSizes({ w1: { width: 50 } });
+    expect(desktopWidget.querySelector("[data-image-resize-target]").style.width).toBe("");
+    expect(widget.querySelector("[data-image-resize-target]").style.width).toBe("");
+    window.matchMedia = () => ({ matches: false });
+    controller.setSizes();
+    expect(desktopWidget.querySelector("[data-image-resize-target]").style.width).toBe("50%");
+    expect(widget.querySelector("[data-image-resize-target]").style.width).toBe("");
+  } finally {
+    if (previousMatchMedia === undefined) delete window.matchMedia;
+    else window.matchMedia = previousMatchMedia;
+  }
+});
 it("invalidates intrinsic dimensions and container width even above the intrinsic fit limit", () => {
   pinnedFixture();
   preview.mockImplementation(() => {});

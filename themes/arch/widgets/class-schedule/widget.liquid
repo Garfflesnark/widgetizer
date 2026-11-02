@@ -426,7 +426,7 @@
   {% if widget.settings.layout == 'tabs' or widget.settings.layout == blank %}
     <script>
       (function () {
-        const root = document.getElementById('{{ widget.id }}');
+        const root = window.__wzCurrentWidgetElement || (document.currentScript && document.currentScript.closest('[data-widget-id]'));
         if (!root || root.dataset.initialized) return;
         root.dataset.initialized = 'true';
 

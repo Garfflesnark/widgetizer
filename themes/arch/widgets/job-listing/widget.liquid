@@ -292,7 +292,7 @@
   {% if widget.settings.show_filters %}
     <script>
       (function () {
-        const widgetElement = document.getElementById('{{ widget.id }}');
+        const widgetElement = window.__wzCurrentWidgetElement || (document.currentScript && document.currentScript.closest('[data-widget-id]'));
         if (!widgetElement || widgetElement.dataset.initialized) return;
         widgetElement.dataset.initialized = 'true';
 

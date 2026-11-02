@@ -214,7 +214,7 @@
   {% if widget.settings.animate %}
     <script>
       (function () {
-        const widget = document.getElementById('{{ widget.id }}');
+        const widget = window.__wzCurrentWidgetElement || (document.currentScript && document.currentScript.closest('[data-widget-id]'));
         if (!widget || widget.dataset.initialized) return;
         widget.dataset.initialized = 'true';
 

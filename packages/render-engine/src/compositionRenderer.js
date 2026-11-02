@@ -89,7 +89,12 @@ async function renderResponsiveWyrmetizerPage(page, renderWidget, adapters) {
   </style><div data-wyrmetizer-responsive>
     <div data-wyrmetizer-presentation="desktop">${desktopHtml}</div>
     <div data-wyrmetizer-presentation="mobile">${mobileHtml}</div>
-  </div>`;
+  </div><script data-wyrmetizer-anchor-bridge>(function(){
+    function targetFor(hash){var mode=window.matchMedia('(max-width: 749px)').matches?'mobile':'desktop';var id;try{id=decodeURIComponent(hash.slice(1))}catch(_){id=hash.slice(1)}var nodes=document.querySelectorAll('[data-wyrmetizer-original-id]');for(var i=0;i<nodes.length;i++){var node=nodes[i],presentation=node.closest('[data-wyrmetizer-presentation]');if(node.getAttribute('data-wyrmetizer-original-id')===id&&presentation&&presentation.getAttribute('data-wyrmetizer-presentation')===mode)return node}return null}
+    function follow(hash){var target=hash&&targetFor(hash);if(target)target.scrollIntoView()}
+    document.addEventListener('click',function(event){var link=event.target.closest&&event.target.closest('a[href^="#"]');if(!link)return;var target=targetFor(link.getAttribute('href'));if(!target)return;event.preventDefault();history.pushState(null,'',link.getAttribute('href'));target.scrollIntoView()});
+    window.addEventListener('hashchange',function(){follow(location.hash)});window.addEventListener('popstate',function(){follow(location.hash)});if(location.hash)requestAnimationFrame(function(){follow(location.hash)})
+  })();</script>`;
 }
 
 async function renderVariantWidgets(view, renderWidget) {
@@ -97,12 +102,12 @@ async function renderVariantWidgets(view, renderWidget) {
   let index = 0;
   for (const entry of view.rootOrder) {
     if (entry.kind === "widget") {
-      rendered.set(entry.id, scopeVariantStyles(await renderWidget(entry.id, view.widgets[entry.id], ++index), view.presentation));
+      rendered.set(entry.id, scopeVariantStyles(scopeResponsiveIds(await renderWidget(entry.id, view.widgets[entry.id], ++index), view.presentation), view.presentation));
       continue;
     }
     const area = view.areas[entry.id];
     const order = area.mode === "flow" ? area.order : area.readingOrder;
-    for (const id of order) rendered.set(id, scopeVariantStyles(await renderWidget(id, view.widgets[id], ++index), view.presentation));
+    for (const id of order) rendered.set(id, scopeVariantStyles(scopeResponsiveIds(await renderWidget(id, view.widgets[id], ++index), view.presentation), view.presentation));
   }
   return rendered;
 }
@@ -110,6 +115,40 @@ async function renderVariantWidgets(view, renderWidget) {
 function scopeVariantStyles(html, presentation) {
   const media = presentation === "mobile" ? "max-width:749px" : "min-width:750px";
   return String(html).replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi, `$1@media(${media}){$2}$3`);
+}
+
+function scopeResponsiveIds(html, presentation) {
+  const source = String(html);
+  const widgetId = source.match(/\bdata-widget-id\s*=\s*(["'])(.*?)\1/i)?.[2] || "widget";
+  const suffix = `--wyrmetizer-${widgetId}-${presentation}`;
+  const replacements = new Map();
+  const ids = [...source.matchAll(/\bid\s*=\s*(["'])(.*?)\1/gi)].map((match) => match[2]);
+  for (const id of ids) if (!replacements.has(id)) replacements.set(id, `${id}${suffix}`);
+  if (!replacements.size) return source;
+
+  const referenceAttributes = new Set([
+    "for", "form", "list", "headers", "aria-activedescendant", "aria-controls", "aria-describedby",
+    "aria-details", "aria-errormessage", "aria-flowto", "aria-labelledby", "aria-owns",
+  ]);
+  const occurrences = new Map();
+  return source.replace(/<[A-Za-z][^<>]*>/g, (tag) => tag.replace(
+    /\b([\w:-]+)\s*=\s*(["'])(.*?)\2/gi,
+    (attribute, name, quote, value) => {
+      const key = name.toLowerCase();
+      let next = value;
+      let marker = "";
+      if (key === "id") {
+        const occurrence = (occurrences.get(value) || 0) + 1;
+        occurrences.set(value, occurrence);
+        next = `${replacements.get(value) || value}${occurrence > 1 ? `--${occurrence}` : ""}`;
+        marker = ` data-wyrmetizer-original-id=${quote}${value}${quote}`;
+      }
+      else if (referenceAttributes.has(key)) next = value.split(/\s+/).map((token) => replacements.get(token) || token).join(" ");
+      else if ((key === "href" || key === "xlink:href") && value.startsWith("#")) next = `#${replacements.get(value.slice(1)) || value.slice(1)}`;
+      else if (value.includes("url(#")) next = value.replace(/url\(#([^)]*)\)/g, (url, id) => `url(#${replacements.get(id) || id})`);
+      return `${name}=${quote}${next}${quote}${marker}`;
+    },
+  ));
 }
 
 function collectRenderedImageDimensions(...variants) {

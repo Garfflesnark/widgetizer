@@ -2,6 +2,7 @@ import { compositionContext, unrotatedCompositionRect } from "./compositionDOM.j
 import { containedRect } from "./composition.js";
 import { normalizeAngle, rotatedPoint } from "./rotationGeometry.js";
 import { wyrmetizerHandlePlacement } from "./wyrmetizerHandlePlacement.js";
+import { activeWidget } from "./responsiveDOM.js";
 
 export function createCompositionRotateController({ document, selected, getContext, onStart, onPreview, onCommit }) {
   const view = document.defaultView;
@@ -46,7 +47,7 @@ export function createCompositionRotateController({ document, selected, getConte
     if (e.target.closest(".wz-image-resize-handle")) { finish(false); return; }
     const button = e.target.closest("[data-composition-rotate]");
     if (!button || e.button !== 0 || gesture || button.dataset.compositionRotate !== selected()) return;
-    const widget = Array.from(document.querySelectorAll("[data-widget-id]")).find(el => el.dataset.widgetId === selected());
+    const widget = activeWidget(document, selected());
     const context = compositionContext(widget);
     if (!context?.editable || !getContext() || !(context.scale > 0)) return;
     onStart();

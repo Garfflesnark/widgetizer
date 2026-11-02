@@ -80,6 +80,24 @@ describe("responsive shared page rendering", () => {
     expect(page).toEqual(before);
   });
 
+  it("scopes each responsive widget instance ID and its label and ARIA references", async () => {
+    const page = switchWyrmetizerMode(pageV3(), "canvas", "flow", compositionAdapters);
+    const html = await renderPageContent(page, (id) => `<section id="${id}" data-widget-id="${id}"><label id="label-${id}" for="field-${id}" aria-describedby="help-${id}">Name</label><input id="field-${id}" aria-labelledby="label-${id}"><p id="help-${id}">Help</p></section>`);
+    const doc = parse(html);
+    const desktop = doc.querySelector('[data-wyrmetizer-presentation="desktop"] [data-widget-id="a"]');
+    const mobile = doc.querySelector('[data-wyrmetizer-presentation="mobile"] [data-widget-id="a"]');
+    expect(desktop.dataset.widgetId).toBe(mobile.dataset.widgetId);
+    expect(desktop.id).toBe("a--wyrmetizer-a-desktop");
+    expect(mobile.id).toBe("a--wyrmetizer-a-mobile");
+    expect(desktop.querySelector("label").htmlFor).toBe("field-a--wyrmetizer-a-desktop");
+    expect(desktop.querySelector("label").getAttribute("aria-describedby")).toBe("help-a--wyrmetizer-a-desktop");
+    expect(desktop.querySelector("input").getAttribute("aria-labelledby")).toBe("label-a--wyrmetizer-a-desktop");
+    expect(mobile.querySelector("label").htmlFor).toBe("field-a--wyrmetizer-a-mobile");
+    expect(html).toContain("data-wyrmetizer-anchor-bridge");
+    const ids = [...doc.querySelectorAll("[id]")].map((element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("uses rendered image metadata for effective Mobile bounds and preserves preview/export parity", async () => {
     const page = pageV3();
     page.layout.mobile.areas = { canvas: { composition: {

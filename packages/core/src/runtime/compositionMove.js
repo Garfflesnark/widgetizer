@@ -1,5 +1,6 @@
 import { compositionContext, applyCompositionRect, compositionFrame, unrotatedCompositionRect } from "./compositionDOM.js";
 import { rotatedBounds } from "./rotationGeometry.js";
+import { activeWidget } from "./responsiveDOM.js";
 
 export function createCompositionMoveController({
   document,
@@ -72,11 +73,9 @@ export function createCompositionMoveController({
     )
       return;
     const grip = e.target.closest("[data-composition-move]");
-    const widget = grip
-      ? Array.from(document.querySelectorAll("[data-widget-id]")).find(
-          (el) => el.dataset.widgetId === grip.dataset.compositionMove,
-        )
-      : e.target.closest("[data-widget-id]");
+    const clickedWidget = e.target.closest("[data-widget-id]");
+    const widget = grip ? activeWidget(document, grip.dataset.compositionMove) :
+      clickedWidget && activeWidget(document, clickedWidget.dataset.widgetId) === clickedWidget ? clickedWidget : null;
     const context = compositionContext(widget);
     if (!context?.editable || !(context.scale > 0) || selected() !== widget?.dataset.widgetId || (e.target.closest("button") && !grip))
       return;

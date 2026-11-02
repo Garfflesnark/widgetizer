@@ -441,7 +441,7 @@
 
   <script>
     (function () {
-      var section = document.getElementById('{{ widget.id }}');
+      var section = typeof widget !== 'undefined' && widget || document.currentScript && document.currentScript.closest('[data-widget-id]');
       var form = section && section.querySelector('form[data-widgetizer-form]');
       if (!form || form.dataset.fieldErrors) return;
       form.dataset.fieldErrors = 'true';
@@ -449,7 +449,7 @@
 
       function errorFor(field) {
         var block = field.closest('[data-block-id]');
-        return block ? document.getElementById('form-{{ widget.id }}-' + block.getAttribute('data-block-id') + '-error') : null;
+        return block && (block.querySelector('.form-error') || (block.nextElementSibling && block.nextElementSibling.matches('.form-error') ? block.nextElementSibling : null));
       }
 
       function describe(field, id, on) {

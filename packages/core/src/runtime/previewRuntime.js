@@ -21,6 +21,7 @@ and cross-origin contentDocument access issues.
 // in-preview href → preview-route mapping (unit-tested separately).
 import { createImageResizeController } from "./imageResize.js";
 import { getStandalonePreviewTarget } from "./standalonePreviewTarget.js";
+import { activeArea, activePresentation, activeWidget, isActivePresentation, scopeInstanceIds } from "./responsiveDOM.js";
 
 // ── PostMessage ─────────────────────────────────────────────────────────────
 
@@ -206,7 +207,7 @@ function scrollToWidget(widgetId) {
   currentSelectedWidgetId = widgetId;
   observeWidgetResize(widgetId);
 
-  const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+  const widget = activeWidget(document, widgetId);
   if (!widget) {
     reportElementBounds(widgetId, currentSelectedBlockId);
     return;
@@ -243,7 +244,7 @@ function scrollToElement(widgetId, blockId = null) {
   currentSelectedBlockId = blockId;
   observeWidgetResize(widgetId);
 
-  const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+  const widget = activeWidget(document, widgetId);
   if (!widget) {
     reportElementBounds(widgetId, blockId);
     return;
@@ -291,7 +292,7 @@ function reportElementBounds(widgetId, blockId = null) {
   let blockBounds = null;
 
   if (widgetId) {
-    const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+    const widget = activeWidget(document, widgetId);
     if (widget) {
       const rect = widget.getBoundingClientRect();
       bounds = {
@@ -357,7 +358,7 @@ function updateSelection(widgetId, blockId, compositionId = null) {
   // --- Deselection events (fire on PREVIOUS widget) ---
 
   if (prevWidgetId && prevBlockId && (prevWidgetId !== widgetId || prevBlockId !== blockId)) {
-    const prevWidget = document.querySelector(`[data-widget-id="${prevWidgetId}"]`);
+    const prevWidget = activeWidget(document, prevWidgetId);
     if (prevWidget) {
       prevWidget.dispatchEvent(
         new CustomEvent("widget:block-deselect", {
@@ -369,7 +370,7 @@ function updateSelection(widgetId, blockId, compositionId = null) {
   }
 
   if (prevWidgetId && prevWidgetId !== widgetId) {
-    const prevWidget = document.querySelector(`[data-widget-id="${prevWidgetId}"]`);
+    const prevWidget = activeWidget(document, prevWidgetId);
     if (prevWidget) {
       prevWidget.dispatchEvent(
         new CustomEvent("widget:deselect", {
@@ -383,7 +384,7 @@ function updateSelection(widgetId, blockId, compositionId = null) {
   // --- Selection events (fire on NEW widget) ---
 
   if (widgetId && widgetId !== prevWidgetId) {
-    const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+    const widget = activeWidget(document, widgetId);
     if (widget) {
       widget.dispatchEvent(
         new CustomEvent("widget:select", {
@@ -395,7 +396,7 @@ function updateSelection(widgetId, blockId, compositionId = null) {
   }
 
   if (widgetId && blockId) {
-    const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+    const widget = activeWidget(document, widgetId);
     if (widget) {
       widget.dispatchEvent(
         new CustomEvent("widget:block-select", {
@@ -412,7 +413,8 @@ function updateSelection(widgetId, blockId, compositionId = null) {
 // ── Real-Time Widget Settings ───────────────────────────────────────────────
 
 function updateWidgetSettings(widgetId, changes, fieldTypes) {
-  const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+  if (activePresentation(document) === "mobile") return;
+  const widget = activeWidget(document, widgetId);
   if (!widget) return;
 
   if (changes.settings) {
@@ -502,7 +504,7 @@ function reportHoverBounds() {
     return;
   }
 
-  const widget = document.querySelector(`[data-widget-id="${currentHoveredWidgetId}"]`);
+  const widget = activeWidget(document, currentHoveredWidgetId);
   let bounds = null;
   let blockBounds = null;
 
@@ -670,16 +672,19 @@ function setupInteractionHandler() {
 
 let widgetResizeObserver = null;
 let resizeDebounceTimer = null;
+let widgetResizeTarget = null;
 
 function observeWidgetResize(widgetId) {
   if (widgetResizeObserver) {
     widgetResizeObserver.disconnect();
   }
+  widgetResizeTarget = null;
 
   if (!widgetId) return;
 
-  const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+  const widget = activeWidget(document, widgetId);
   if (!widget) return;
+  widgetResizeTarget = widget;
 
   widgetResizeObserver = new ResizeObserver(() => {
     if (resizeDebounceTimer) cancelAnimationFrame(resizeDebounceTimer);
@@ -777,7 +782,7 @@ function renderOverlay() {
 
   // 1. Widget hover box (render first so selection appears on top)
   if (hoverWidgetId && hoverWidgetId !== currentSelectedWidgetId) {
-    const hoverEl = document.querySelector(`[data-widget-id="${hoverWidgetId}"]`);
+    const hoverEl = activeWidget(document, hoverWidgetId);
     if (hoverEl) {
       const rect = hoverEl.getBoundingClientRect();
       const displayName = widgetMetadata[hoverWidgetId] || "";
@@ -793,9 +798,7 @@ function renderOverlay() {
   if (hoverBlockId && hoverBlockId !== currentSelectedBlockId) {
     const targetWidgetId = hoverWidgetId || currentSelectedWidgetId;
     if (targetWidgetId) {
-      const blockEl = document.querySelector(
-        `[data-widget-id="${targetWidgetId}"] [data-block-id="${hoverBlockId}"]`,
-      );
+      const blockEl = activeWidget(document, targetWidgetId)?.querySelector(`[data-block-id="${hoverBlockId}"]`);
       if (blockEl) {
         const rect = blockEl.getBoundingClientRect();
         html += `<div class="wz-block-hover" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;"></div>`;
@@ -805,7 +808,7 @@ function renderOverlay() {
 
   // 3. Widget selection box
   if (currentSelectedWidgetId) {
-    const selEl = document.querySelector(`[data-widget-id="${currentSelectedWidgetId}"]`);
+    const selEl = activeWidget(document, currentSelectedWidgetId);
     if (selEl) {
       const imageRect = imageResizeController?.selectionRect(selEl, currentSelectedBlockId);
       const rect = imageRect || selEl.getBoundingClientRect();
@@ -863,7 +866,7 @@ function renderOverlay() {
   }
 
   if (currentSelectedCompositionId && !currentSelectedWidgetId) {
-    const area = Array.from(document.querySelectorAll("[data-composition-id]")).find(el => el.dataset.compositionId === currentSelectedCompositionId);
+    const area = activeArea(document, currentSelectedCompositionId);
     const control = orderingInfo.compositions[currentSelectedCompositionId];
     if (area && control) {
       const r = area.getBoundingClientRect();
@@ -876,9 +879,7 @@ function renderOverlay() {
 
   // 4. Block selection box
   if (currentSelectedWidgetId && currentSelectedBlockId) {
-    const blockEl = document.querySelector(
-      `[data-widget-id="${currentSelectedWidgetId}"] [data-block-id="${currentSelectedBlockId}"]`,
-    );
+    const blockEl = activeWidget(document, currentSelectedWidgetId)?.querySelector(`[data-block-id="${currentSelectedBlockId}"]`);
     if (blockEl) {
       const rect = blockEl.getBoundingClientRect();
       html += `<div class="wz-block-selection" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;"></div>`;
@@ -892,9 +893,7 @@ function renderOverlay() {
     controls.style.top = `${placement.top}px`;
     controls.style.marginLeft = `${placement.shift}px`;
   }
-  const selected = Array.from(document.querySelectorAll("[data-widget-id]")).find(
-    (element) => element.dataset.widgetId === currentSelectedWidgetId,
-  );
+  const selected = activeWidget(document, currentSelectedWidgetId);
   if (!compositionRotateController?.active && !compositionPivotController?.active) imageResizeController?.renderHandle(overlayContainer, selected, currentSelectedBlockId);
   compositionPivotController?.render(overlayContainer, selected, currentSelectedBlockId);
   compositionRotateController?.render(overlayContainer, selected, currentSelectedBlockId);
@@ -914,7 +913,7 @@ function setupOverlayClickHandler() {
     const lockButton = event.target.closest("[data-composition-lock]");
     if (lockButton) {
       event.preventDefault(); event.stopPropagation();
-      const widget = document.querySelector(`[data-widget-id="${currentSelectedWidgetId}"]`), context = compositionContext(widget);
+      const widget = activeWidget(document, currentSelectedWidgetId), context = compositionContext(widget);
       if (lockButton.dataset.compositionLock === currentSelectedWidgetId && context?.editable) {
         compositionMoveController?.cancel();
         const locked = compositionMovementLocks[currentSelectedWidgetId] !== context.area.dataset.compositionId;
@@ -985,6 +984,7 @@ function handleMessage(event) {
   }
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    if (activePresentation(document) === "mobile") return;
     compositionNumericPreview?.cancel();
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionRotateController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
@@ -993,7 +993,8 @@ function handleMessage(event) {
     compositionMovementLocks = Object.fromEntries(Object.entries(event.data.movementLocks || {}).filter(([id, area]) =>
       typeof area === "string" && event.data.payload?.compositions?.[area]?.childrenOrder?.includes(id)));
     for (const [id, c] of Object.entries(event.data.payload?.compositions || {})) {
-      const area = Array.from(document.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id);
+      const desktop = document.querySelector('[data-wyrmetizer-presentation="desktop"]');
+      const area = desktop ? Array.from(desktop.querySelectorAll("[data-composition-id]")).find((el) => el.dataset.compositionId === id) : activeArea(document, id);
       if (!area || area.dataset.compositionMode === "flow") continue;
       if (c.profiles?.desktop) {
         area.dataset.compositionHeight = String(c.profiles.desktop.height.valuePx);
@@ -1012,7 +1013,7 @@ function handleMessage(event) {
         child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
       }
     }
-    imageResizeController?.setSizes(event.data.sizes || {}, event.data.force === true);
+    if (activePresentation(document) !== "mobile") imageResizeController?.setSizes(event.data.sizes || {}, event.data.force === true);
     renderOverlay(); return;
   }
   if (event.data?.type === "EDITOR_HISTORY_STATE") {
@@ -1161,7 +1162,9 @@ function executeScripts(scripts, widgetElement) {
         const widgetId = widgetElement?.getAttribute("data-widget-id");
         const widget = widgetElement;
         const func = new Function("widget", "widgetId", "document", "window", scriptData.text);
-        func(widget, widgetId, document, window);
+        window.__wzCurrentWidgetElement = widget;
+        try { func(widget, widgetId, document, window); }
+        finally { delete window.__wzCurrentWidgetElement; }
       } catch (error) {
         console.error("[PreviewRuntime] Error executing script for widget:", error);
       }
@@ -1170,7 +1173,7 @@ function executeScripts(scripts, widgetElement) {
 }
 
 function initializeWidget(widgetId) {
-  const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+  const widget = activeWidget(document, widgetId);
   if (!widget) return;
 
   if (widget.dataset.initialized === "true") {
@@ -1204,7 +1207,7 @@ function cleanupWidget(widgetId) {
     widgetObservers.delete(widgetId);
   }
 
-  const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+  const widget = activeWidget(document, widgetId);
   if (widget) {
     widget.removeAttribute("data-initialized");
   }
@@ -1226,7 +1229,8 @@ function trackWidgetObserver(widgetId, observer) {
 
 function morphWidget(widgetId, newHtml) {
   if (widgetId === currentSelectedWidgetId) { imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }
-  const existingElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
+  const existingElement = activeWidget(document, widgetId);
+  if (existingElement?.closest("[data-wyrmetizer-responsive]")) return false;
   if (!existingElement) {
     console.warn(`[PreviewRuntime] Widget ${widgetId} not found for morphing`);
     return false;
@@ -1235,12 +1239,14 @@ function morphWidget(widgetId, newHtml) {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(newHtml, "text/html");
-    const newElement = doc.querySelector(`[data-widget-id="${widgetId}"]`);
+    const newElement = activeWidget(doc, widgetId);
 
     if (!newElement) {
       console.warn(`[PreviewRuntime] Widget ${widgetId} not found in new HTML`);
       return false;
     }
+
+    scopeInstanceIds(newElement, existingElement.closest("[data-wyrmetizer-presentation]")?.dataset.wyrmetizerPresentation);
 
     const newScripts = extractScripts(newElement);
     newElement.querySelectorAll("script").forEach((script) => script.remove());
@@ -1385,7 +1391,7 @@ function initializeRuntime() {
       onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_ROTATE", payload }) });
     compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload }) });
     imageResizeController = createImageResizeController({
-      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(document.querySelector(`[data-widget-id="${payload.widgetId}"]`)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
+      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: { ...payload, ...(compositionContext(activeWidget(document, payload.widgetId)) ? { interactionContext: compositionInteractionContext } : {}) } }), onPreview: renderOverlay,
     });
   }
   if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
@@ -1401,9 +1407,38 @@ function initializeRuntime() {
   window.addEventListener("message", handleMessage);
 
   // Reconcile every image before redrawing selection controls at the new viewport size.
+  let lastResponsivePresentation = activePresentation(document);
   window.addEventListener("resize", () => {
     imageResizeController?.cancel(); compositionMoveController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel();
-    imageResizeController?.setSizes();
+    const nextPresentation = activePresentation(document);
+    if (nextPresentation && nextPresentation !== lastResponsivePresentation) {
+      lastResponsivePresentation = nextPresentation;
+      widgetResizeObserver?.disconnect();
+      widgetResizeObserver = null;
+      imageResizeController?.invalidatePresentation();
+      currentHoveredWidgetId = null;
+      currentHoveredBlockId = null;
+      const selectedElement = widgetResizeTarget;
+      if (selectedElement) {
+        selectedElement.dispatchEvent(new CustomEvent("widget:deselect", { bubbles: true }));
+        if (currentSelectedBlockId) selectedElement.dispatchEvent(new CustomEvent("widget:block-deselect", { bubbles: true, detail: { blockId: currentSelectedBlockId } }));
+      }
+      for (const widget of document.querySelectorAll("[data-widget-id]")) {
+        if (isActivePresentation(widget)) initializeWidget(widget.dataset.widgetId);
+      }
+      const nextSelectedElement = activeWidget(document, currentSelectedWidgetId);
+      if (nextSelectedElement) {
+        nextSelectedElement.dispatchEvent(new CustomEvent("widget:select", { bubbles: true }));
+        if (currentSelectedBlockId) nextSelectedElement.dispatchEvent(new CustomEvent("widget:block-select", { bubbles: true, detail: { blockId: currentSelectedBlockId } }));
+      }
+      document.dispatchEvent(new CustomEvent("wyrmetizer:presentationchange", { detail: { presentation: nextPresentation } }));
+      if (nextPresentation === "desktop") imageResizeController?.setSizes(undefined, true);
+      observeWidgetResize(currentSelectedWidgetId);
+      reportElementBounds(currentSelectedWidgetId, currentSelectedBlockId);
+      reportHoverBounds();
+    } else {
+      if (nextPresentation !== "mobile") imageResizeController?.setSizes();
+    }
     renderOverlay();
   });
 

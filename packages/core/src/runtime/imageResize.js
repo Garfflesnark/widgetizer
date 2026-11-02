@@ -4,6 +4,7 @@ import { rotateVector, rotatedPoint, rotatedResizeRect } from "./rotationGeometr
 import { resizeAnchoredRect, resizePinnedRect } from "./anchoredResize.js";
 import { imageReference, isImageTransform, rectTransform, transformRect, imageTransformV2 } from "./imageTransform.js";
 import { isImageSpacing } from "./imageSpacing.js";
+import { activePresentation, activeWidget } from "./responsiveDOM.js";
 export const IMAGE_WIDTH_SETTING = "image_width_percent";
 export const MIN_IMAGE_WIDTH = 10;
 export const MAX_IMAGE_WIDTH = 100;
@@ -75,8 +76,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   const canonicalValues = new Map();
   const contextKeys = new Map();
   let transforms = new Set();
-  const find = (id) =>
-    Array.from(document.querySelectorAll("[data-widget-id]")).find((el) => el.dataset.widgetId === id);
+  const find = (id) => activeWidget(document, id);
   function parts(widget) {
     const target = widget?.querySelector("[data-image-resize-target]");
     return { target, image: target?.querySelector("img") || target };
@@ -84,6 +84,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   function eligible(widget, blockId) {
     return (
       !blockId &&
+      activePresentation(document) !== "mobile" &&
       (compositionContext(widget)?.editable ?? true) &&
       supported.has(widget?.dataset.widgetId) &&
       widget?.dataset.widgetType === "image" &&
@@ -326,6 +327,10 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       }
     },
     setSizes(sizes = Object.fromEntries(canonicalValues), force = false) {
+      if (activePresentation(document) === "mobile") {
+        for (const [widgetId, size] of Object.entries(sizes)) if (size) canonicalValues.set(widgetId, size);
+        return;
+      }
       // Undo can return to the last server-rendered state before its debounce
       // fires. Reconcile from store values even when no morph will be requested.
       for (const [widgetId, size] of Object.entries(sizes)) {
@@ -349,6 +354,10 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         if (transforms.has(widgetId)) onContext?.({ widgetId, ...(basis || reference(widget)), hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth), naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" });
       }
       onPreview();
+    },
+    invalidatePresentation() {
+      canonicalSizes.clear();
+      contextKeys.clear();
     },
     preview({ widgetId, width, height, transform, spacing, phase }) {
       if (phase === "cancel") {

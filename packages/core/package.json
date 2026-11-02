@@ -48,6 +48,7 @@
     "./composition": "./src/runtime/composition.js",
     "./compositionImage": "./src/runtime/compositionImage.js",
     "./rotationGeometry": "./src/runtime/rotationGeometry.js",
+    "./responsiveDOM": "./src/runtime/responsiveDOM.js",
     "./wyrmetizerLayouts": "./src/runtime/wyrmetizerLayouts.js",
     "./wyrmetizerPresentation": "./src/runtime/wyrmetizerPresentation.js"
   },
