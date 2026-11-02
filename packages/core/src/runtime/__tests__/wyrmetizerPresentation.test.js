@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { compositionAdapters } from "../compositionImage.js";
 import { convertWyrmetizerPageToV3, createWyrmetizerCopy, switchWyrmetizerMode } from "../wyrmetizerLayouts.js";
 import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
+import {
+  beginWyrmetizerMobileTransaction,
+  cancelWyrmetizerMobileTransaction,
+  commitWyrmetizerMobileTransaction,
+  resetWyrmetizerMobileMode,
+  resetWyrmetizerMobileWidget,
+  setWyrmetizerMobileTransactionValue,
+} from "@widgetizer/core/wyrmetizerMobileTransactions";
 import { fixture } from "./compositionFixture.js";
 
 const adapters = compositionAdapters;
@@ -35,6 +43,7 @@ describe("Wyrmetizer presentation resolver", () => {
   it("inherits Desktop values property-by-property and keeps explicit zero and false", () => {
     let page = v3();
     page.layout.areas.canvas.composition.presentation.a.fullwidth = true;
+    page.layout.areas.canvas.composition.presentation.a.bottom_spacing_px = 37;
     page.layout.areas.canvas.composition.presentation.a.top_spacing_px = 44;
     page.layout.mobile.areas = { canvas: { composition: { presentation: {
       a: { fullwidth: false, top_spacing_px: 0 },
@@ -120,6 +129,100 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(page).toEqual(before);
     expect(second.widgets.a.settings.fullwidth).toBe(false);
     expect(second.widgets.a.settings).not.toHaveProperty("staleDerivedField");
+  });
+
+  it("stages changes from resolved Mobile values and commits only changed properties", () => {
+    const page = v3();
+    page.layout.areas.canvas.composition.presentation.a.fullwidth = true;
+    page.layout.areas.canvas.composition.presentation.a.bottom_spacing_px = 37;
+    page.layout.mobile.areas = { canvas: { composition: { presentation: { a: { fullwidth: false, top_spacing_px: 0 } } } } };
+    const before = structuredClone(page);
+    const transaction = beginWyrmetizerMobileTransaction(page, { areaId: "canvas", mode: "composition", widgetId: "a" }, adapters);
+    expect(transaction.initialValues).toMatchObject({ fullwidth: false, top_spacing_px: 0 });
+    const staged = setWyrmetizerMobileTransactionValue(transaction, "top_spacing_px", 18);
+    const result = commitWyrmetizerMobileTransaction(staged, adapters);
+
+    expect(result).toMatchObject({ changed: true, upgraded: false });
+    expect(result.page.layout.areas.canvas.composition.presentation.a.fullwidth).toBe(true);
+    expect(result.page.layout.mobile.areas.canvas.composition.presentation.a).toEqual({ fullwidth: false, top_spacing_px: 18 });
+    expect(resolveWyrmetizerPresentation(result.page, 390).widgets.a.settings).toMatchObject({ fullwidth: false, top_spacing_px: 18, bottom_spacing_px: 37 });
+    expect(page).toEqual(before);
+  });
+
+  it("upgrades v2 only for a committed change and round trips the sparse override", () => {
+    const page = v2();
+    const before = structuredClone(page);
+    const target = { areaId: "canvas", mode: "composition", widgetId: "a" };
+    const transaction = beginWyrmetizerMobileTransaction(page, target, adapters);
+    const unchanged = setWyrmetizerMobileTransactionValue(transaction, "image_transform", transaction.initialValues.image_transform);
+    expect(commitWyrmetizerMobileTransaction(unchanged, adapters)).toMatchObject({ changed: false, upgraded: false, page: before });
+    expect(cancelWyrmetizerMobileTransaction(transaction)).toEqual(before);
+
+    const nextTransform = structuredClone(transaction.initialValues.image_transform);
+    nextTransform.dimensions.width.value = 250;
+    const committed = commitWyrmetizerMobileTransaction(
+      setWyrmetizerMobileTransactionValue(transaction, "image_transform", nextTransform), adapters,
+    );
+    expect(committed).toMatchObject({ changed: true, upgraded: true });
+    expect(committed.page.layout.version).toBe(3);
+    expect(committed.page.layout.areas.canvas.composition.presentation.a.image_transform).toEqual(before.layout.areas.canvas.composition.presentation.a.image_transform);
+    expect(committed.page.layout.mobile.areas.canvas.composition.presentation.a).toEqual({ image_transform: nextTransform });
+    const reloaded = JSON.parse(JSON.stringify(committed.page));
+    expect(resolveWyrmetizerPresentation(reloaded, 390, { deferBoundsValidation: true }).widgets.a.settings.image_transform).toEqual(nextTransform);
+  });
+
+  it("resets one property, one Widget, or the Mobile Flow mode without disturbing other ownership", () => {
+    const page = v3();
+    page.layout.mobile.rootOrder = [...page.layout.contentOrder].reverse();
+    page.widgets.after = { type: "image", settings: {
+      image: "/uploads/images/photo.jpg",
+      image_transform: structuredClone(page.layout.areas.canvas.flow.presentation.a.image_transform),
+    } };
+    page.layout.mobile.presentation = { after: { fullwidth: false } };
+    page.layout.mobile.areas = {
+      canvas: {
+        flow: { presentation: { a: { top_spacing_px: 0 } } },
+        composition: { presentation: { a: { fullwidth: false }, b: { top_spacing_px: 12 } }, geometry: {
+          version: 1, referenceWidthPx: 390, heightPx: 400, readingOrder: ["a", "b"], stackOrder: ["a", "b"],
+          placements: {
+            a: { x: { value: 20, unit: "px" }, y: { value: 0, unit: "px" }, pivot: { x: 0, y: 0 } },
+            b: { x: { value: 120, unit: "px" }, y: { value: 0, unit: "px" }, pivot: { x: 0, y: 0 } },
+          },
+        } },
+      },
+    };
+    const property = resetWyrmetizerMobileWidget(page, { areaId: "canvas", mode: "flow", widgetId: "a" }, adapters, "top_spacing_px");
+    expect(property.changed).toBe(true);
+    expect(property.page.layout.mobile.areas.canvas.flow).toBeUndefined();
+    expect(property.page.layout.mobile.presentation.after.fullwidth).toBe(false);
+    expect(property.page.layout.mobile.areas.canvas.composition.presentation.a.fullwidth).toBe(false);
+
+    const widget = resetWyrmetizerMobileWidget(property.page, { areaId: "canvas", mode: "composition", widgetId: "a" }, adapters);
+    expect(widget.page.layout.mobile.areas.canvas.composition.presentation.a).toBeUndefined();
+    expect(widget.page.layout.mobile.areas.canvas.composition.presentation.b.top_spacing_px).toBe(12);
+
+    const mode = resetWyrmetizerMobileMode(widget.page, "flow", adapters);
+    expect(mode.page.layout.mobile.rootOrder).toBeUndefined();
+    expect(mode.page.layout.mobile.presentation).toBeUndefined();
+    expect(mode.page.layout.mobile.areas.canvas.flow).toBeUndefined();
+    expect(mode.page.layout.mobile.areas.canvas.composition.geometry.heightPx).toBe(400);
+    expect(mode.page.layout.mobile.areas.canvas.composition.presentation.b.top_spacing_px).toBe(12);
+  });
+
+  it("rejects bad paths, values and unsupported versions atomically", () => {
+    const page = v3();
+    const before = structuredClone(page);
+    expect(() => beginWyrmetizerMobileTransaction(page, { areaId: "missing", mode: "flow", widgetId: "a" }, adapters)).toThrow(/invalid Area Widget mode/);
+    expect(() => beginWyrmetizerMobileTransaction(page, { widgetId: "a" }, adapters)).toThrow(/standalone Flow Widget/);
+    const transaction = beginWyrmetizerMobileTransaction(page, { areaId: "canvas", mode: "composition", widgetId: "a" }, adapters);
+    expect(() => setWyrmetizerMobileTransactionValue(transaction, "rotation", 12)).toThrow(/unsupported Mobile presentation property/);
+    const withFullwidth = setWyrmetizerMobileTransactionValue(transaction, "fullwidth", false);
+    const invalid = setWyrmetizerMobileTransactionValue(withFullwidth, "image_transform", { version: 999 });
+    expect(() => commitWyrmetizerMobileTransaction(invalid, adapters)).toThrow();
+    expect(page).toEqual(before);
+    const unsupported = structuredClone(page); unsupported.layout.version = 4;
+    expect(() => beginWyrmetizerMobileTransaction(unsupported, { areaId: "canvas", widgetId: "a" }, adapters)).toThrow(/unsupported envelope/);
+    expect(unsupported).toEqual({ ...page, layout: { ...page.layout, version: 4 } });
   });
 
   it("rejects unsupported viewport widths and effective Desktop overflow", () => {

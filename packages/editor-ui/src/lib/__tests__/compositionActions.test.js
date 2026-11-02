@@ -1,7 +1,7 @@
 import { compositionRevision, compositionRect } from "@widgetizer/core/composition";
 import { rotatedPoint } from "@widgetizer/core/rotationGeometry";
 import { transformRect } from "@widgetizer/core/imageTransform";
-import { createWyrmetizerCopy, serializeWyrmetizerEditorPage, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { convertWyrmetizerPageToV3, createWyrmetizerCopy, serializeWyrmetizerEditorPage, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { renderPageContent } from "../../../../render-engine/src/compositionRenderer.js";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
@@ -32,6 +32,13 @@ import {
   deleteCompositionArea,
   addImagesToComposition,
   removeImageFromComposition,
+  beginMobilePresentationTransaction,
+  stageMobilePresentationValue,
+  cancelMobilePresentationTransaction,
+  commitMobilePresentationTransaction,
+  resetMobilePresentationProperty,
+  resetMobileWidgetPresentation,
+  resetMobileModePresentation,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -472,4 +479,74 @@ it("clears locks on Return to Flow without restoring them on Undo", () => {
   expect(getCompositionMovementLocks()).toEqual({});
   usePageStore.temporal.getState().undo();
   expect(getCompositionMovementLocks()).toEqual({});
+});
+
+it("commits one Mobile transaction, upgrades v2 only on edit, and restores inheritance through Undo", () => {
+  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false });
+  const before = structuredClone(usePageStore.getState().page);
+  const target = { areaId: "canvas", mode: "composition", widgetId: "a" };
+  const cancelled = beginMobilePresentationTransaction(target);
+  expect(cancelMobilePresentationTransaction(cancelled)).toEqual(before);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+
+  const transaction = beginMobilePresentationTransaction(target);
+  const changedTransform = structuredClone(transaction.initialValues.image_transform);
+  changedTransform.dimensions.width.value = 250;
+  const staged = stageMobilePresentationValue(transaction, "image_transform", changedTransform);
+  expect(commitMobilePresentationTransaction(staged)).toBe(true);
+  const committed = structuredClone(usePageStore.getState().page);
+  const canonical = serializeWyrmetizerEditorPage(committed, compositionAdapters);
+  expect(canonical.layout.version).toBe(3);
+  expect(canonical.layout.mobile.areas.canvas.composition.presentation.a).toEqual({ image_transform: changedTransform });
+  expect(committed.wyrmetizerEditorLayout.areas.canvas.composition.presentation.a.image_transform)
+    .toEqual(before.wyrmetizerEditorLayout.areas.canvas.composition.presentation.a.image_transform);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(useAutoSave.getState().structureModified).toBe(true);
+
+  usePageStore.temporal.getState().undo();
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.version).toBe(2);
+  usePageStore.temporal.getState().redo();
+  expect(usePageStore.getState().page).toEqual(committed);
+  usePageStore.getState().setPage(JSON.parse(JSON.stringify(canonical)));
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters)).toEqual(canonical);
+});
+
+it("records each Mobile reset as one Undo/Redo step and leaves untouched v2 pages unchanged", () => {
+  const v2 = createWyrmetizerCopy(fixture(), compositionAdapters);
+  usePageStore.getState().setPage(v2);
+  usePageStore.temporal.getState().clear();
+  expect(resetMobilePresentationProperty({ areaId: "canvas", mode: "flow", widgetId: "a" }, "fullwidth")).toBe(false);
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.version).toBe(2);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+
+  const v3 = convertWyrmetizerPageToV3(v2, compositionAdapters);
+  v3.layout.mobile.areas = { canvas: {
+    flow: { presentation: { a: { fullwidth: false, top_spacing_px: 0 }, b: { top_spacing_px: 9 } } },
+    composition: { presentation: { a: { fullwidth: false }, b: { top_spacing_px: 14 } } },
+  } };
+  usePageStore.getState().setPage(v3);
+  usePageStore.temporal.getState().clear();
+  const before = structuredClone(usePageStore.getState().page);
+
+  expect(resetMobilePresentationProperty({ areaId: "canvas", mode: "flow", widgetId: "a" }, "fullwidth")).toBe(true);
+  const afterProperty = structuredClone(usePageStore.getState().page);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(serializeWyrmetizerEditorPage(afterProperty, compositionAdapters).layout.mobile.areas.canvas.flow.presentation.a).toEqual({ top_spacing_px: 0 });
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); expect(usePageStore.getState().page).toEqual(afterProperty);
+
+  expect(resetMobileWidgetPresentation({ areaId: "canvas", mode: "flow", widgetId: "a" })).toBe(true);
+  const afterWidget = structuredClone(usePageStore.getState().page);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(2);
+  expect(serializeWyrmetizerEditorPage(afterWidget, compositionAdapters).layout.mobile.areas.canvas.flow.presentation.b.top_spacing_px).toBe(9);
+  expect(resetMobileModePresentation("flow")).toBe(true);
+  const afterMode = structuredClone(usePageStore.getState().page);
+  const reset = serializeWyrmetizerEditorPage(afterMode, compositionAdapters);
+  expect(reset.layout.mobile.areas.canvas.composition.presentation.b.top_spacing_px).toBe(14);
+  expect(reset.layout.mobile.areas.canvas.flow).toBeUndefined();
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(3);
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(afterWidget);
+  usePageStore.temporal.getState().redo(); expect(usePageStore.getState().page).toEqual(afterMode);
 });

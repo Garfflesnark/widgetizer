@@ -233,7 +233,7 @@ const usePageStore = create(
       beginHistoryStep: () => { lastEdit = null; },
 
       setPage: (page) => {
-        if (page?.wyrmetizerEditorLayout || page?.layout?.version === 2) {
+        if (page?.wyrmetizerEditorLayout || [2, 3].includes(page?.layout?.version)) {
           set({ page: openWyrmetizerEditorPage(serializeWyrmetizerEditorPage(page, compositionAdapters), compositionAdapters) });
           return;
         }

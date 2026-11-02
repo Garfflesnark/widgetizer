@@ -12,6 +12,14 @@ import {
   minimumCompositionHeight,
 } from "@widgetizer/core/composition";
 import { compositionAdapters, compositionImageRect } from "@widgetizer/core/compositionImage";
+import {
+  beginWyrmetizerMobileTransaction,
+  cancelWyrmetizerMobileTransaction,
+  commitWyrmetizerMobileTransaction,
+  resetWyrmetizerMobileMode,
+  resetWyrmetizerMobileWidget,
+  setWyrmetizerMobileTransactionValue,
+} from "@widgetizer/core/wyrmetizerMobileTransactions";
 import { transformRect, imageReference, imageTransformV2, supportsImageUnits } from "@widgetizer/core/imageTransform";
 import usePageStore from "../stores/pageStore";
 import useWidgetStore from "../stores/widgetStore";
@@ -104,6 +112,47 @@ export function commitCompositionPage(next) {
   useAutoSave.getState().setStructureModified(true);
   return true;
 }
+
+function editorPageForMobileTransaction(page) {
+  return page?.wyrmetizerEditorLayout ? page : openWyrmetizerEditorPage(page, compositionAdapters);
+}
+
+export function beginMobilePresentationTransaction(target) {
+  return beginWyrmetizerMobileTransaction(usePageStore.getState().page, target, compositionAdapters);
+}
+
+export function stageMobilePresentationValue(transaction, property, value) {
+  return setWyrmetizerMobileTransactionValue(transaction, property, value);
+}
+
+export function cancelMobilePresentationTransaction(transaction) {
+  return cancelWyrmetizerMobileTransaction(transaction);
+}
+
+export function commitMobilePresentationTransaction(transaction) {
+  const result = commitWyrmetizerMobileTransaction(transaction, compositionAdapters, usePageStore.getState().page);
+  if (!result.changed) return false;
+  return commitCompositionPage(editorPageForMobileTransaction(result.page));
+}
+
+export function resetMobilePresentationProperty(target, property) {
+  const result = resetWyrmetizerMobileWidget(usePageStore.getState().page, target, compositionAdapters, property);
+  if (!result.changed) return false;
+  return commitCompositionPage(editorPageForMobileTransaction(result.page));
+}
+
+export function resetMobileWidgetPresentation(target) {
+  const result = resetWyrmetizerMobileWidget(usePageStore.getState().page, target, compositionAdapters);
+  if (!result.changed) return false;
+  return commitCompositionPage(editorPageForMobileTransaction(result.page));
+}
+
+export function resetMobileModePresentation(mode) {
+  const result = resetWyrmetizerMobileMode(usePageStore.getState().page, mode, compositionAdapters);
+  if (!result.changed) return false;
+  return commitCompositionPage(editorPageForMobileTransaction(result.page));
+}
+
 export function compositionHeightValue(id, requested) {
   const page = usePageStore.getState().page, c = page.layout?.compositions[id];
   if (!c || !Number.isFinite(requested)) return null;

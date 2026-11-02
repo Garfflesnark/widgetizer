@@ -50,7 +50,8 @@
     "./rotationGeometry": "./src/runtime/rotationGeometry.js",
     "./responsiveDOM": "./src/runtime/responsiveDOM.js",
     "./wyrmetizerLayouts": "./src/runtime/wyrmetizerLayouts.js",
-    "./wyrmetizerPresentation": "./src/runtime/wyrmetizerPresentation.js"
+    "./wyrmetizerPresentation": "./src/runtime/wyrmetizerPresentation.js",
+    "./wyrmetizerMobileTransactions": "./src/runtime/wyrmetizerMobileTransactions.js"
   },
   "dependencies": {
     "liquidjs": "^10.26.0",
