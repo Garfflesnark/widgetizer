@@ -46,6 +46,7 @@ export function createWyrmetizerComposition(page, areaId, ids, frames, width, he
   if (ids.some(id => Object.values(page.layout.areas).some(area => area.members.includes(id))))
     fail("member already has a paired arrangement");
   const projected = createComposition(resolveWyrmetizerPage(page), areaId, ids, frames, width, height);
+  projected.layout.compositions[areaId].profiles.desktop.height.mode = "auto";
   const next = clone(page), presentation = {};
   for (const id of ids) {
     const split = splitWidget(page.widgets[id]);
@@ -78,7 +79,7 @@ export function createEmptyWyrmetizerComposition(page, areaId, adapters, {
     composition: { presentation: {}, geometry: {
       version: 1, type: "composition-area", childrenOrder: [], stackOrder: [],
       responsive: { defaultMode: "proportional" },
-      profiles: { desktop: { referenceWidthPx: width, height: { mode: "explicit", valuePx: height }, overflow: "clip" } },
+      profiles: { desktop: { referenceWidthPx: width, height: { mode: "auto", valuePx: height }, overflow: "clip" } },
       placements: {},
     } } };
   next.layout.contentOrder.splice(index, 0, { kind: "area", id: areaId });
@@ -252,9 +253,9 @@ export function validateWyrmetizerPage(page, adapters) {
   // Validate inactive composition geometry too, without including it in active rendering.
   const allComposition = clone(page);
   for (const area of Object.values(allComposition.layout.areas)) area.activeMode = "composition";
-  validateCompositionLayout(resolveWyrmetizerPage(allComposition), adapters, { allowEmptyAreas: true });
+  validateCompositionLayout(resolveWyrmetizerPage(allComposition), adapters, { allowEmptyAreas: true, allowBottomOverflow: true });
   const active = resolveWyrmetizerPage(page);
-  validateCompositionLayout(active, adapters, { allowEmptyAreas: true });
+  validateCompositionLayout(active, adapters, { allowEmptyAreas: true, allowBottomOverflow: true });
   if (JSON.stringify(active.widgetsOrder) !== JSON.stringify(page.widgetsOrder)) fail("order projection differs");
 }
 
@@ -288,8 +289,10 @@ function validateMobileEnvelope(page, layout, adapters) {
     for (const mode of ["flow", "composition"]) {
       const modeData = value[mode];
       if (modeData === undefined) continue;
-      const modeKeys = mode === "flow" ? ["order", "presentation"] : ["presentation", "geometry"];
+      const modeKeys = mode === "flow" ? ["order", "presentation"] : ["presentation", "geometry", "height"];
       if (!record(modeData) || Object.keys(modeData).some(key => !modeKeys.includes(key))) fail("invalid Mobile mode");
+      if (mode === "composition" && modeData.height !== undefined && !validHeightPolicy(modeData.height))
+        fail("invalid Mobile Composition height policy");
       if (modeData.order !== undefined && !sameMembers(modeData.order, members)) fail(`invalid Mobile ${mode} reading order`);
       const patches = modeData.presentation ?? {};
       if (!record(patches) || Object.keys(patches).some(id => !members.includes(id))) fail("invalid Mobile presentation membership");
@@ -302,6 +305,11 @@ function validateMobileEnvelope(page, layout, adapters) {
 
 function finiteNumber(value, min, max) {
   return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
+}
+
+function validHeightPolicy(policy) {
+  return record(policy) && ["auto", "custom"].includes(policy.mode) &&
+    finiteNumber(policy.valuePx, 1, 10000) && Object.keys(policy).every(key => ["mode", "valuePx"].includes(key));
 }
 
 function validateMobileGeometry(geometry, members) {
@@ -320,9 +328,12 @@ function validateMobileGeometry(geometry, members) {
       const coordinate = placement[axis];
       if (!record(coordinate) || !["px", "%"].includes(coordinate.unit) || !Number.isFinite(coordinate.value))
         fail(`invalid Mobile ${axis} unit: ${id}`);
-      const extent = axis === "x" ? WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX : geometry.heightPx;
-      const px = coordinate.unit === "%" ? coordinate.value * extent / 100 : coordinate.value;
-      if (px < 0 || px > extent) fail(`Mobile ${axis} is outside its parent: ${id}`);
+      if (axis === "x") {
+        const px = coordinate.unit === "%" ? coordinate.value * WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX / 100 : coordinate.value;
+        if (px < 0 || px > WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX) fail(`Mobile ${axis} is outside its parent: ${id}`);
+      } else if (coordinate.unit === "%" ? !finiteNumber(coordinate.value, 0, 100) : !finiteNumber(coordinate.value, 0, 10000)) {
+        fail(`Mobile ${axis} is outside its supported range: ${id}`);
+      }
     }
   }
 }

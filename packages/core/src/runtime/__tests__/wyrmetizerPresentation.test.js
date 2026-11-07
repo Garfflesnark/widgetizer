@@ -118,6 +118,73 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(() => resolveWyrmetizerPresentation(invalid, 390)).toThrow(/exceeds Area canvas bounds/);
   });
 
+  it("expands Auto and undersized Custom heights from actual image dimensions without mutating the page", () => {
+    const page = v2();
+    const geometry = page.layout.areas.canvas.composition.geometry;
+    geometry.profiles.desktop.height = { mode: "auto", valuePx: 400 };
+    geometry.placements.b.frames.desktop.y = 0.65;
+    const before = structuredClone(page);
+    const auto = resolveWyrmetizerPresentation(page, 1200, { imageDimensions: {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 200 },
+    } });
+    expect(auto.areas.canvas.geometry.heightPx).toBe(980);
+    expect(page).toEqual(before);
+
+    geometry.profiles.desktop.height = { mode: "custom", valuePx: 500 };
+    const custom = resolveWyrmetizerPresentation(page, 1200, { imageDimensions: {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 200 },
+    } });
+    expect(custom.areas.canvas.geometry.heightPx).toBe(980);
+    expect(geometry.profiles.desktop.height.valuePx).toBe(500);
+
+    geometry.profiles.desktop.height = { mode: "explicit", valuePx: 500 };
+    const legacy = resolveWyrmetizerPresentation(page, 1200, { imageDimensions: {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 200 },
+    } });
+    expect(legacy.areas.canvas.geometry.heightPx).toBe(980);
+    expect(geometry.profiles.desktop.height).toEqual({ mode: "explicit", valuePx: 500 });
+  });
+
+  it("resolves Desktop and sparse Mobile Auto heights independently on stable inherited positions", () => {
+    const page = v3();
+    const desktop = page.layout.areas.canvas.composition.geometry;
+    desktop.profiles.desktop.height = { mode: "auto", valuePx: 2000 };
+    page.layout.mobile.areas = { canvas: { composition: { height: { mode: "auto", valuePx: 100 } } } };
+    const before = structuredClone(page);
+    const dimensions = { a: { width: 300, height: 200 }, b: { width: 300, height: 200 } };
+    const mobile = resolveWyrmetizerPresentation(page, 390, { imageDimensions: dimensions });
+    const desktopView = resolveWyrmetizerPresentation(page, 1200, { imageDimensions: dimensions });
+    expect(mobile.areas.canvas.geometry.heightPx).toBe(148);
+    expect(mobile.areas.canvas.geometry.placements.b.yPx).toBe(78);
+    expect(desktopView.areas.canvas.geometry.heightPx).toBe(2000);
+    expect(page).toEqual(before);
+
+    const withLegacyMobileGeometry = structuredClone(page);
+    withLegacyMobileGeometry.layout.mobile.areas.canvas.composition.geometry = {
+      version: 1, referenceWidthPx: 390, heightPx: 300,
+      readingOrder: ["a", "b"], stackOrder: ["a", "b"],
+      placements: {
+        a: { x: { unit: "px", value: 0 }, y: { unit: "px", value: 0 }, pivot: { x: 0, y: 0 } },
+        b: { x: { unit: "px", value: 0 }, y: { unit: "px", value: 0 }, pivot: { x: 0, y: 0 } },
+      },
+    };
+    expect(resolveWyrmetizerPresentation(withLegacyMobileGeometry, 390, { imageDimensions: dimensions })
+      .areas.canvas.geometry.heightPx).toBe(300);
+  });
+
+  it("keeps inherited Mobile placement proportional to width and rejects negative rotated top bounds", () => {
+    const page = v3();
+    const mobile = resolveWyrmetizerPresentation(page, 390);
+    expect(mobile.areas.canvas.geometry.placements.a.yPx).toBe(58.5);
+
+    const invalid = structuredClone(page);
+    invalid.layout.areas.canvas.composition.geometry.placements.a.frames.desktop.y = 0.05;
+    invalid.layout.areas.canvas.composition.geometry.placements.a.frames.desktop.pivot.y = 1;
+    expect(() => resolveWyrmetizerPresentation(invalid, 1200, { imageDimensions: {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 200 },
+    } })).toThrow(/exceeds Area canvas bounds/);
+  });
+
   it("does not mutate or serialize derived values back to canonical settings", () => {
     const page = v3();
     page.layout.mobile.areas = { canvas: { composition: { presentation: { a: { fullwidth: false } } } } };
@@ -225,7 +292,7 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(unsupported).toEqual({ ...page, layout: { ...page.layout, version: 4 } });
   });
 
-  it("rejects unsupported viewport widths and effective Desktop overflow", () => {
+  it("rejects unsupported viewport widths and horizontal Desktop overflow", () => {
     const page = v2();
     expect(() => resolveWyrmetizerPresentation(page, 0)).toThrow(/positive CSS-pixel/);
     const invalid = structuredClone(page);

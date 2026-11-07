@@ -36,6 +36,15 @@ describe("Wyrmetizer version 3 schema", () => {
     expect(roundTripped.layout.mobile.areas.canvas.flow.presentation.a).toEqual({ fullwidth: false, top_spacing_px: 0 });
   });
 
+  it("validates sparse Mobile height policies without requiring Mobile placement overrides", () => {
+    const page = v3();
+    page.layout.mobile.areas = { canvas: { composition: { height: { mode: "auto", valuePx: 240 } } } };
+    expect(validateWyrmetizerPage(page, adapters)).toBeUndefined();
+    const invalid = structuredClone(page);
+    invalid.layout.mobile.areas.canvas.composition.height = { mode: "automatic", valuePx: 240 };
+    expect(() => validateWyrmetizerPage(invalid, adapters)).toThrow(/height policy/);
+  });
+
   it("validates independent Mobile Composition reading order, stack order and parent-relative geometry", () => {
     const page = v3();
     page.layout.mobile.areas = { canvas: { composition: { geometry: {

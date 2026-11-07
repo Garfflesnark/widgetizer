@@ -81,6 +81,7 @@ it("creates empty Areas at explicit Flow positions with stable identities and no
   expect(next.layout.contentOrder).toEqual([{ kind: "area", id: "empty" }, { kind: "area", id: "area" }]);
   expect(next.widgets).toEqual(page.widgets);
   expect(next.layout.areas.empty.composition.geometry.profiles.desktop.height.valuePx).toBe(950);
+  expect(next.layout.areas.empty.composition.geometry.profiles.desktop.height.mode).toBe("auto");
   for (const mode of ["flow", "composition"]) {
     next = switchWyrmetizerMode(next, "empty", mode, adapters);
     expect(roundTrip(next)).toEqual(next);
@@ -128,6 +129,7 @@ it("deletes an empty container without moving detached or independent Widgets or
   let page = duplicateWyrmetizerWidget(createWyrmetizerCopy(fixture(), adapters), "a", "b", adapters);
   page = removeWyrmetizerWidget(page, "area", "b", adapters);
   page = createWyrmetizerComposition(page, "other", ["b"], { b: { x: 0, y: 0, pivot: { x: 0, y: 0 } } }, 1200, 800, adapters);
+  expect(page.layout.areas.other.composition.geometry.profiles.desktop.height.mode).toBe("auto");
   page = removeWyrmetizerWidget(page, "area", "a", adapters);
   const before = structuredClone(page), next = deleteWyrmetizerComposition(page, "area", adapters);
   expect(next.layout.contentOrder).toEqual(before.layout.contentOrder.filter(entry => entry.id !== "area"));

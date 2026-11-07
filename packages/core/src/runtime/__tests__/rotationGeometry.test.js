@@ -41,3 +41,11 @@ it("validates finite persisted angles, old missing-angle pages, and rotated canv
   f.x = 0.125;
   expect(() => validateImageCompositionBounds(page.widgets.a, c, f, 1600, 900)).toThrow(/bounds/);
 });
+it("accepts valid bottom overflow as required height while keeping horizontal overflow invalid", () => {
+  const page = fixture(), c = page.layout.compositions.canvas, f = c.placements.a.frames.desktop;
+  c.profiles.desktop.height.valuePx = 200;
+  f.y = 0.3;
+  expect(() => validateImageCompositionBounds(page.widgets.a, c, f, 1600, 900)).not.toThrow();
+  f.x = 1.1;
+  expect(() => validateImageCompositionBounds(page.widgets.a, c, f, 1600, 900)).toThrow(/bounds/);
+});

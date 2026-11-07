@@ -28,7 +28,10 @@ export function projectContentOrder(layout) {
     entry.kind === "widget" ? [entry.id] : layout.compositions[entry.id].childrenOrder,
   );
 }
-export function validateCompositionLayout(page, adapters = {}, { allowEmptyAreas = !!page.wyrmetizerEditorLayout } = {}) {
+export function validateCompositionLayout(page, adapters = {}, {
+  allowEmptyAreas = !!page.wyrmetizerEditorLayout,
+  allowBottomOverflow = false,
+} = {}) {
   if (page.layout === undefined || page.layout === null) return;
   if ([2, 3].includes(page.layout.version)) return validateWyrmetizerPage(page, adapters);
   const l = page.layout;
@@ -67,7 +70,7 @@ export function validateCompositionLayout(page, adapters = {}, { allowEmptyAreas
       const profile = c.profiles?.desktop;
       if (
         !finite(profile?.referenceWidthPx, 320, 10000) ||
-        profile.height?.mode !== "explicit" ||
+        !["explicit", "custom", "auto"].includes(profile.height?.mode) ||
         !finite(profile.height.valuePx, 1, 10000) ||
         profile.overflow !== "clip"
       )
@@ -88,7 +91,8 @@ export function validateCompositionLayout(page, adapters = {}, { allowEmptyAreas
           (f.rotation !== undefined && p.version < 2) ||
           (f.rotationPivot !== undefined && (p.version !== 3 || !validRotationPivot(f.rotationPivot))) ||
           !finite(f.x, p.version === 3 ? -10 : 0, p.version === 3 ? 10 : 1) ||
-          !finite(f.y, p.version === 3 ? -10 : 0, p.version === 3 ? 10 : profile.height.valuePx / profile.referenceWidthPx) ||
+          !finite(f.y, p.version === 3 ? -10 : 0, p.version === 3 ? 10 :
+            (allowBottomOverflow ? 10000 : profile.height.valuePx) / profile.referenceWidthPx) ||
           !finite(f.pivot?.x, 0, 1) ||
           !finite(f.pivot?.y, 0, 1)
         )

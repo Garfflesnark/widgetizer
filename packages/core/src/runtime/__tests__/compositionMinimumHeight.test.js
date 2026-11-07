@@ -20,3 +20,10 @@ it("rounds retained legacy anchors up and retains the one-pixel floor", () => {
   expect(minimumCompositionHeight([{ rect: { left: 100, top: 100, width: 100, height: 100 },
     frame: { x: 0.1, y: 0.3001, pivot: { x: 0, y: 1 } } }], 1200)).toBe(361);
 });
+it("uses the largest bottom across multiple rotated children", () => {
+  const items = [
+    { version: 3, rect: { left: 0, top: 100, width: 100, height: 100 }, frame: { x: 0, y: 0, pivot: { x: 0, y: 0 } } },
+    { version: 3, rect: { left: 300, top: 600, width: 300, height: 200 }, frame: { x: 0, y: 0, pivot: { x: 0, y: 0 }, rotation: 90, rotationPivot: { x: 0, y: 0 } } },
+  ];
+  expect(minimumCompositionHeight(items, 1200)).toBe(900);
+});

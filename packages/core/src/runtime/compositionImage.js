@@ -1,5 +1,5 @@
 import { isImageTransform, imageReference, transformRect } from "./imageTransform.js";
-import { compositionRect, containedRect } from "./composition.js";
+import { compositionRect, containedRect, minimumCompositionHeight } from "./composition.js";
 
 export function compositionImageRect(widget, composition, frame, naturalWidth = 1600, naturalHeight = 900) {
   const width = composition.profiles.desktop.referenceWidthPx;
@@ -29,7 +29,10 @@ export const compositionImageAdapter = {
 export const compositionAdapters = { image: compositionImageAdapter };
 export function validateImageCompositionBounds(widget, composition, frame, naturalWidth, naturalHeight) {
   const rect = compositionImageRect(widget, composition, frame, naturalWidth, naturalHeight);
-  if (!containedRect(rect, composition.profiles.desktop.referenceWidthPx, composition.profiles.desktop.height.valuePx, frame.rotation, frame.rotationPivot))
+  const width = composition.profiles.desktop.referenceWidthPx;
+  const normalizedFrame = { ...frame, rotationPivot: frame.rotationPivot ?? undefined };
+  const minimumHeight = minimumCompositionHeight([{ rect, frame: normalizedFrame, version: frame.rotationPivot ? 3 : 1 }], width);
+  if (minimumHeight > 10000 || !containedRect(rect, width, minimumHeight, frame.rotation, normalizedFrame.rotationPivot))
     throw new Error("Composition image exceeds canvas bounds. Enlarge the Composition Area or resize the image.");
   return rect;
 }
