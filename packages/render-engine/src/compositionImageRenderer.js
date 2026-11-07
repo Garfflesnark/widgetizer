@@ -1,4 +1,4 @@
-import { compositionAdapters, validateImageCompositionBounds } from "@widgetizer/core/compositionImage";
+import { compositionAdapters, compositionImageRect, validateImageCompositionBounds } from "@widgetizer/core/compositionImage";
 export const compositionImageRenderer = {
   ...compositionAdapters.image,
   render(html, widget, composition, frame) {
@@ -10,7 +10,10 @@ export const compositionImageRenderer = {
     if (/<figcaption\b/i.test(html))
       throw new Error("Captioned images are not composition-compatible in this milestone.");
     const number = (name) => Number(html.match(new RegExp(`data-image-natural-${name}="([0-9.]+)"`))?.[1]);
-    const rect = validateImageCompositionBounds(widget, composition, frame, number("width"), number("height"));
+    const naturalWidth = number("width"), naturalHeight = number("height");
+    const rect = composition.previewRecoverBounds
+      ? compositionImageRect(widget, composition, frame, naturalWidth, naturalHeight)
+      : validateImageCompositionBounds(widget, composition, frame, naturalWidth, naturalHeight);
     return { html, rect };
   },
 };

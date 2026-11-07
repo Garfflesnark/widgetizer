@@ -19,6 +19,7 @@ export function resolveWyrmetizerPresentation(page, viewportWidthPx, {
   adapters = compositionAdapters,
   imageDimensions = {},
   deferBoundsValidation = false,
+  recoverBoundsErrors = false,
 } = {}) {
   if (typeof viewportWidthPx !== "number" || !Number.isFinite(viewportWidthPx) || viewportWidthPx <= 0)
     fail("viewport width must be a positive CSS-pixel value");
@@ -61,6 +62,7 @@ export function resolveWyrmetizerPresentation(page, viewportWidthPx, {
       imageDimensions,
       mobile,
       deferBoundsValidation,
+      recoverBoundsErrors,
     });
     areas[entry.id] = { mode, ...composition };
   }
@@ -81,7 +83,7 @@ function present(widget, patch, desktopPresentation = {}) {
   return { ...clone(widget), settings: { ...clone(widget.settings ?? {}), ...clone(desktopPresentation), ...clone(patch) } };
 }
 
-function resolveCompositionGeometry({ areaId, desktopGeometry, mobileGeometry, mobileHeightPolicy, widgets, imageDimensions, mobile, deferBoundsValidation }) {
+function resolveCompositionGeometry({ areaId, desktopGeometry, mobileGeometry, mobileHeightPolicy, widgets, imageDimensions, mobile, deferBoundsValidation, recoverBoundsErrors }) {
   const desktopProfile = desktopGeometry.profiles.desktop;
   const widthPx = mobile ? WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX : desktopProfile.referenceWidthPx;
   const desktopHeightPolicy = desktopProfile.height;
@@ -146,16 +148,20 @@ function resolveCompositionGeometry({ areaId, desktopGeometry, mobileGeometry, m
 
   const minimumHeightPx = minimumCompositionHeight(heightItems, widthPx);
   const heightPx = Math.max(heightPolicy.valuePx, minimumHeightPx);
+  const boundsErrors = [];
   if (!deferBoundsValidation) {
     if (heightPx > 10000) fail(`effective Composition Area ${areaId} exceeds maximum height`);
     for (const [id, placement] of Object.entries(placements)) {
       const bounds = rotatedBounds(placement.rect, placement.rotation, placement.rotationPivot ?? undefined);
       if (bounds.left < -0.02 || bounds.top < -0.02 || bounds.left + bounds.width > widthPx + 0.02 ||
-          !containedRect(placement.rect, widthPx, heightPx, placement.rotation, placement.rotationPivot ?? undefined))
-        fail(`effective Composition child ${id} exceeds Area ${areaId} bounds`);
+          !containedRect(placement.rect, widthPx, heightPx, placement.rotation, placement.rotationPivot ?? undefined)) {
+        if (!recoverBoundsErrors) fail(`effective Composition child ${id} exceeds Area ${areaId} bounds`);
+        boundsErrors.push({ code: "child-out-of-bounds", areaId, widgetId: id, presentation: mobile ? "mobile" : "desktop" });
+      }
     }
   }
-  return { readingOrder: clone(readingOrder), stackOrder: clone(stackOrder), geometry: { widthPx, heightPx, placements } };
+  return { readingOrder: clone(readingOrder), stackOrder: clone(stackOrder), geometry: { widthPx, heightPx, placements },
+    ...(boundsErrors.length ? { boundsErrors } : {}) };
 }
 
 function coordinatePx(coordinate, parentExtent) {

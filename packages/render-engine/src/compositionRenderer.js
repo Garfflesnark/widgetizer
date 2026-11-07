@@ -1,4 +1,4 @@
-import { validateCompositionLayout, compositionRevision, minimumCompositionHeight } from "@widgetizer/core/composition";
+import { validateCompositionLayout, compositionRevision, minimumCompositionHeight, containedRect } from "@widgetizer/core/composition";
 import { compositionImageRenderer } from "./compositionImageRenderer.js";
 import { escapeHtml } from "@widgetizer/core/escapeHtml";
 import { resolveWyrmetizerPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
@@ -8,10 +8,10 @@ export const compositionRenderAdapters = { image: compositionImageRenderer };
 
 // Both preview and publish call this composer. The callback owns theme rendering;
 // the planner has no filesystem, project resolver or storage dependency.
-export async function renderPageContent(page, renderWidget, adapters = compositionRenderAdapters) {
+export async function renderPageContent(page, renderWidget, adapters = compositionRenderAdapters, { preview = false } = {}) {
   page = serializeWyrmetizerEditorPage(page, adapters);
   validateCompositionLayout(page, adapters);
-  if (page.layout?.version === 3) return renderResponsiveWyrmetizerPage(page, renderWidget, adapters);
+  if (page.layout?.version === 3) return renderResponsiveWyrmetizerPage(page, renderWidget, adapters, { preview });
   const pairedLayout = page.layout?.version === 2 ? page.layout : null;
   page = resolveWyrmetizerPage(page);
   let index = 0;
@@ -47,7 +47,8 @@ export async function renderPageContent(page, renderWidget, adapters = compositi
     for (const id of c.childrenOrder) {
       const widget = page.widgets[id],
         frame = c.placements[id].frames.desktop;
-      const rendered = adapters[widget.type].render(await renderWidget(id, widget, ++index), widget, c, frame);
+      const rendered = adapters[widget.type].render(await renderWidget(id, widget, ++index), widget,
+        preview ? { ...c, previewRecoverBounds: true } : c, frame);
       const selector = `#${prefix} > [data-composition-child="${id}"]`;
       renderedChildren.push({ rendered, selector, id });
       heightItems.push({ rect: rendered.rect, frame: { ...frame, rotationPivot: frame.rotationPivot ?? undefined }, version: c.placements[id].version });
@@ -61,11 +62,18 @@ export async function renderPageContent(page, renderWidget, adapters = compositi
       throw new Error("Composition image exceeds canvas bounds. Enlarge the Composition Area or resize the image.");
     const h = pairedLayout ? Math.max(savedHeight, requiredHeight) : savedHeight;
     if (h > 10000) throw new Error(`Composition Area ${entry.id} requires a height greater than 10000px.`);
+    const boundsErrors = renderedChildren.flatMap(({ rendered, id }) => {
+      const frame = c.placements[id].frames.desktop;
+      return containedRect(rendered.rect, w, h, frame.rotation, frame.rotationPivot)
+        ? [] : [{ code: "child-out-of-bounds", areaId: entry.id, widgetId: id, presentation: "desktop" }];
+    });
+    if (boundsErrors.length && (!preview || !pairedLayout))
+      throw new Error(`Composition child ${boundsErrors[0].widgetId} exceeds Area ${entry.id} bounds.`);
     for (const { rendered, selector, id } of renderedChildren) {
       const r = rendered.rect;
       rules += `${selector}{left:${(100 * r.left) / w}%;top:${(100 * r.top) / h}%;width:${(100 * r.width) / w}%;height:${(100 * r.height) / h}%;z-index:${c.stackOrder.indexOf(id) + 1}}`;
     }
-    html += `<section data-composition-id="${escapeHtml(entry.id)}" data-composition-width="${w}" data-composition-height="${h}" aria-label="Composition Area" style="max-width:${w}px;margin-inline:auto;position:relative;isolation:isolate;aspect-ratio:${w}/${h};overflow:clip" id="${prefix}"><style>
+    html += `${geometryErrorMarkup(boundsErrors, page.widgets, "desktop")}<section data-composition-id="${escapeHtml(entry.id)}" data-composition-width="${w}" data-composition-height="${h}"${boundsErrors.length ? ' data-composition-geometry-invalid="true"' : ""} aria-label="Composition Area" style="max-width:${w}px;margin-inline:auto;position:relative;isolation:isolate;aspect-ratio:${w}/${h};overflow:${boundsErrors.length ? "visible" : "clip"}" id="${prefix}"><style>
       #${prefix}>[data-composition-child]{position:absolute;box-sizing:border-box}
       #${prefix}>[data-composition-child] :is(.widget,.widget-container,.widget-content,.image-resize-target,.image-wrapper,.image-link,.image-figure){width:100%!important;max-width:none!important;height:100%!important;margin:0!important;padding:0!important;container-type:normal!important}
       #${prefix}>[data-composition-child] img{width:100%!important;max-width:100%!important;height:100%!important;object-fit:fill}
@@ -76,7 +84,7 @@ export async function renderPageContent(page, renderWidget, adapters = compositi
   return html;
 }
 
-async function renderResponsiveWyrmetizerPage(page, renderWidget, adapters) {
+async function renderResponsiveWyrmetizerPage(page, renderWidget, adapters, { preview = false } = {}) {
   const desktopDraft = resolveWyrmetizerPresentation(page, 750, { adapters, deferBoundsValidation: true });
   const mobileDraft = resolveWyrmetizerPresentation(page, 390, { adapters, deferBoundsValidation: true });
   const desktopRendered = await renderVariantWidgets(desktopDraft, renderWidget);
@@ -85,8 +93,8 @@ async function renderResponsiveWyrmetizerPage(page, renderWidget, adapters) {
   // Theme output exposes the actual media dimensions. Resolve again with those
   // dimensions before generating Composition placement CSS so bounds failures
   // are accurate and leave the canonical page untouched.
-  const desktop = resolveWyrmetizerPresentation(page, 750, { adapters, imageDimensions });
-  const mobile = resolveWyrmetizerPresentation(page, 390, { adapters, imageDimensions });
+  const desktop = resolveWyrmetizerPresentation(page, 750, { adapters, imageDimensions, recoverBoundsErrors: preview });
+  const mobile = resolveWyrmetizerPresentation(page, 390, { adapters, imageDimensions, recoverBoundsErrors: preview });
   const desktopHtml = renderResolvedPresentation(desktop, desktopRendered, adapters);
   const mobileHtml = renderResolvedPresentation(mobile, mobileRendered, adapters);
   return `<style data-wyrmetizer-responsive-style>
@@ -199,7 +207,8 @@ function renderResolvedComposition(areaId, area, widgets, renderedWidgets, adapt
     const frame = { x: placement.xPx / width, y: placement.yPx / width, pivot: placement.pivot,
       ...(placement.rotation ? { rotation: placement.rotation } : {}),
       ...(placement.rotationPivot ? { rotationPivot: placement.rotationPivot } : {}) };
-    const composition = { profiles: { desktop: { referenceWidthPx: width, height: { valuePx: height } } } };
+    const composition = { profiles: { desktop: { referenceWidthPx: width, height: { valuePx: height } } },
+      ...(area.boundsErrors?.length ? { previewRecoverBounds: true } : {}) };
     const rendered = adapters[widget.type].render(renderedWidgets.get(id) ?? "", widget, composition, frame);
     const rect = rendered.rect;
     const selector = `#${prefix} > [data-composition-child="${id}"]`;
@@ -207,11 +216,19 @@ function renderResolvedComposition(areaId, area, widgets, renderedWidgets, adapt
     if (placement.rotation) rules += `${selector}{transform:rotate(${placement.rotation}deg);transform-origin:${100 * (placement.rotationPivot?.x ?? 0.5)}% ${100 * (placement.rotationPivot?.y ?? 0.5)}%}`;
     children += `<div data-composition-child="${escapeHtml(id)}" data-composition-revision="${escapeHtml(compositionRevision(widget, frame))}" data-composition-frame="${escapeHtml(JSON.stringify(frame))}">${rendered.html}</div>`;
   }
-  return `<section data-composition-id="${escapeHtml(areaId)}" data-composition-mode="composition" data-composition-width="${width}" data-composition-height="${height}" aria-label="Composition Area" style="width:100%;max-width:${width}px;margin-inline:auto;position:relative;isolation:isolate;aspect-ratio:${width}/${height};overflow:clip" id="${prefix}"><style>
+  const boundsErrors = area.boundsErrors ?? [];
+  return `${geometryErrorMarkup(boundsErrors, widgets, presentation)}<section data-composition-id="${escapeHtml(areaId)}" data-composition-mode="composition" data-composition-width="${width}" data-composition-height="${height}"${boundsErrors.length ? ' data-composition-geometry-invalid="true"' : ""} aria-label="Composition Area" style="width:100%;max-width:${width}px;margin-inline:auto;position:relative;isolation:isolate;aspect-ratio:${width}/${height};overflow:${boundsErrors.length ? "visible" : "clip"}" id="${prefix}"><style>
     #${prefix}>[data-composition-child]{position:absolute;box-sizing:border-box}
     #${prefix}>[data-composition-child] :is(.widget,.widget-container,.widget-content,.image-resize-target,.image-wrapper,.image-link,.image-figure){width:100%!important;max-width:none!important;height:100%!important;margin:0!important;padding:0!important;container-type:normal!important}
     #${prefix}>[data-composition-child] img{width:100%!important;max-width:100%!important;height:100%!important;object-fit:fill}
     #${prefix}>[data-composition-child] .reveal{opacity:1!important;transform:none!important;transition:none!important}
     ${rules}
   </style>${children}</section>`;
+}
+
+function geometryErrorMarkup(errors, widgets, presentation) {
+  return errors.map(({ areaId, widgetId }) => {
+    const widgetName = widgets[widgetId]?.settings?.name || widgetId;
+    return `<aside data-composition-geometry-error="${escapeHtml(widgetId)}" data-composition-geometry-area="${escapeHtml(areaId)}" data-composition-geometry-presentation="${escapeHtml(presentation)}" role="alert"><strong>Composition preview warning</strong><p>Widget “${escapeHtml(widgetName)}” in Area “${escapeHtml(areaId)}” extends beyond the ${escapeHtml(presentation)} Area bounds. Adjust its size or position in the editor. Its saved geometry is unchanged.</p></aside>`;
+  }).join("");
 }

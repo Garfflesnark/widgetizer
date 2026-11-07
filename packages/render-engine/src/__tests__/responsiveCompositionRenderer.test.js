@@ -190,11 +190,62 @@ describe("responsive shared page rendering", () => {
     expect(Object.keys(page.widgets)).toEqual(["a", "b", "after"]);
   });
 
+  it("keeps preview content available for one invalid Mobile child and leaves Desktop geometry valid", async () => {
+    const page = pageV3();
+    page.widgets.a.settings.name = "TREE";
+    page.layout.mobile.areas = { canvas: { composition: { geometry: {
+      version: 1, referenceWidthPx: 390, heightPx: 400,
+      readingOrder: ["a", "b"], stackOrder: ["a", "b"],
+      placements: {
+        a: { x: { value: 100, unit: "%" }, y: { value: 0, unit: "px" }, pivot: { x: 0, y: 0 } },
+        b: { x: { value: 0, unit: "px" }, y: { value: 0, unit: "px" }, pivot: { x: 0, y: 0 } },
+      },
+    } } } };
+    const before = structuredClone(page);
+    const callback = (id, widget, index) => renderImage(id, widget, index, { width: 100, height: 50 });
+    const previewHtml = await renderPageContent(page, callback, undefined, { preview: true });
+    const document = parse(previewHtml);
+    const desktop = document.querySelector('[data-wyrmetizer-presentation="desktop"]');
+    const mobile = document.querySelector('[data-wyrmetizer-presentation="mobile"]');
+    const mobileArea = mobile.querySelector('[data-composition-id="canvas"]');
+    const warning = mobile.querySelector('[data-composition-geometry-error="a"]');
+
+    expect(warning?.textContent).toContain("TREE");
+    expect(warning?.textContent).toContain("canvas");
+    expect(warning?.textContent).toContain("mobile Area bounds");
+    expect(mobileArea.dataset.compositionGeometryInvalid).toBe("true");
+    expect(mobileArea.style.overflow).toBe("visible");
+    expect(mobileArea.querySelector('[data-composition-child="a"] [data-widget-id="a"]')).not.toBeNull();
+    expect(mobile.querySelector('[data-widget-id="after"]')).not.toBeNull();
+    expect(desktop.querySelector('[data-composition-geometry-invalid="true"]')).toBeNull();
+    expect(desktop.querySelector('[data-widget-id="after"]')).not.toBeNull();
+    expect(page).toEqual(before);
+    await expect(renderPageContent(page, callback)).rejects.toThrow(/effective Composition child a exceeds Area canvas bounds/);
+  });
+
   it("keeps version-2 HTML byte-identical to the established renderer", async () => {
     const page = createWyrmetizerCopy(fixture(), compositionAdapters);
     const html = await renderPageContent(page, (id, widget, index) => renderImage(id, widget, index));
     expect(html).not.toContain("data-wyrmetizer-responsive");
     expect(html).toContain('data-composition-width="1200"');
     expect(html).not.toContain("@media(max-width:749px)");
+  });
+
+  it("keeps invalid v2 preview recoverable while strict rendering still rejects its bounds", async () => {
+    const page = createWyrmetizerCopy(fixture(), compositionAdapters);
+    page.layout.areas.canvas.composition.geometry.placements.a.frames.desktop.x = 0.99;
+    const callback = (id, widget, index) => renderImage(id, widget, index, { width: 300, height: 200 });
+    const preview = parse(await renderPageContent(page, callback, undefined, { preview: true }));
+
+    expect(preview.querySelector('[data-composition-geometry-error="a"]')).not.toBeNull();
+    expect(preview.querySelector('[data-composition-child="a"] [data-widget-id="a"]')).not.toBeNull();
+    await expect(renderPageContent(page, callback)).rejects.toThrow(/Composition image exceeds canvas bounds/);
+  });
+
+  it("does not recover malformed transforms as preview bounds warnings", async () => {
+    const page = pageV3();
+    page.layout.areas.canvas.composition.geometry.placements.a.frames.desktop.rotation = 181;
+    await expect(renderPageContent(page, (id, widget, index) => renderImage(id, widget, index), undefined, { preview: true }))
+      .rejects.toThrow(/invalid desktop placement|unsupported placement/i);
   });
 });
