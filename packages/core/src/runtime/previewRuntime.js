@@ -1020,16 +1020,18 @@ function handleMessage(event) {
     compositionRotateController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionPivotController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     if (typeof event.data.context === "string") compositionInteractionContext = event.data.context;
-    const compositions = event.data.responsive === true ? event.data.resolvedPresentation.areas : event.data.payload?.compositions;
+    const resolvedGeometry = event.data.responsive === true || !!event.data.resolvedCompositionAreas;
+    const compositions = event.data.responsive === true ? event.data.resolvedPresentation.areas :
+      (event.data.resolvedCompositionAreas || event.data.payload?.compositions);
     compositionMovementLocks = Object.fromEntries(Object.entries(event.data.movementLocks || {}).filter(([id, area]) =>
-      typeof area === "string" && (event.data.responsive === true
+      typeof area === "string" && (resolvedGeometry
         ? compositions?.[area]?.placements?.[id]
         : compositions?.[area]?.childrenOrder?.includes(id))));
     for (const [id, c] of Object.entries(compositions || {})) {
-      if (event.data.responsive === true && c.mode !== "composition") continue;
+      if (resolvedGeometry && c.mode !== "composition") continue;
       const area = activeArea(document, id);
       if (!area || area.dataset.compositionMode === "flow") continue;
-      if (event.data.responsive === true) {
+      if (resolvedGeometry) {
         area.dataset.compositionWidth = String(c.widthPx);
         area.dataset.compositionHeight = String(c.heightPx);
         area.style.aspectRatio = `${c.widthPx}/${c.heightPx}`;
@@ -1037,20 +1039,25 @@ function handleMessage(event) {
           const widgetId = child.dataset.compositionChild, placement = c.placements?.[widgetId];
           if (!placement) continue;
           if (compositionPivotController?.active && widgetId === currentSelectedWidgetId) continue;
-          child.dataset.compositionFrame = JSON.stringify(placement.frame);
+          const frame = placement.frame || { x: placement.xPx / c.widthPx, y: placement.yPx / c.widthPx,
+            pivot: placement.pivot, ...(placement.rotation ? { rotation: placement.rotation } : {}),
+            ...(placement.rotationPivot ? { rotationPivot: placement.rotationPivot } : {}) };
+          child.dataset.compositionFrame = JSON.stringify(frame);
           if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
           if (!compositionRotateController?.active) {
-            child.style.transform = `rotate(${placement.frame.rotation || 0}deg)`;
-            child.style.transformOrigin = `${100 * (placement.frame.rotationPivot?.x ?? 0.5)}% ${100 * (placement.frame.rotationPivot?.y ?? 0.5)}%`;
+            child.style.transform = `rotate(${frame.rotation || 0}deg)`;
+            child.style.transformOrigin = `${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%`;
           }
-          child.style.left = `${100 * placement.rect.left / c.widthPx}%`;
-          child.style.top = `${100 * placement.rect.top / c.heightPx}%`;
-          child.style.width = `${100 * placement.rect.width / c.widthPx}%`;
-          child.style.height = `${100 * placement.rect.height / c.heightPx}%`;
+          if (placement.rect) {
+            child.style.left = `${100 * placement.rect.left / c.widthPx}%`;
+            child.style.top = `${100 * placement.rect.top / c.heightPx}%`;
+            child.style.width = `${100 * placement.rect.width / c.widthPx}%`;
+            child.style.height = `${100 * placement.rect.height / c.heightPx}%`;
+          }
           child.style.zIndex = String(c.stackOrder.indexOf(widgetId) + 1);
         }
       } else {
-        if (c.profiles?.desktop) {
+        if (c.profiles?.desktop && event.data.deferCompositionHeight !== true) {
           area.dataset.compositionHeight = String(c.profiles.desktop.height.valuePx);
           area.style.aspectRatio = `${c.profiles.desktop.referenceWidthPx}/${c.profiles.desktop.height.valuePx}`;
         }

@@ -1,4 +1,4 @@
-import { validateCompositionLayout, compositionRevision } from "@widgetizer/core/composition";
+import { validateCompositionLayout, compositionRevision, minimumCompositionHeight } from "@widgetizer/core/composition";
 import { compositionImageRenderer } from "./compositionImageRenderer.js";
 import { escapeHtml } from "@widgetizer/core/escapeHtml";
 import { resolveWyrmetizerPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
@@ -40,20 +40,30 @@ export async function renderPageContent(page, renderWidget, adapters = compositi
       profile = c.profiles.desktop;
     const prefix = `fruitform-${entry.id}`,
       w = profile.referenceWidthPx,
-      h = profile.height.valuePx;
+      savedHeight = profile.height.valuePx;
     let children = "",
       rules = "";
+    const renderedChildren = [], heightItems = [];
     for (const id of c.childrenOrder) {
       const widget = page.widgets[id],
         frame = c.placements[id].frames.desktop;
       const rendered = adapters[widget.type].render(await renderWidget(id, widget, ++index), widget, c, frame);
-      const r = rendered.rect,
-        selector = `#${prefix} > [data-composition-child="${id}"]`;
-      rules += `${selector}{left:${(100 * r.left) / w}%;top:${(100 * r.top) / h}%;width:${(100 * r.width) / w}%;height:${(100 * r.height) / h}%;z-index:${c.stackOrder.indexOf(id) + 1}}`;
+      const selector = `#${prefix} > [data-composition-child="${id}"]`;
+      renderedChildren.push({ rendered, selector, id });
+      heightItems.push({ rect: rendered.rect, frame: { ...frame, rotationPivot: frame.rotationPivot ?? undefined }, version: c.placements[id].version });
       if (frame.rotation) rules += `${selector}{transform:rotate(${frame.rotation}deg);transform-origin:${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%}`;
       const effectiveMode =
         c.placements[id].responsive.mode === "inherit" ? c.responsive.defaultMode : c.placements[id].responsive.mode;
       children += `<div data-responsive-mode="${effectiveMode}" ${effectiveMode === "custom" ? 'data-responsive-fallback="proportional"' : ""} data-composition-child="${escapeHtml(id)}" data-composition-revision="${escapeHtml(compositionRevision(widget, frame))}" data-composition-frame="${escapeHtml(JSON.stringify(frame))}">${rendered.html}</div>`;
+    }
+    const requiredHeight = minimumCompositionHeight(heightItems, w);
+    if (!pairedLayout && requiredHeight > savedHeight)
+      throw new Error("Composition image exceeds canvas bounds. Enlarge the Composition Area or resize the image.");
+    const h = pairedLayout ? Math.max(savedHeight, requiredHeight) : savedHeight;
+    if (h > 10000) throw new Error(`Composition Area ${entry.id} requires a height greater than 10000px.`);
+    for (const { rendered, selector, id } of renderedChildren) {
+      const r = rendered.rect;
+      rules += `${selector}{left:${(100 * r.left) / w}%;top:${(100 * r.top) / h}%;width:${(100 * r.width) / w}%;height:${(100 * r.height) / h}%;z-index:${c.stackOrder.indexOf(id) + 1}}`;
     }
     html += `<section data-composition-id="${escapeHtml(entry.id)}" data-composition-width="${w}" data-composition-height="${h}" aria-label="Composition Area" style="max-width:${w}px;margin-inline:auto;position:relative;isolation:isolate;aspect-ratio:${w}/${h};overflow:clip" id="${prefix}"><style>
       #${prefix}>[data-composition-child]{position:absolute;box-sizing:border-box}

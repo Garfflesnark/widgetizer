@@ -11,6 +11,7 @@ import { handleImageResizeMessage, handleImageGeometryMessage, handleImageAlignm
 import { useEffect, useCallback, useRef } from "react";
 import useWidgetStore from "../../stores/widgetStore";
 import usePageStore from "../../stores/pageStore";
+import useToastStore from "../../stores/toastStore";
 import { scrollElementIntoView } from "../../queries/previewManager";
 import { getPreviewTargetOrigin } from "../../lib/previewBase";
 
@@ -18,9 +19,18 @@ function responsiveV3(page) {
   return page?.wyrmetizerEditorLayout?.version === 3 || page?.layout?.version === 3;
 }
 
-function responsiveSyncData(page, schemas, viewportWidthPx) {
+function responsiveSyncData(page, schemas, viewportWidthPx, imageGeometry) {
   const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
-  const view = resolveWyrmetizerPresentation(canonical, viewportWidthPx, { adapters: compositionAdapters });
+  const imageDimensions = Object.fromEntries(Object.entries(imageGeometry || {}).flatMap(([id, geometry]) => {
+    const widget = canonical.widgets[id];
+    const hasCurrentImage = widget && geometry?.imageSource === (widget.settings?.image || "");
+    const width = geometry?.naturalWidth;
+    const height = geometry?.naturalHeight;
+    return hasCurrentImage && Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+      ? [[id, { width, height }]]
+      : [];
+  }));
+  const view = resolveWyrmetizerPresentation(canonical, viewportWidthPx, { adapters: compositionAdapters, imageDimensions });
   const widgetIds = supportedImageWidgetIds(canonical, schemas);
   const sizes = Object.fromEntries(widgetIds.map((id) => {
     const widget = view.widgets[id] || canonical.widgets[id];
@@ -47,6 +57,18 @@ function responsiveSyncData(page, schemas, viewportWidthPx) {
     }
   }
   return { presentation: view.presentation, sizes, areas, revisions };
+}
+
+function responsiveSyncErrorMessage(page, error) {
+  const boundsError = error?.message?.match(/effective Composition child (.+) exceeds Area (.+) bounds/);
+  if (boundsError) {
+    const [, widgetId, areaId] = boundsError;
+    const widgetName = page?.widgets?.[widgetId]?.settings?.name || widgetId;
+    const areas = page?.wyrmetizerEditorLayout?.areas || page?.layout?.areas;
+    const areaName = areas?.[areaId]?.name || areas?.[areaId]?.label || areaId;
+    return `Wyrmetizer could not sync: Widget “${widgetName}” in Composition Area “${areaName}” extends beyond the Area. No page changes were made. Select the Widget in the sidebar and adjust its size or position, or increase the Composition Area height.`;
+  }
+  return `Wyrmetizer could not sync the responsive layout. No page changes were made. Review the Composition Area geometry and correct the invalid layout, then try again. ${error?.message || ""}`.trim();
 }
 
 function currentResponsiveMessage(payload, context, sequence) {
@@ -146,12 +168,23 @@ export default function SelectionOverlay({
       }]));
       let revisions = Object.fromEntries(widgetIds.filter(id => compositionFor(page, id)).map(id => [id, compositionRevision(page.widgets[id], compositionFor(page, id)[1].placements[id].frames.desktop)]));
       let responsivePresentation;
+      let resolvedCompositionAreas;
+      let deferCompositionHeight = false;
       let syncRevision;
       let presentationEpoch;
       if (isResponsive) {
         let viewportWidthPx = previewMode === "mobile" ? 390 : previewMode === "tablet" ? 900 : 1200;
         try { if (iframe.contentWindow?.innerWidth > 0) viewportWidthPx = iframe.contentWindow.innerWidth; } catch { /* use editor preview width */ }
-        const resolved = responsiveSyncData(page, schemas, viewportWidthPx);
+        let resolved;
+        try {
+          resolved = responsiveSyncData(page, schemas, viewportWidthPx, useWidgetStore.getState().imageGeometry);
+        } catch (error) {
+          useToastStore.getState().showToast(responsiveSyncErrorMessage(page, error), "error", {
+            id: "wyrmetizer-responsive-sync-error",
+            duration: 10000,
+          });
+          return;
+        }
         widgetIds = supportedImageWidgetIds(serializeWyrmetizerEditorPage(page, compositionAdapters), schemas);
         sizes = resolved.sizes;
         revisions = resolved.revisions;
@@ -159,8 +192,33 @@ export default function SelectionOverlay({
         presentationEpoch = responsiveContextRef.current.epoch;
         syncRevision = ++responsiveSyncSequenceRef.current;
         responsiveContextRef.current = { ...responsiveContextRef.current, presentation: resolved.presentation, syncRevision };
+      } else if (page?.wyrmetizerEditorLayout?.version === 2) {
+        const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+        const imageGeometry = useWidgetStore.getState().imageGeometry;
+        const dimensionsReady = Object.values(canonical.layout.areas).every(area => area.activeMode !== "composition" ||
+          area.members.every(id => {
+            const geometry = imageGeometry?.[id];
+            return geometry?.imageSource === (canonical.widgets[id]?.settings?.image || "") &&
+              Number.isFinite(geometry.naturalWidth) && geometry.naturalWidth > 0 &&
+              Number.isFinite(geometry.naturalHeight) && geometry.naturalHeight > 0;
+          }));
+        if (dimensionsReady) {
+          try {
+            const resolved = responsiveSyncData(page, schemas, 1200, imageGeometry);
+            resolvedCompositionAreas = resolved.areas;
+            revisions = resolved.revisions;
+          } catch (error) {
+            useToastStore.getState().showToast(responsiveSyncErrorMessage(page, error), "error", {
+              id: "wyrmetizer-responsive-sync-error",
+              duration: 10000,
+            });
+            return;
+          }
+        } else deferCompositionHeight = true;
       }
       iframe.contentWindow?.postMessage({ type: "COMPOSITION_SYNC", force: force === true, context: compositionInteractionContext(), movementLocks: pruneCompositionMovementLocks(), payload: page?.layout, sizes, revisions,
+        ...(resolvedCompositionAreas ? { resolvedCompositionAreas } : {}),
+        ...(deferCompositionHeight ? { deferCompositionHeight: true } : {}),
         ...(isResponsive ? { responsive: true, presentation: responsivePresentation.presentation, presentationEpoch, syncRevision, resolvedPresentation: responsivePresentation } : {}) }, getPreviewTargetOrigin());
       iframe.contentWindow?.postMessage({
         type: "SET_IMAGE_RESIZE_SUPPORT", payload: { widgetIds, stretchWidgetIds, transformWidgetIds: widgetIds.filter((id) => supportsImageTransform(page.widgets[id], schemas[page.widgets[id].type])), sizes,

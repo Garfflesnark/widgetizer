@@ -129,6 +129,41 @@ it("applies only the active v3 presentation geometry and rejects stale sync mess
   expect(mobileChild.dataset.compositionRevision).toBe("rev-mobile-3");
 });
 
+it("applies a resolved v2 Composition height without changing saved page data", () => {
+  width = 750;
+  document.body.innerHTML = `<section data-composition-id="canvas" data-composition-mode="composition" data-composition-width="1200" data-composition-height="800"><div data-composition-child="w" data-composition-frame="{}"></div></section>`;
+  const area = document.querySelector("[data-composition-id]");
+  const child = area.querySelector("[data-composition-child]");
+  const savedPage = { layout: { areas: { canvas: { composition: { geometry: { heightPx: 800 } } } } } };
+  const before = structuredClone(savedPage);
+  const resolvedCompositionAreas = { canvas: { mode: "composition", widthPx: 1200, heightPx: 1060,
+    stackOrder: ["w"], placements: { w: { frame: { x: 0.4, y: 0.2, pivot: { x: 0, y: 0 }, rotation: 90,
+      rotationPivot: { x: 0, y: 0 } }, rect: { left: 480, top: 240, width: 300, height: 200 } } } } };
+  window.dispatchEvent(new MessageEvent("message", { origin: window.location.origin, source: window.parent,
+    data: { type: "COMPOSITION_SYNC", context: "desktop", movementLocks: {}, sizes: {}, revisions: { w: "resolved-revision" },
+      payload: { compositions: {} }, resolvedCompositionAreas } }));
+
+  expect(area.dataset.compositionHeight).toBe("1060");
+  expect(area.style.aspectRatio).toBe("1200/1060");
+  expect(child.style.left).toBe("40%");
+  expect(child.style.top).toBe(`${100 * 240 / 1060}%`);
+  expect(child.style.width).toBe("25%");
+  expect(child.dataset.compositionFrame).toContain('"rotation":90');
+  expect(savedPage).toEqual(before);
+});
+
+it("defers a legacy height reset while accurate image dimensions are unavailable", () => {
+  width = 750;
+  document.body.innerHTML = `<section data-composition-id="canvas" data-composition-mode="composition" data-composition-width="1200" data-composition-height="880"><div data-composition-child="w" data-composition-frame="{}"></div></section>`;
+  const area = document.querySelector("[data-composition-id]");
+  window.dispatchEvent(new MessageEvent("message", { origin: window.location.origin, source: window.parent,
+    data: { type: "COMPOSITION_SYNC", context: "desktop", movementLocks: {}, sizes: {}, payload: { compositions: {
+      canvas: { profiles: { desktop: { referenceWidthPx: 1200, height: { valuePx: 800 } } }, childrenOrder: ["w"], placements: {} },
+    } }, deferCompositionHeight: true } }));
+  expect(area.dataset.compositionHeight).toBe("880");
+  expect(area.style.aspectRatio).toBe("");
+});
+
 it("initializes Widget-specific inline scripts only for the active responsive form instance", () => {
   width = 749;
   document.body.innerHTML = `<div data-wyrmetizer-responsive>

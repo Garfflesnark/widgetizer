@@ -151,6 +151,28 @@ describe("responsive shared page rendering", () => {
     expect(page).toEqual(before);
   });
 
+  it.each([
+    ["Auto", "auto"],
+    ["Custom", "custom"],
+  ])("renders a %s v2 Area at its minimum without changing saved geometry", async (_label, mode) => {
+    const page = createWyrmetizerCopy(fixture(), compositionAdapters);
+    const geometry = page.layout.areas.canvas.composition.geometry;
+    geometry.profiles.desktop.height = { mode, valuePx: 100 };
+    geometry.placements.a.version = 3;
+    geometry.placements.a.frames.desktop.rotation = 90;
+    geometry.placements.a.frames.desktop.rotationPivot = { x: 0, y: 0 };
+    const before = structuredClone(page);
+    const callback = (id, widget, index) => renderImage(id, widget, index, { width: 300, height: 200 });
+    const preview = await renderPageContent(page, callback);
+    const published = await renderPageContent(JSON.parse(JSON.stringify(page)), callback);
+    const area = parse(preview).querySelector('[data-composition-id="canvas"]');
+
+    expect(preview).toBe(published);
+    expect(Number(area.dataset.compositionHeight)).toBeGreaterThan(100);
+    expect(area.style.aspectRatio).toBe(`1200/${area.dataset.compositionHeight}`);
+    expect(page).toEqual(before);
+  });
+
   it("surfaces invalid effective bounds without mutating or discarding widgets", async () => {
     const page = pageV3();
     page.layout.mobile.areas = { canvas: { composition: { geometry: {
