@@ -427,7 +427,13 @@ export function handleCompositionMessage(event, iframe, origin) {
     p.startRevision !== compositionRevision(current.widgets[p.widgetId], found[1].placements[p.widgetId].frames.desktop)
   )
     return false;
-  return applyCompositionGeometry(p.widgetId, { frame: p.frame, startFrame: p.startFrame });
+  // Each interaction owns one geometry channel. Keep that ownership explicit
+  // when applying the canonical update so a movement can never replace angle
+  // or rotation pivot from a stale preview frame (and vice versa).
+  const frame = event.data.type === "COMPOSITION_MOVE"
+    ? { ...original, x: p.frame.x, y: p.frame.y }
+    : { ...original, rotation: p.frame.rotation };
+  return applyCompositionGeometry(p.widgetId, { frame, startFrame: p.startFrame });
 }
 
 export function handleOrderingMessage(event, iframe, origin) {

@@ -38,6 +38,18 @@ it("moves independently, constrains canvas bounds and commits once on release", 
   expect(commit.mock.calls[0][0].frame).toEqual({ x: 0.75, y: 0.5, pivot: { x: 0, y: 0 } });
   expect(commit.mock.calls[0][0].startFrame.x).toBe(0.1);
 });
+it("retains a committed angle and pivot when dragging a rotated image", () => {
+  const child = document.querySelector("[data-composition-child]");
+  const frame = { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 }, rotation: 37.25, rotationPivot: { x: 0.2, y: 0.8 } };
+  child.dataset.compositionFrame = JSON.stringify(frame);
+  child.style.cssText = "left:120px;top:170px;width:300px;height:200px;transform:rotate(37.25deg);transform-origin:20% 80%";
+  pointer("pointerdown", 120, 170, document.querySelector("img"));
+  pointer("pointermove", 220, 270); pointer("pointerup", 220, 270);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(commit.mock.calls[0][0].frame).toMatchObject({ rotation: 37.25, rotationPivot: frame.rotationPivot });
+  expect(commit.mock.calls[0][0].frame.x).toBeCloseTo(220 / 1200, 6);
+  expect(commit.mock.calls[0][0].frame.y).toBeCloseTo(270 / 1200, 6);
+});
 it.each(["pointercancel", "lostpointercapture", "Escape"])(
   "cancels %s without committing or retaining transient geometry",
   (reason) => {

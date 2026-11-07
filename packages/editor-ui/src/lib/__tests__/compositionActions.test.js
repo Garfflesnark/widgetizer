@@ -254,6 +254,63 @@ it("persists pivot edits and Reset Pivot without moving corners, with atomic Und
   expect(setCompositionRotationPivot("a", { x: 0.5, y: 0.5 })).toBe(false);
   expect(setCompositionRotationPivot("a", { x: -1, y: 0.5 })).toBe(false);
 });
+it("commits a rotated image move through its own geometry channel and preserves rotation and pivot", () => {
+  rotateCompositionImage("a", 37.25);
+  expect(setCompositionRotationPivot("a", { x: 0.2, y: 0.8 })).toBe(true);
+  usePageStore.temporal.getState().clear();
+  const before = structuredClone(usePageStore.getState().page);
+  const frame = before.layout.compositions.canvas.placements.a.frames.desktop;
+  const iframe = {}, origin = "https://preview.example";
+  const payload = {
+    widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(),
+    startRevision: compositionRevision(before.widgets.a, frame), startFrame: frame,
+    frame: { ...frame, x: frame.x + 0.08, y: frame.y + 0.04, pivot: { x: 0.5, y: 0.5 } },
+  };
+  expect(handleCompositionMessage({ source: iframe, origin, data: { type: "COMPOSITION_MOVE", payload } }, iframe, origin)).toBe(true);
+  const moved = usePageStore.getState().page;
+  expect(moved.layout.compositions.canvas.placements.a.frames.desktop).toMatchObject({
+    rotation: 37.25, rotationPivot: { x: 0.2, y: 0.8 }, pivot: frame.pivot, x: payload.frame.x, y: payload.frame.y,
+  });
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); expect(usePageStore.getState().page).toEqual(moved);
+  const saved = serializeWyrmetizerEditorPage(moved, compositionAdapters);
+  usePageStore.getState().setPage(JSON.parse(JSON.stringify(saved)));
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters)).toEqual(saved);
+});
+it("confirms a relocated pivot through the parent bridge and keeps rotation anchored after reload", () => {
+  rotateCompositionImage("a", 30);
+  const before = structuredClone(usePageStore.getState().page);
+  const frame = before.layout.compositions.canvas.placements.a.frames.desktop;
+  const iframe = {}, origin = "https://preview.example";
+  const pivot = { x: 0.2, y: 0.8 };
+  const payload = {
+    widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(),
+    startRevision: compositionRevision(before.widgets.a, frame), startFrame: frame, rotationPivot: pivot,
+  };
+  usePageStore.temporal.getState().clear();
+  expect(handleCompositionMessage({ source: iframe, origin, data: { type: "COMPOSITION_PIVOT", payload } }, iframe, origin)).toBe(true);
+  const confirmed = structuredClone(usePageStore.getState().page);
+  const confirmedFrame = confirmed.layout.compositions.canvas.placements.a.frames.desktop;
+  expect(confirmedFrame).toMatchObject({ rotation: 30, rotationPivot: pivot });
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  const size = transformRect(confirmed.widgets.a.settings.image_transform, useWidgetStore.getState().imageGeometry.a);
+  const rect = compositionRect(confirmedFrame, size.width, size.height, 1200);
+  const initialRect = compositionRect(frame, size.width, size.height, 1200);
+  [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([x, y]) => {
+    const beforePoint = rotatedPoint(initialRect, x, y, frame.rotation);
+    const afterPoint = rotatedPoint(rect, x, y, confirmedFrame.rotation, confirmedFrame.rotationPivot);
+    expect(afterPoint.x).toBeCloseTo(beforePoint.x, 8);
+    expect(afterPoint.y).toBeCloseTo(beforePoint.y, 8);
+  });
+  usePageStore.temporal.getState().undo(); expect(usePageStore.getState().page).toEqual(before);
+  usePageStore.temporal.getState().redo(); expect(usePageStore.getState().page).toEqual(confirmed);
+  const saved = serializeWyrmetizerEditorPage(confirmed, compositionAdapters);
+  usePageStore.getState().setPage(JSON.parse(JSON.stringify(saved)));
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters)).toEqual(saved);
+  expect(rotateCompositionImage("a", 47)).toBe(true);
+  expect(usePageStore.getState().page.layout.compositions.canvas.placements.a.frames.desktop.rotationPivot).toEqual(pivot);
+});
 it("switches paired modes with one Undo step, independent geometry and preserved selection", () => {
   usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
   const before = structuredClone(usePageStore.getState().page);
