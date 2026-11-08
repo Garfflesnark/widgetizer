@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { createCompositionRotateController } from "../compositionRotate.js";
+import { compositionContext, unrotatedCompositionRect } from "../compositionDOM.js";
+import { rotatedPoint } from "../rotationGeometry.js";
 let controller, commit, child, handle;
 function pointer(type, x, y, shiftKey = false, target = document) {
   const e = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y, shiftKey });
@@ -83,3 +85,88 @@ it("keeps the live selection outline through release until committed geometry is
   expect(child.style.transformOrigin).toBe("20% 80%");
   expect(committedFrame).toMatchObject({ x: frame.x, y: frame.y, pivot: frame.pivot, rotation: 90, rotationPivot: frame.rotationPivot });
 });
+
+it("keeps the rendered outline on the accepted live angle during the pre-sync repaint", () => {
+  controller.destroy();
+  const overlay = document.querySelector("#wz-selection-overlay"), widget = child.querySelector("[data-widget-id]");
+  const startFrame = { x: 0.25, y: 0.25, pivot: { x: 0, y: 0 }, rotation: -15.803, rotationPivot: { x: 0.5, y: 0.5 } };
+  child.dataset.compositionFrame = JSON.stringify(startFrame);
+  child.style.transform = `rotate(${startFrame.rotation}deg)`;
+  child.style.transformOrigin = "50% 50%";
+  let acceptedFrame = null;
+  const redraw = () => { overlay.innerHTML = ""; controller.render(overlay, widget); };
+  controller = createCompositionRotateController({ document, selected: () => "a", getContext: () => "desktop-page",
+    onStart: vi.fn(), onPreview: redraw, onCommit: payload => { acceptedFrame = payload.frame; commit(payload); } });
+  redraw();
+
+  const context = compositionContext(widget), rect = unrotatedCompositionRect(context), areaBox = context.area.getBoundingClientRect();
+  const pivotX = startFrame.rotationPivot.x, pivotY = startFrame.rotationPivot.y;
+  const centerX = areaBox.left + (rect.left + rect.width * pivotX) * context.scale;
+  const centerY = areaBox.top + (rect.top + rect.height * pivotY) * context.scale;
+  const startAngle = startFrame.rotation * Math.PI / 180;
+  const nextAngle = 19.197 * Math.PI / 180;
+  const radius = 100;
+  const startX = centerX + radius * Math.cos(startAngle), startY = centerY + radius * Math.sin(startAngle);
+  const endX = centerX + radius * Math.cos(nextAngle), endY = centerY + radius * Math.sin(nextAngle);
+  pointer("pointerdown", startX, startY, false, overlay.querySelector("[data-composition-rotate]"));
+  pointer("pointermove", endX, endY);
+  const liveOutline = overlay.querySelector("polygon").getAttribute("points");
+  const liveTransform = child.style.transform;
+  expect(liveTransform).toBe("rotate(19.197deg)");
+
+  pointer("pointerup", endX, endY);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(acceptedFrame.rotation).toBe(19.197);
+
+  // Parent accepted the transaction; canonical preview data is still old until COMPOSITION_SYNC.
+  redraw();
+  expect(child.style.transform).toBe(liveTransform);
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(liveOutline);
+
+  child.dataset.compositionFrame = JSON.stringify(acceptedFrame);
+  child.dataset.compositionRevision = "r2";
+  child.style.transform = `rotate(${acceptedFrame.rotation}deg)`;
+  controller.reconcile("desktop-page", { a: "r2" });
+  redraw();
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(liveOutline);
+  expectOutlineAngle(liveOutline, context, rect, acceptedFrame.rotation, acceptedFrame.rotationPivot);
+});
+
+it("clears the retained angle when a forced sync restores a rejected rotation", () => {
+  controller.destroy();
+  const overlay = document.querySelector("#wz-selection-overlay"), widget = child.querySelector("[data-widget-id]");
+  const redraw = () => { overlay.innerHTML = ""; controller.render(overlay, widget); };
+  controller = createCompositionRotateController({ document, selected: () => "a", getContext: () => "desktop-page",
+    onStart: vi.fn(), onPreview: redraw, onCommit: commit });
+  redraw();
+  const originalOutline = overlay.querySelector("polygon").getAttribute("points");
+  pointer("pointerdown", 225, 135, false, overlay.querySelector("[data-composition-rotate]"));
+  pointer("pointermove", 290, 200);
+  const draftOutline = overlay.querySelector("polygon").getAttribute("points");
+  pointer("pointerup", 290, 200);
+  redraw();
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(draftOutline);
+
+  // A forced sync is the existing recovery path for a rejected transaction.
+  controller.reconcile("desktop-page", { a: "r1" }, true);
+  child.style.transform = "rotate(0deg)";
+  redraw();
+  const restoredOutline = overlay.querySelector("polygon").getAttribute("points");
+  expect(restoredOutline).toBe(originalOutline);
+  expect(controller.angle(widget)).toBe(0);
+  expect(commit).toHaveBeenCalledTimes(1);
+});
+
+function expectOutlineAngle(points, context, rect, angle, pivot) {
+  const actual = points.split(" ").map(point => point.split(",").map(Number));
+  const area = context.area.getBoundingClientRect();
+  const expected = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([x, y]) => {
+    const point = rotatedPoint(rect, x, y, angle, pivot);
+    return { x: area.left + point.x * context.scale, y: area.top + point.y * context.scale };
+  });
+  expect(actual).toHaveLength(4);
+  expected.forEach((point, index) => {
+    expect(actual[index][0]).toBeCloseTo(point.x, 4);
+    expect(actual[index][1]).toBeCloseTo(point.y, 4);
+  });
+}

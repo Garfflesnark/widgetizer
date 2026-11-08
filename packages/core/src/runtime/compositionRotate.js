@@ -6,7 +6,7 @@ import { activeWidget } from "./responsiveDOM.js";
 
 export function createCompositionRotateController({ document, selected, getContext, onStart, onPreview, onCommit }) {
   const view = document.defaultView;
-  let gesture = null, releaseClick = false, releaseTimer;
+  let gesture = null, pendingCommit = null, releaseClick = false, releaseTimer;
   const finish = (commit) => {
     if (!gesture) return;
     const g = gesture;
@@ -15,15 +15,19 @@ export function createCompositionRotateController({ document, selected, getConte
     if (!committedRotation) {
       if (g.style === null) g.context.child.removeAttribute("style");
       else g.context.child.setAttribute("style", g.style);
-    } else onCommit({ widgetId: g.id, compositionId: g.context.area.dataset.compositionId,
-      interactionContext: g.interactionContext, startRevision: g.revision, startFrame: g.context.frame,
-      frame: { ...g.context.frame, rotation: g.angle } });
+    } else {
+      pendingCommit = { id: g.id, interactionContext: g.interactionContext, revision: g.revision,
+        rect: g.rect, angle: g.angle, rotationPivot: g.context.frame.rotationPivot };
+      onCommit({ widgetId: g.id, compositionId: g.context.area.dataset.compositionId,
+        interactionContext: g.interactionContext, startRevision: g.revision, startFrame: g.context.frame,
+        frame: { ...g.context.frame, rotation: g.angle } });
+    }
     releaseClick = true;
     view.clearTimeout(releaseTimer);
     releaseTimer = view.setTimeout(() => { releaseClick = false; }, 500);
     if (g.capture.hasPointerCapture?.(g.pointerId)) g.capture.releasePointerCapture(g.pointerId);
-    // Keep the live outline in place until COMPOSITION_SYNC paints the
-    // committed frame. Redrawing now would read the still-stale DOM frame.
+    // Keep redraws on the accepted live angle until COMPOSITION_SYNC supplies
+    // a new revision, or a forced/context sync restores authoritative state.
     if (!committedRotation) onPreview();
   };
   const move = (e) => {
@@ -82,16 +86,25 @@ export function createCompositionRotateController({ document, selected, getConte
   return {
     cancel,
     get active() { return !!gesture; },
-    angle(widget) { return gesture?.id === widget?.dataset.widgetId ? gesture.angle : compositionContext(widget)?.frame.rotation || 0; },
+    get preservingPreview() { return !!gesture || !!pendingCommit; },
+    angle(widget) {
+      const id = widget?.dataset.widgetId;
+      if (gesture?.id === id) return gesture.angle;
+      if (pendingCommit?.id === id) return pendingCommit.angle;
+      return compositionContext(widget)?.frame.rotation || 0;
+    },
     reconcile(context, revisions, force) {
       if (gesture && (force || context !== gesture.interactionContext || revisions?.[gesture.id] !== gesture.revision)) cancel();
+      if (pendingCommit && (force || context !== pendingCommit.interactionContext || revisions?.[pendingCommit.id] !== pendingCommit.revision))
+        pendingCommit = null;
     },
     render(overlay, widget, blockId) {
       const context = compositionContext(widget);
       if (!context || blockId) return;
-      const rect = gesture?.id === widget.dataset.widgetId ? gesture.rect : unrotatedCompositionRect(context);
-      const angle = this.angle(widget), box = context.area.getBoundingClientRect();
-      const screen = (x, y) => { const p = rotatedPoint(rect, x, y, angle, context.frame.rotationPivot); return { x: box.left + p.x * context.scale, y: box.top + p.y * context.scale }; };
+      const draft = gesture?.id === widget.dataset.widgetId ? gesture : pendingCommit?.id === widget.dataset.widgetId ? pendingCommit : null;
+      const rect = draft?.rect || unrotatedCompositionRect(context);
+      const angle = this.angle(widget), rotationPivot = draft?.rotationPivot || context.frame.rotationPivot, box = context.area.getBoundingClientRect();
+      const screen = (x, y) => { const p = rotatedPoint(rect, x, y, angle, rotationPivot); return { x: box.left + p.x * context.scale, y: box.top + p.y * context.scale }; };
       const points = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([x, y]) => screen(x, y));
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("style", "position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none");
@@ -115,6 +128,6 @@ export function createCompositionRotateController({ document, selected, getConte
         pointerEvents: "auto", touchAction: "none", cursor: "grab" });
       overlay.append(button);
     },
-    destroy() { cancel(); view.clearTimeout(releaseTimer); listeners.forEach(args => document.removeEventListener(...args)); view.removeEventListener("blur", cancel); },
+    destroy() { cancel(); pendingCommit = null; view.clearTimeout(releaseTimer); listeners.forEach(args => document.removeEventListener(...args)); view.removeEventListener("blur", cancel); },
   };
 }

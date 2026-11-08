@@ -1105,7 +1105,7 @@ function handleMessage(event) {
             ...(placement.rotationPivot ? { rotationPivot: placement.rotationPivot } : {}) };
           child.dataset.compositionFrame = JSON.stringify(frame);
           if (typeof event.data.revisions?.[widgetId] === "string") child.dataset.compositionRevision = event.data.revisions[widgetId];
-          if (!compositionRotateController?.active) {
+          if (!compositionRotateController?.preservingPreview) {
             child.style.transform = `rotate(${frame.rotation || 0}deg)`;
             child.style.transformOrigin = `${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%`;
           }
@@ -1127,7 +1127,7 @@ function handleMessage(event) {
           if (!frame || !Number.isFinite(frame.x) || !Number.isFinite(frame.y)) continue;
           if (compositionPivotController?.active && widgetId === currentSelectedWidgetId) continue;
           child.dataset.compositionFrame = JSON.stringify(frame);
-          if (!compositionRotateController?.active) {
+          if (!compositionRotateController?.preservingPreview) {
             child.style.transform = `rotate(${frame.rotation || 0}deg)`;
             child.style.transformOrigin = `${100 * (frame.rotationPivot?.x ?? 0.5)}% ${100 * (frame.rotationPivot?.y ?? 0.5)}%`;
           }
