@@ -11,11 +11,18 @@ export function createWyrmetizerPivotController({ document, selected, getContext
   const finish = commit => {
     if (!session) return;
     const s = session; session = null;
-    s.context.child.dataset.compositionFrame = JSON.stringify(s.context.frame);
-    if (s.style === null) s.context.child.removeAttribute("style"); else s.context.child.setAttribute("style", s.style);
+    const originalPivot = s.context.frame.rotationPivot || centerRotationPivot;
+    const committedPivot = commit && (s.pivot.x !== originalPivot.x || s.pivot.y !== originalPivot.y);
+    if (!committedPivot) {
+      s.context.child.dataset.compositionFrame = JSON.stringify(s.context.frame);
+      if (s.style === null) s.context.child.removeAttribute("style"); else s.context.child.setAttribute("style", s.style);
+    }
     if (s.drag != null && s.capture.hasPointerCapture?.(s.drag)) s.capture.releasePointerCapture(s.drag);
     if (commit) onCommit({ ...s.payload, rotationPivot: s.pivot });
-    onPreview();
+    // The confirmed draft already matches the image and outline. Keep it until
+    // the parent sync paints canonical geometry instead of briefly restoring
+    // the stale pre-edit frame.
+    if (!committedPivot) onPreview();
   };
   const update = pivot => {
     const s = session;

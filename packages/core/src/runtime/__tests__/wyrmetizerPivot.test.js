@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createWyrmetizerPivotController } from "../wyrmetizerPivot.js";
+import { createCompositionRotateController } from "../compositionRotate.js";
 import { rebaseRotationPivot, rotatedPoint, hitRotatedRect, rotatedResizeRect } from "../rotationGeometry.js";
 import { compositionContext, unrotatedCompositionRect, applyCompositionRect } from "../compositionDOM.js";
-let controller, child, overlay, commit;
+let controller, rotateController, child, overlay, commit, rotateCommit, renderOverlay;
 const frame = { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 }, rotation: 30 };
 function pointer(type, x, y, target = document, pointerId = 1) {
   const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
@@ -11,6 +12,18 @@ function pointer(type, x, y, target = document, pointerId = 1) {
 }
 function pivotButton() { return document.querySelector("[data-rotation-pivot]"); }
 function double() { pivotButton().dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true })); }
+function expectOutlineNear(actual, expected) {
+  const values = text => text.split(/[ ,]+/).map(Number);
+  values(actual).forEach((value, index) => expect(value).toBeCloseTo(values(expected)[index], 8));
+}
+function expectOutlineGeometry(actual, rect, angle, pivot) {
+  const values = actual.split(/[ ,]+/).map(Number);
+  [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([x, y], index) => {
+    const expected = rotatedPoint(rect, x, y, angle, pivot);
+    expect(values[index * 2]).toBeCloseTo(expected.x, 8);
+    expect(values[index * 2 + 1]).toBeCloseTo(expected.y, 8);
+  });
+}
 beforeEach(() => {
   document.body.innerHTML = `<section data-composition-id="c" data-composition-width="1200" data-composition-height="800"><div data-composition-child="a" data-composition-revision="r"><section data-widget-id="a"></section></div></section><div id="wz-selection-overlay"></div>`;
   const area = document.querySelector("[data-composition-id]");
@@ -19,13 +32,19 @@ beforeEach(() => {
   child.style.cssText = "left:240px;top:240px;width:200px;height:100px;transform:rotate(30deg)";
   overlay = document.querySelector("#wz-selection-overlay");
   overlay.setPointerCapture = vi.fn(); overlay.hasPointerCapture = () => true; overlay.releasePointerCapture = vi.fn();
-  commit = vi.fn();
-  const render = () => { overlay.innerHTML = ""; controller.render(overlay, document.querySelector("[data-widget-id]")); };
-  controller = createWyrmetizerPivotController({ document, selected: () => "a", getContext: () => "desktop", onStart: vi.fn(), onPreview: render, onCommit: commit });
-  render();
+  commit = vi.fn(); rotateCommit = vi.fn();
+  renderOverlay = () => {
+    overlay.innerHTML = "";
+    rotateController?.render(overlay, document.querySelector("[data-widget-id]"));
+    controller?.render(overlay, document.querySelector("[data-widget-id]"));
+  };
+  rotateController = createCompositionRotateController({ document, selected: () => "a", getContext: () => "desktop",
+    onStart: vi.fn(), onPreview: renderOverlay, onCommit: rotateCommit });
+  controller = createWyrmetizerPivotController({ document, selected: () => "a", getContext: () => "desktop", onStart: vi.fn(), onPreview: renderOverlay, onCommit: commit });
+  renderOverlay();
 });
-afterEach(() => controller.destroy());
-it("keeps pointer placement transient until confirmation and restores baseline before commit", () => {
+afterEach(() => { controller.destroy(); rotateController.destroy(); renderOverlay = null; });
+it("keeps the relocated pivot outline through confirmation until canonical geometry sync", () => {
   const before = child.getAttribute("style"); double();
   expect(pivotButton().getAttribute("aria-pressed")).toBe("true");
   pointer("pointerdown", 340, 290, pivotButton()); pointer("pointermove", 370, 300); pointer("pointerup", 370, 300);
@@ -37,10 +56,94 @@ it("keeps pointer placement transient until confirmation and restores baseline b
     expect(after.x).toBeCloseTo(before.x, 8); expect(after.y).toBeCloseTo(before.y, 8);
   }
   expect(commit).not.toHaveBeenCalled(); expect(controller.active).toBe(true);
+  const liveStyle = child.getAttribute("style"), liveOutline = overlay.querySelector("polygon").getAttribute("points");
   double();
   expect(commit).toHaveBeenCalledTimes(1);
   expect(commit.mock.calls[0][0]).toMatchObject({ startFrame: frame, startRevision: "r", interactionContext: "desktop" });
-  expect(child.getAttribute("style")).toBe(before);
+  expect(child.getAttribute("style")).toBe(liveStyle);
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(liveOutline);
+
+  const edited = commit.mock.calls[0][0].rotationPivot;
+  const originalRect = { left: 240, top: 240, width: 200, height: 100 };
+  const syncedRect = rebaseRotationPivot(originalRect, frame.rotation, undefined, edited);
+  const saved = { ...frame, x: (syncedRect.left + frame.pivot.x * syncedRect.width) / 1200,
+    y: (syncedRect.top + frame.pivot.y * syncedRect.height) / 1200, rotationPivot: edited };
+  child.dataset.compositionFrame = JSON.stringify(saved);
+  applyCompositionRect({ ...compositionContext(document.querySelector("[data-widget-id]")), frame: saved }, syncedRect);
+  overlay.innerHTML = ""; rotateController.render(overlay, document.querySelector("[data-widget-id]"));
+  controller.render(overlay, document.querySelector("[data-widget-id]"));
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(liveOutline);
+  expect(child.getAttribute("style")).not.toBe(before);
+});
+it("keeps rendered image and outline aligned through pivot confirm, rotation, re-edit and reset", () => {
+  const widget = document.querySelector("[data-widget-id]");
+  const sync = (nextFrame, nextRect, revision) => {
+    child.dataset.compositionFrame = JSON.stringify(nextFrame);
+    child.dataset.compositionRevision = revision;
+    applyCompositionRect({ ...compositionContext(widget), frame: nextFrame }, nextRect);
+    renderOverlay();
+  };
+  const originalRect = { left: 240, top: 240, width: 200, height: 100 };
+
+  double();
+  pointer("pointerdown", 340, 290, pivotButton());
+  pointer("pointermove", 370, 300); pointer("pointerup", 370, 300);
+  const firstPivot = JSON.parse(child.dataset.compositionFrame).rotationPivot;
+  const firstConfirmOutline = overlay.querySelector("polygon").getAttribute("points");
+  double();
+  expect(child.style.transform).toBe("rotate(30deg)");
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(firstConfirmOutline);
+
+  let rect = rebaseRotationPivot(originalRect, frame.rotation, undefined, firstPivot);
+  let saved = { ...frame, x: rect.left / 1200, y: rect.top / 1200, rotationPivot: firstPivot };
+  sync(saved, rect, "r2");
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(firstConfirmOutline);
+  expectOutlineGeometry(firstConfirmOutline, rect, 30, firstPivot);
+  expect(rect).toMatchObject({ width: originalRect.width, height: originalRect.height });
+
+  const point = { x: rect.left + rect.width * firstPivot.x, y: rect.top + rect.height * firstPivot.y };
+  const rotateHandle = overlay.querySelector("[data-composition-rotate]");
+  pointer("pointerdown", point.x, point.y - 65, rotateHandle);
+  pointer("pointermove", point.x + 65, point.y);
+  const rotatedOutline = overlay.querySelector("polygon").getAttribute("points");
+  expect(child.style.transform).toBe("rotate(120deg)");
+  pointer("pointerup", point.x + 65, point.y);
+  expect(rotateCommit).toHaveBeenCalledTimes(1);
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(rotatedOutline);
+  saved = rotateCommit.mock.calls[0][0].frame;
+  sync(saved, rect, "r3");
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(rotatedOutline);
+  expect(child.style.transformOrigin).toBe(`${firstPivot.x * 100}% ${firstPivot.y * 100}%`);
+  expectOutlineGeometry(rotatedOutline, rect, 120, firstPivot);
+
+  double();
+  const button = pivotButton();
+  const buttonX = parseFloat(button.style.left) + 10, buttonY = parseFloat(button.style.top) + 10;
+  pointer("pointerdown", buttonX, buttonY, button);
+  pointer("pointermove", buttonX + 25, buttonY + 20); pointer("pointerup", buttonX + 25, buttonY + 20);
+  const secondPivot = JSON.parse(child.dataset.compositionFrame).rotationPivot;
+  expect(secondPivot).not.toEqual(firstPivot);
+  const secondConfirmOutline = overlay.querySelector("polygon").getAttribute("points");
+  double();
+  expect(child.style.transform).toBe("rotate(120deg)");
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(secondConfirmOutline);
+
+  const secondRect = rebaseRotationPivot(rect, 120, firstPivot, secondPivot);
+  saved = { ...saved, x: secondRect.left / 1200, y: secondRect.top / 1200, rotationPivot: secondPivot };
+  sync(saved, secondRect, "r4");
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(secondConfirmOutline);
+  expectOutlineGeometry(secondConfirmOutline, secondRect, 120, secondPivot);
+
+  const reset = document.createElement("button"); reset.dataset.resetRotationPivot = "a"; overlay.append(reset); reset.click();
+  expect(commit).toHaveBeenCalledTimes(3);
+  expect(commit.mock.calls[2][0].rotationPivot).toEqual({ x: 0.5, y: 0.5 });
+  const resetRect = rebaseRotationPivot(secondRect, 120, secondPivot, { x: 0.5, y: 0.5 });
+  saved = { ...saved, x: resetRect.left / 1200, y: resetRect.top / 1200, rotationPivot: { x: 0.5, y: 0.5 } };
+  sync(saved, resetRect, "r5");
+  expect(child.style.transform).toBe("rotate(120deg)");
+  expect(child.style.transformOrigin).toBe("50% 50%");
+  expectOutlineNear(overlay.querySelector("polygon").getAttribute("points"), secondConfirmOutline);
+  expectOutlineGeometry(overlay.querySelector("polygon").getAttribute("points"), resetRect, 120, { x: 0.5, y: 0.5 });
 });
 it("releases pointer zero when cancelling a drag", () => {
   double(); pointer("pointerdown", 340, 290, pivotButton(), 0);
@@ -59,6 +162,7 @@ it("commits the dragged pivot through the native confirmation click sequence wit
     const saved = { ...frame, x: rect.left / 1200, y: rect.top / 1200, rotationPivot };
     child.dataset.compositionFrame = JSON.stringify(saved);
     applyCompositionRect({ ...compositionContext(document.querySelector("[data-widget-id]")), frame: saved }, rect);
+    renderOverlay(); // The parent COMPOSITION_SYNC repaint follows the accepted commit.
   });
   double();
   pointer("pointerdown", 340, 290, pivotButton());
