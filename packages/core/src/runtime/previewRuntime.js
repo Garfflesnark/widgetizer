@@ -25,6 +25,7 @@ import { activeArea, activePresentation, activeWidget, isActivePresentation, sco
 
 let responsivePresentationEpoch = 0;
 let lastCompositionSyncRevision = -1;
+let compositionGeometryRecorder = null;
 
 function responsiveMetadata() {
   const presentation = activePresentation(document);
@@ -57,7 +58,8 @@ function notifyPresentationContext() {
 const PARENT_ORIGIN = new URLSearchParams(window.location.search).get("parentOrigin") || "";
 
 function postToParent(data) {
-  window.parent.postMessage(data, PARENT_ORIGIN || "*");
+  const outgoing = compositionGeometryRecorder?.decorateMessage(data) || data;
+  window.parent.postMessage(outgoing, PARENT_ORIGIN || "*");
 }
 
 // ── Preview Mode ────────────────────────────────────────────────────────────
@@ -75,6 +77,15 @@ function getPreviewMode() {
 }
 
 const PREVIEW_MODE = getPreviewMode();
+const GEOMETRY_RECORDER_STORAGE_KEY = "wz:composition-geometry-recorder";
+
+function geometryRecorderOptedIn() {
+  const script = document.querySelector("script[data-preview-mode]");
+  const host = window.location.hostname;
+  if (PREVIEW_MODE !== "editor" || script?.dataset?.geometryRecorderAvailable !== "true" ||
+      !["localhost", "127.0.0.1", "::1", "[::1]"].includes(host)) return false;
+  try { return window.sessionStorage.getItem(GEOMETRY_RECORDER_STORAGE_KEY) === "1"; } catch { return false; }
+}
 
 const COLLECTION_PREFIXES = (document.querySelector("script[data-preview-mode]")?.dataset?.collectionPrefixes || "")
   .split(",")
@@ -1006,15 +1017,34 @@ function handleMessage(event) {
         (!activePresentation(document) || (activePresentation(document) === "desktop" && matchesResponsiveMessage(payload)))) compositionNumericPreview?.preview(payload);
     return;
   }
+  if (event.data?.type === "WZ_COMPOSITION_GEOMETRY_RECORDER_RESULT") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    compositionGeometryRecorder?.recordResult(event.data.payload);
+    return;
+  }
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    if (compositionGeometryRecorder) postToParent({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_READY" });
+    compositionGeometryRecorder?.capture("composition-sync-received", { responsive: event.data.responsive === true,
+      presentation: event.data.presentation || "desktop", syncRevision: event.data.syncRevision ?? null,
+      force: event.data.force === true });
     const presentation = activePresentation(document);
     if (event.data.responsive === true) {
       if (!presentation || event.data.presentation !== presentation || event.data.presentationEpoch !== responsivePresentationEpoch ||
           !Number.isInteger(event.data.syncRevision) || event.data.syncRevision <= lastCompositionSyncRevision ||
-          event.data.resolvedPresentation?.presentation !== presentation) return;
+          event.data.resolvedPresentation?.presentation !== presentation) {
+        compositionGeometryRecorder?.capture("composition-sync-rejected", { reason: "responsive-presentation-or-revision-mismatch",
+          activePresentation: presentation, receivedPresentation: event.data.presentation || null,
+          activeEpoch: responsivePresentationEpoch, receivedEpoch: event.data.presentationEpoch ?? null,
+          lastSyncRevision: lastCompositionSyncRevision, receivedSyncRevision: event.data.syncRevision ?? null });
+        return;
+      }
       lastCompositionSyncRevision = event.data.syncRevision;
-    } else if (presentation) return;
+    } else if (presentation) {
+      compositionGeometryRecorder?.capture("composition-sync-rejected", { reason: "non-responsive-sync-while-presentation-active", activePresentation: presentation });
+      return;
+    }
+    compositionGeometryRecorder?.captureSync(event.data, "before");
     compositionNumericPreview?.cancel();
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
     compositionRotateController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
@@ -1076,7 +1106,9 @@ function handleMessage(event) {
       }
     }
     imageResizeController?.setSizes(event.data.sizes || {}, event.data.force === true);
-    renderOverlay(); return;
+    renderOverlay();
+    compositionGeometryRecorder?.captureSync(event.data, "after");
+    return;
   }
   if (event.data?.type === "EDITOR_HISTORY_STATE") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
@@ -1470,6 +1502,13 @@ function initializeRuntime() {
   setupScrollBoundsReporting();
   setupOverlayClickHandler();
   window.addEventListener("message", handleMessage);
+
+  if (geometryRecorderOptedIn()) import("./compositionGeometryRecorder.js").then(({ createCompositionGeometryRecorder, installCompositionGeometryRecorderApi }) => {
+    if (!geometryRecorderOptedIn() || compositionGeometryRecorder) return;
+    compositionGeometryRecorder = createCompositionGeometryRecorder({ window, document, selected: () => currentSelectedWidgetId });
+    installCompositionGeometryRecorderApi(window, compositionGeometryRecorder);
+    postToParent({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_READY" });
+  }).catch(() => {});
 
   // Reconcile every image before redrawing selection controls at the new viewport size.
   let lastResponsivePresentation = activePresentation(document);

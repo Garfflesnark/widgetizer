@@ -631,6 +631,19 @@ describe("injectRuntimeScript — the site's languages", () => {
     assert.match(out, /data-default-language="en"/);
   });
 
+  it("exposes the recorder only to non-production editor previews", () => {
+    const previous = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = "development";
+      assert.match(injectRuntimeScript(html, "editor"), /data-geometry-recorder-available="true"/);
+      assert.match(injectRuntimeScript(html, "standalone"), /data-geometry-recorder-available="false"/);
+      process.env.NODE_ENV = "production";
+      assert.match(injectRuntimeScript(html, "editor"), /data-geometry-recorder-available="false"/);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previous;
+    }
+  });
+
   it("refuses anything that is not a language code, so nothing can be smuggled into the tag", () => {
     const out = injectRuntimeScript(html, "editor", [], {
       defaultLanguage: '"><script>x</script>',

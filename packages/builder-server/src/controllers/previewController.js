@@ -45,7 +45,8 @@ export function injectRuntimeScript(html, previewMode = "editor", collectionPref
   const codes = (code) => LANGUAGE_CODE_RE.test(code || "");
   const languages = (site.languages || []).filter(codes).join(",");
   const defaultLanguage = codes(site.defaultLanguage) ? site.defaultLanguage : DEFAULT_LANGUAGE;
-  const script = `<script src="/runtime/previewRuntime.js" type="module" data-preview-mode="${safeMode}" data-collection-prefixes="${prefixes}" data-languages="${languages}" data-default-language="${defaultLanguage}"></script>`;
+  const geometryRecorderAvailable = safeMode === "editor" && process.env.NODE_ENV !== "production";
+  const script = `<script src="/runtime/previewRuntime.js" type="module" data-preview-mode="${safeMode}" data-geometry-recorder-available="${geometryRecorderAvailable}" data-collection-prefixes="${prefixes}" data-languages="${languages}" data-default-language="${defaultLanguage}"></script>`;
   html = html.replace(/<\/body>/i, `${script}\n</body>`);
 
   // Editor mode: inject designMode flag in <head> so it's available before

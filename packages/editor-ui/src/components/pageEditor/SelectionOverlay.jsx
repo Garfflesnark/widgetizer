@@ -119,6 +119,7 @@ export default function SelectionOverlay({
   const page = usePageStore((state) => state.page);
   const responsiveContextRef = useRef({ presentation: previewMode === "mobile" ? "mobile" : "desktop", epoch: 0 });
   const responsiveSyncSequenceRef = useRef(0);
+  const geometryRecorderReadyRef = useRef(false);
   const updateResponsiveContext = useCallback((payload) => {
     responsiveContextRef.current = { presentation: payload?.presentation, epoch: payload?.epoch,
       syncRevision: responsiveSyncSequenceRef.current };
@@ -302,14 +303,34 @@ export default function SelectionOverlay({
   // Listen for iframe messages
   useEffect(() => {
     const handleMessage = (event) => {
+      const recorderEvent = import.meta.env.DEV && geometryRecorderReadyRef.current &&
+        event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin();
+      const acknowledgeGeometryMessage = (accepted, reason) => {
+        if (!recorderEvent) return;
+        try {
+          iframeRef.current.contentWindow.postMessage({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_RESULT", payload: {
+            diagnosticId: event.data?.diagnosticId || null, messageType: event.data?.type || null,
+            accepted, reason, at: new Date().toISOString(),
+          } }, getPreviewTargetOrigin());
+        } catch { /* diagnostics must not interfere with composition commits */ }
+      };
+      if (event.data?.type === "WZ_COMPOSITION_GEOMETRY_RECORDER_READY") {
+        if (import.meta.env.DEV && event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin())
+          geometryRecorderReadyRef.current = true;
+        return;
+      }
       if (event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin() && event.data?.type === "PRESENTATION_CONTEXT") {
         updateResponsiveContext(event.data.payload);
         return;
       }
       if (responsiveV3(page) && event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin() &&
           RESPONSIVE_RUNTIME_MESSAGES.includes(event.data?.type)) {
-        if (!currentResponsiveMessage(event.data.payload, responsiveContextRef.current, responsiveSyncSequenceRef.current)) return;
-        if (responsiveContextRef.current.presentation !== "desktop" && RESPONSIVE_DESKTOP_ONLY_MESSAGES.includes(event.data.type)) return;
+        if (!currentResponsiveMessage(event.data.payload, responsiveContextRef.current, responsiveSyncSequenceRef.current)) {
+          acknowledgeGeometryMessage(false, "responsive-context-or-sync-revision-mismatch"); return;
+        }
+        if (responsiveContextRef.current.presentation !== "desktop" && RESPONSIVE_DESKTOP_ONLY_MESSAGES.includes(event.data.type)) {
+          acknowledgeGeometryMessage(false, "desktop-only-interaction-in-mobile-presentation"); return;
+        }
       }
       if (event.data?.type === "COMPOSITION_TOGGLE_IMAGE") {
         handleCompositionSelectionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
@@ -329,7 +350,8 @@ export default function SelectionOverlay({
         handleCompositionLockMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }
       if (["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(event.data?.type)) {
-        handleCompositionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
+        const accepted = handleCompositionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        acknowledgeGeometryMessage(accepted, accepted ? "accepted" : "composition-validation-rejected"); return;
       }
       if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
         handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
