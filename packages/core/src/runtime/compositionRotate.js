@@ -10,8 +10,9 @@ export function createCompositionRotateController({ document, selected, getConte
   const finish = (commit) => {
     if (!gesture) return;
     const g = gesture;
+    const committedRotation = commit && g.angle !== (g.context.frame.rotation || 0);
     gesture = null;
-    if (!commit || g.angle === (g.context.frame.rotation || 0)) {
+    if (!committedRotation) {
       if (g.style === null) g.context.child.removeAttribute("style");
       else g.context.child.setAttribute("style", g.style);
     } else onCommit({ widgetId: g.id, compositionId: g.context.area.dataset.compositionId,
@@ -21,7 +22,9 @@ export function createCompositionRotateController({ document, selected, getConte
     view.clearTimeout(releaseTimer);
     releaseTimer = view.setTimeout(() => { releaseClick = false; }, 500);
     if (g.capture.hasPointerCapture?.(g.pointerId)) g.capture.releasePointerCapture(g.pointerId);
-    onPreview();
+    // Keep the live outline in place until COMPOSITION_SYNC paints the
+    // committed frame. Redrawing now would read the still-stale DOM frame.
+    if (!committedRotation) onPreview();
   };
   const move = (e) => {
     if (!gesture || gesture.pointerId !== e.pointerId) return;

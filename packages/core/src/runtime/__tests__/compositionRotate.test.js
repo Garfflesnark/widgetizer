@@ -58,3 +58,28 @@ it("does not snap an off-grid angle on a stationary Shift click or pointer jitte
   expect(commit).not.toHaveBeenCalled();
   expect(child.style.transform).toBe("rotate(22deg)");
 });
+it("keeps the live selection outline through release until committed geometry is synchronized", () => {
+  controller.destroy();
+  const overlay = document.querySelector("#wz-selection-overlay"), widget = child.querySelector("[data-widget-id]");
+  const frame = { x: 0.25, y: 0.25, pivot: { x: 0, y: 0 }, rotationPivot: { x: 0.2, y: 0.8 } };
+  child.dataset.compositionFrame = JSON.stringify(frame);
+  const redraw = () => { overlay.innerHTML = ""; controller.render(overlay, widget); };
+  controller = createCompositionRotateController({ document, selected: () => "a", getContext: () => "desktop-page",
+    onStart: vi.fn(), onPreview: redraw, onCommit: commit });
+  redraw();
+  pointer("pointerdown", 180, 165, false, overlay.querySelector("[data-composition-rotate]"));
+  pointer("pointermove", 245, 230);
+  const liveOutline = overlay.querySelector("polygon").getAttribute("points");
+  expect(child.style.transform).toBe("rotate(90deg)");
+
+  pointer("pointerup", 245, 230);
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(liveOutline);
+
+  const committedFrame = commit.mock.calls[0][0].frame;
+  child.dataset.compositionFrame = JSON.stringify(committedFrame);
+  redraw();
+  expect(overlay.querySelector("polygon").getAttribute("points")).toBe(liveOutline);
+  expect(child.style.transformOrigin).toBe("20% 80%");
+  expect(committedFrame).toMatchObject({ x: frame.x, y: frame.y, pivot: frame.pivot, rotation: 90, rotationPivot: frame.rotationPivot });
+});
