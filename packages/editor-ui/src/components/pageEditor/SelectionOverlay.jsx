@@ -2,7 +2,7 @@ import { compositionFor, compositionRevision } from "@widgetizer/core/compositio
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
-import { handleCompositionMessage, handleCompositionSelectionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext, handleCompositionLockMessage, pruneCompositionMovementLocks } from "../../lib/compositionActions";
+import { handleCompositionMessageDetailed, handleCompositionSelectionMessage, reorderContentBlock, handleOrderingMessage, compositionInteractionContext, handleCompositionLockMessage, pruneCompositionMovementLocks } from "../../lib/compositionActions";
 import { supportsImageTransform, isImageTransform } from "@widgetizer/core/imageTransform";
 import { imageSpacing, supportsImageSpacing } from "@widgetizer/core/imageSpacing";
 import { editorHistoryState, performEditorHistory } from "../../lib/editorHistory";
@@ -49,11 +49,13 @@ function responsiveSyncData(page, schemas, viewportWidthPx, imageGeometry) {
     areas[areaId] = { mode: area.mode, widthPx, heightPx, readingOrder: area.readingOrder,
       stackOrder: area.stackOrder, placements: {} };
     for (const [id, placement] of Object.entries(placements)) {
-      const frame = { x: placement.xPx / widthPx, y: placement.yPx / widthPx, pivot: placement.pivot,
+      const resolvedFrame = { x: placement.xPx / widthPx, y: placement.yPx / widthPx, pivot: placement.pivot,
         ...(placement.rotation ? { rotation: placement.rotation } : {}),
         ...(placement.rotationPivot ? { rotationPivot: placement.rotationPivot } : {}) };
+      const authoredFrame = compositionFor(page, id)?.[1]?.placements?.[id]?.frames?.desktop;
+      const frame = view.presentation === "desktop" && authoredFrame ? authoredFrame : resolvedFrame;
       areas[areaId].placements[id] = { frame, rect: placement.rect };
-      revisions[id] = compositionRevision(view.widgets[id], frame);
+      revisions[id] = compositionRevision(authoredFrame ? page.widgets[id] : view.widgets[id], frame);
     }
   }
   return { presentation: view.presentation, sizes, areas, revisions };
@@ -305,14 +307,27 @@ export default function SelectionOverlay({
     const handleMessage = (event) => {
       const recorderEvent = import.meta.env.DEV && geometryRecorderReadyRef.current &&
         event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin();
-      const acknowledgeGeometryMessage = (accepted, reason) => {
+      const acknowledgeGeometryMessage = (accepted, reason, diagnostics = null) => {
         if (!recorderEvent) return;
         try {
           iframeRef.current.contentWindow.postMessage({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_RESULT", payload: {
             diagnosticId: event.data?.diagnosticId || null, messageType: event.data?.type || null,
-            accepted, reason, at: new Date().toISOString(),
+            accepted, reason, diagnostics, at: new Date().toISOString(),
           } }, getPreviewTargetOrigin());
         } catch { /* diagnostics must not interfere with composition commits */ }
+      };
+      const reconcileRejectedGeometry = () => {
+        if (event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin())
+          window.dispatchEvent(new CustomEvent("widgetizer:composition-reconcile"));
+      };
+      const responsiveRejectionDiagnostics = () => {
+        const payload = event.data?.payload || {}, context = responsiveContextRef.current || {};
+        return { widgetId: payload.widgetId || null, compositionId: payload.compositionId || null,
+          expectedPresentation: context.presentation || null, receivedPresentation: payload.presentation || null,
+          expectedPresentationEpoch: context.epoch ?? null, receivedPresentationEpoch: payload.presentationEpoch ?? null,
+          expectedSyncRevision: responsiveSyncSequenceRef.current, receivedSyncRevision: payload.syncRevision ?? null,
+          expectedFrame: payload.startFrame || null, receivedFrame: payload.frame || null,
+          receivedRevision: payload.startRevision ?? null };
       };
       if (event.data?.type === "WZ_COMPOSITION_GEOMETRY_RECORDER_READY") {
         if (import.meta.env.DEV && event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin())
@@ -326,10 +341,12 @@ export default function SelectionOverlay({
       if (responsiveV3(page) && event.source === iframeRef?.current?.contentWindow && event.origin === getPreviewTargetOrigin() &&
           RESPONSIVE_RUNTIME_MESSAGES.includes(event.data?.type)) {
         if (!currentResponsiveMessage(event.data.payload, responsiveContextRef.current, responsiveSyncSequenceRef.current)) {
-          acknowledgeGeometryMessage(false, "responsive-context-or-sync-revision-mismatch"); return;
+          acknowledgeGeometryMessage(false, "responsive-context-or-sync-revision-mismatch", responsiveRejectionDiagnostics());
+          reconcileRejectedGeometry(); return;
         }
         if (responsiveContextRef.current.presentation !== "desktop" && RESPONSIVE_DESKTOP_ONLY_MESSAGES.includes(event.data.type)) {
-          acknowledgeGeometryMessage(false, "desktop-only-interaction-in-mobile-presentation"); return;
+          acknowledgeGeometryMessage(false, "desktop-only-interaction-in-mobile-presentation", responsiveRejectionDiagnostics());
+          reconcileRejectedGeometry(); return;
         }
       }
       if (event.data?.type === "COMPOSITION_TOGGLE_IMAGE") {
@@ -350,8 +367,10 @@ export default function SelectionOverlay({
         handleCompositionLockMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin()); return;
       }
       if (["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(event.data?.type)) {
-        const accepted = handleCompositionMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
-        acknowledgeGeometryMessage(accepted, accepted ? "accepted" : "composition-validation-rejected"); return;
+        const result = handleCompositionMessageDetailed(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        acknowledgeGeometryMessage(result.accepted, result.reason, result.diagnostics);
+        if (!result.accepted && !result.diagnostics?.reconciliationRequested) reconcileRejectedGeometry();
+        return;
       }
       if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
         handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());

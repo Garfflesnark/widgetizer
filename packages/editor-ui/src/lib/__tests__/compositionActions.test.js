@@ -1,7 +1,8 @@
 import { compositionRevision, compositionRect } from "@widgetizer/core/composition";
+import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
 import { rotatedPoint } from "@widgetizer/core/rotationGeometry";
 import { transformRect } from "@widgetizer/core/imageTransform";
-import { convertWyrmetizerPageToV3, createWyrmetizerCopy, serializeWyrmetizerEditorPage, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { convertWyrmetizerPageToV3, createWyrmetizerCopy, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { renderPageContent } from "../../../../render-engine/src/compositionRenderer.js";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
@@ -19,6 +20,7 @@ import {
   compositionInteractionContext,
   layerImage,
   handleCompositionMessage,
+  handleCompositionMessageDetailed,
   reorderContentBlock,
   handleOrderingMessage,
   handleCompositionLockMessage,
@@ -393,6 +395,63 @@ it("rejects rotation messages with foreign origins, stale context/revision, or p
   expect(handleCompositionMessage(e, iframe, origin)).toBe(false);
   useWidgetStore.setState({ compositionContext: "mobile" });
   expect(rotateCompositionImage("a", 20)).toBe(false);
+});
+it("reports the exact reason and canonical revision when a trusted geometry message is rejected", () => {
+  const iframe = {}, origin = "https://preview.example", page = usePageStore.getState().page;
+  const start = page.layout.compositions.canvas.placements.a.frames.desktop;
+  const event = { source: iframe, origin, data: { type: "COMPOSITION_ROTATE", payload: {
+    widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(),
+    startRevision: "stale-revision", startFrame: start, frame: { ...start, rotation: 45 },
+  } } };
+  const result = handleCompositionMessageDetailed(event, iframe, origin);
+  expect(result).toMatchObject({ accepted: false, reason: "stale-composition-revision",
+    diagnostics: { widgetId: "a", compositionId: "canvas", presentation: "desktop",
+      receivedRevision: "stale-revision", revisionMatches: false, canonicalFrame: start } });
+  expect(usePageStore.getState().page).toEqual(page);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+});
+it("reports frame drift separately from revision drift", () => {
+  const iframe = {}, origin = "https://preview.example", page = usePageStore.getState().page;
+  const canonicalFrame = page.layout.compositions.canvas.placements.a.frames.desktop;
+  const staleFrame = { ...canonicalFrame, x: canonicalFrame.x + 0.01 };
+  const result = handleCompositionMessageDetailed({ source: iframe, origin, data: { type: "COMPOSITION_PIVOT", payload: {
+    widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(),
+    startRevision: compositionRevision(page.widgets.a, canonicalFrame), startFrame: staleFrame,
+    rotationPivot: { x: 0.3, y: 0.7 },
+  } } }, iframe, origin);
+  expect(result).toMatchObject({ accepted: false, reason: "stale-start-frame",
+    diagnostics: { expectedRevision: compositionRevision(page.widgets.a, canonicalFrame),
+      receivedStartFrame: staleFrame, canonicalFrame } });
+  expect(usePageStore.getState().page).toEqual(page);
+});
+it("reproduces a resolved Desktop revision rejected against its canonical editor frame", () => {
+  const page = openWyrmetizerEditorPage(convertWyrmetizerPageToV3(createWyrmetizerCopy(fixture(), compositionAdapters), compositionAdapters), compositionAdapters);
+  usePageStore.setState({ page, originalPage: structuredClone(page) });
+  usePageStore.temporal.getState().clear();
+  useWidgetStore.setState({ compositionContext: "desktop", selectedWidgetId: "a", selectedBlockId: null,
+    imageGeometry: { a: { containerWidth: 1200, naturalWidth: 300, naturalHeight: 200, width: 300, height: 200 },
+      b: { containerWidth: 1200, naturalWidth: 300, naturalHeight: 200, width: 300, height: 200 } } });
+  const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  const resolved = resolveWyrmetizerPresentation(canonical, 1200, { adapters: compositionAdapters,
+    imageDimensions: { a: { width: 300, height: 200 }, b: { width: 300, height: 200 } } });
+  const placement = resolved.areas.canvas.geometry.placements.a;
+  const resolvedFrame = { x: placement.xPx / resolved.areas.canvas.geometry.widthPx,
+    y: placement.yPx / resolved.areas.canvas.geometry.widthPx, pivot: placement.pivot,
+    rotation: placement.rotation, ...(placement.rotationPivot ? { rotationPivot: placement.rotationPivot } : {}) };
+  const canonicalFrame = page.layout.compositions.canvas.placements.a.frames.desktop;
+  expect(resolved.widgets.a).toEqual(page.widgets.a);
+  const event = { source: {}, origin: "https://preview.example", data: { type: "COMPOSITION_ROTATE", payload: {
+    widgetId: "a", compositionId: "canvas", interactionContext: compositionInteractionContext(),
+    startRevision: compositionRevision(resolved.widgets.a, resolvedFrame), startFrame: canonicalFrame,
+    frame: { ...canonicalFrame, rotation: 25 },
+  } } };
+  const result = handleCompositionMessageDetailed(event, event.source, event.origin);
+  expect(result).toMatchObject({ accepted: false, reason: "stale-composition-revision" });
+  expect(result.diagnostics).toMatchObject({ presentation: "desktop", canonicalFrame,
+    expectedRevision: compositionRevision(page.widgets.a, canonicalFrame), revisionMatches: false });
+  expect(result.diagnostics.receivedRevision).toBe(compositionRevision(resolved.widgets.a, resolvedFrame));
+  expect(resolvedFrame.rotation).toBe(0);
+  expect(canonicalFrame.rotation).toBeUndefined();
 });
 it("moves with pins and mixed dimension modes in one Undo/Redo boundary, round trips JSON", () => {
   const before = structuredClone(usePageStore.getState().page),

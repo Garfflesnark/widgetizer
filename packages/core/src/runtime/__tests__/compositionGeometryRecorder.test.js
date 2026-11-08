@@ -85,7 +85,20 @@ it("correlates composition messages with editor acceptance results", () => {
   fixture(); recorder = createCompositionGeometryRecorder({ window, document, selected: () => "image-a" });
   const outgoing = recorder.decorateMessage({ type: "COMPOSITION_PIVOT", payload: { widgetId: "image-a", rotationPivot: { x: 0.3, y: 0.7 } } });
   expect(outgoing.diagnosticId).toMatch(/^geometry-/);
-  recorder.recordResult({ diagnosticId: outgoing.diagnosticId, messageType: outgoing.type, accepted: false, reason: "composition-validation-rejected" });
+  const diagnostics = { expectedRevision: "rev-2", receivedRevision: "rev-1", canonicalFrame: { rotation: 15 } };
+  recorder.recordResult({ diagnosticId: outgoing.diagnosticId, messageType: outgoing.type, accepted: false,
+    reason: "stale-composition-revision", diagnostics });
   expect(recorder.report().events.map(event => event.label)).toEqual(["composition_pivot-sent", "composition_pivot-result"]);
-  expect(recorder.report().events[1].detail).toMatchObject({ accepted: false, reason: "composition-validation-rejected" });
+  expect(recorder.report().events[1].detail).toMatchObject({ accepted: false, reason: "stale-composition-revision", diagnostics });
+});
+
+it("does not classify an axis-aligned fallback as a transformed-corner disagreement", () => {
+  const { wrapper, image } = fixture();
+  wrapper.getBoxQuads = undefined; image.getBoxQuads = undefined;
+  recorder = createCompositionGeometryRecorder({ window, document, selected: () => "image-a" });
+  const record = recorder.capture("fallback-capture");
+  expect(record.wrapper.corners.source).toBe("axis-aligned-bounds-fallback");
+  expect(record.comparison.wrapperToImage).toMatchObject({ comparable: false,
+    reason: "axis-aligned-bounds-is-not-transformed-corners" });
+  expect(recorder.report().firstDisagreement).toBeNull();
 });

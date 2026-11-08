@@ -152,6 +152,28 @@ it("applies a resolved v2 Composition height without changing saved page data", 
   expect(savedPage).toEqual(before);
 });
 
+it("replaces a rejected live transform draft with the authoritative Composition sync", () => {
+  width = 1200;
+  document.body.innerHTML = `<section data-composition-id="canvas" data-composition-mode="composition" data-composition-width="1200" data-composition-height="800">
+    <div data-composition-child="w" data-composition-frame='{"x":0.25,"y":0.2,"pivot":{"x":0,"y":0}}' style="left:25%;top:20%;width:25%;height:25%;transform:rotate(45deg);transform-origin:20% 80%">
+      <section data-widget-id="w"><img></section>
+    </div>
+  </section><div id="wz-selection-overlay"></div>`;
+  const child = document.querySelector("[data-composition-child]");
+  const frame = { x: 0.25, y: 0.2, pivot: { x: 0, y: 0 }, rotation: 0 };
+  const send = (type, payload) => window.dispatchEvent(new MessageEvent("message", {
+    origin: window.location.origin, source: window.parent, data: { type, ...payload },
+  }));
+  send("UPDATE_SELECTION", { payload: { widgetId: "w", blockId: null } });
+  send("COMPOSITION_SYNC", { force: true, context: "desktop", movementLocks: {}, sizes: {}, revisions: { w: "canonical-revision" },
+    payload: { compositions: {} }, resolvedCompositionAreas: { canvas: { mode: "composition", widthPx: 1200, heightPx: 800,
+      stackOrder: ["w"], placements: { w: { frame, rect: { left: 300, top: 240, width: 300, height: 200 } } } } } });
+  expect(JSON.parse(child.dataset.compositionFrame)).toEqual(frame);
+  expect(child.style.transform).toBe("rotate(0deg)");
+  expect(child.style.transformOrigin).toBe("50% 50%");
+  expect(child.style.left).toBe("25%");
+});
+
 it("defers a legacy height reset while accurate image dimensions are unavailable", () => {
   width = 750;
   document.body.innerHTML = `<section data-composition-id="canvas" data-composition-mode="composition" data-composition-width="1200" data-composition-height="880"><div data-composition-child="w" data-composition-frame="{}"></div></section>`;

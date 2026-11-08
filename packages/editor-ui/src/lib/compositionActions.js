@@ -41,18 +41,24 @@ export function rotateCompositionImage(widgetId, angle) {
   return applyCompositionGeometry(widgetId, { frame: { ...frame, rotation }, startFrame: frame });
 }
 export function setCompositionRotationPivot(widgetId, pivot) {
-  if (!validRotationPivot(pivot)) return false;
+  return setCompositionRotationPivotDetailed(widgetId, pivot).accepted;
+}
+function setCompositionRotationPivotDetailed(widgetId, pivot) {
+  if (!validRotationPivot(pivot)) return { accepted: false, reason: "invalid-rotation-pivot", diagnostics: { receivedPivot: pivot } };
   const page = usePageStore.getState().page, found = compositionFor(page, widgetId);
   const geometry = useWidgetStore.getState().imageGeometry[widgetId];
-  if (!found || !geometry) return false;
+  if (!found) return { accepted: false, reason: "composition-not-found" };
+  if (!geometry) return { accepted: false, reason: "image-geometry-unavailable" };
   const frame = found[1].placements[widgetId].frames.desktop, previous = frame.rotationPivot || centerRotationPivot;
-  if (previous.x === pivot.x && previous.y === pivot.y) return false;
+  if (previous.x === pivot.x && previous.y === pivot.y) return { accepted: false, reason: "pivot-unchanged", diagnostics: { previousPivot: previous, receivedPivot: pivot } };
   const width = found[1].profiles.desktop.referenceWidthPx;
   const size = transformRect(page.widgets[widgetId].settings.image_transform, geometry);
   const rect = rebaseRotationPivot(compositionRect(frame, size.width, size.height, width), frame.rotation || 0, previous, pivot);
-  return applyCompositionGeometry(widgetId, { startFrame: frame, frame: { ...frame,
+  const result = applyCompositionGeometryDetailed(widgetId, { startFrame: frame, frame: { ...frame,
     x: (rect.left + frame.pivot.x * rect.width) / width,
     y: (rect.top + frame.pivot.y * rect.height) / width, rotationPivot: { ...pivot } } });
+  return { ...result, diagnostics: { ...result.diagnostics, previousPivot: previous, receivedPivot: pivot,
+    proposedRect: rect, canonicalFrame: frame, imageSize: size } };
 }
 
 // Interaction locks survive preview replacement and selection/context changes,
@@ -337,16 +343,20 @@ export function reorderContentBlock(widgetId, direction, kind) {
   return commitCompositionPage(next);
 }
 
-export function applyCompositionGeometry(widgetId, { frame, startFrame, transform, startTransform, alignment } = {}, additionalSettings = {}) {
+function applyCompositionGeometryDetailed(widgetId, { frame, startFrame, transform, startTransform, alignment } = {}, additionalSettings = {}) {
   const { page } = usePageStore.getState(),
     store = useWidgetStore.getState();
   const found = compositionFor(page, widgetId);
-  if (!found || store.compositionContext !== "desktop") return false;
+  if (!found) return { accepted: false, reason: "composition-not-found" };
+  if (store.compositionContext !== "desktop") return { accepted: false, reason: "desktop-transaction-in-mobile-context",
+    diagnostics: { presentation: store.compositionContext } };
   const [id, c] = found,
     p = c.placements[widgetId],
     previous = page.widgets[widgetId].settings.image_transform;
-  if (startFrame && JSON.stringify(startFrame) !== JSON.stringify(p.frames.desktop)) return false;
-  if (startTransform && JSON.stringify(startTransform) !== JSON.stringify(previous)) return false;
+  if (startFrame && JSON.stringify(startFrame) !== JSON.stringify(p.frames.desktop)) return { accepted: false, reason: "stale-start-frame",
+    diagnostics: { receivedStartFrame: startFrame, canonicalFrame: p.frames.desktop } };
+  if (startTransform && JSON.stringify(startTransform) !== JSON.stringify(previous)) return { accepted: false, reason: "stale-start-transform",
+    diagnostics: { receivedStartTransform: startTransform, canonicalTransform: previous } };
   const next = structuredClone(page),
     target = next.layout.compositions[id].placements[widgetId];
   if (transform) next.widgets[widgetId].settings.image_transform = transform;
@@ -356,11 +366,13 @@ export function applyCompositionGeometry(widgetId, { frame, startFrame, transfor
   else if (target.frames.desktop.rotation !== undefined) target.version = 2;
   try {
     validateCompositionLayout(next, compositionAdapters);
-  } catch {
-    return false;
+  } catch (error) {
+    return { accepted: false, reason: "canonical-layout-validation-failed",
+      diagnostics: { validationMessage: String(error?.message || "validation failed").slice(0, 180), canonicalFrame: p.frames.desktop,
+        proposedFrame: target.frames.desktop } };
   }
   const geometry = store.imageGeometry[widgetId];
-  if (!geometry) return false;
+  if (!geometry) return { accepted: false, reason: "image-geometry-unavailable" };
   const size = transformRect(transform || previous, geometry);
   if (alignment) {
     const pivot = alignment === "left" ? 0 : alignment === "right" ? 1 : 0.5;
@@ -377,63 +389,97 @@ export function applyCompositionGeometry(widgetId, { frame, startFrame, transfor
     };
     target.frames.desktop = { ...target.frames.desktop, ...frameFromRect(rect, target.frames.desktop.pivot, width) };
   }
-  if (!containedRect(rect, width, height, target.frames.desktop.rotation, target.frames.desktop.rotationPivot)) {
+  const contained = containedRect(rect, width, height, target.frames.desktop.rotation, target.frames.desktop.rotationPivot);
+  const bounds = { rect, width, height, rotation: target.frames.desktop.rotation || 0,
+    rotationPivot: target.frames.desktop.rotationPivot || centerRotationPivot, contained };
+  if (!contained) {
     useToastStore.getState().showToast("Image exceeds the Composition Area. Increase its height or resize the image first.", "error");
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("widgetizer:composition-reconcile"));
-    return false;
+    return { accepted: false, reason: "composition-bounds-exceeded", diagnostics: { bounds, imageSize: size, reconciliationRequested: true,
+      canonicalFrame: p.frames.desktop, proposedFrame: target.frames.desktop } };
   }
   try {
-    return commitCompositionPage(next);
-  } catch {
-    return false;
+    const accepted = commitCompositionPage(next);
+    return accepted
+      ? { accepted: true, reason: "accepted", diagnostics: { bounds, imageSize: size, canonicalFrame: p.frames.desktop, proposedFrame: target.frames.desktop } }
+      : { accepted: false, reason: "canonical-transaction-no-change", diagnostics: { bounds, imageSize: size,
+        canonicalFrame: p.frames.desktop, proposedFrame: target.frames.desktop } };
+  } catch (error) {
+    return { accepted: false, reason: "canonical-transaction-threw",
+      diagnostics: { bounds, imageSize: size, canonicalFrame: p.frames.desktop, proposedFrame: target.frames.desktop,
+        errorMessage: String(error?.message || "transaction failed").slice(0, 180) } };
   }
 }
-export function handleCompositionMessage(event, iframe, origin) {
-  if (
-    !iframe ||
-    event.source !== iframe ||
-    origin === "*" ||
-    event.origin !== origin ||
-    !["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(event.data?.type)
-  )
-    return false;
+export function applyCompositionGeometry(widgetId, geometry, additionalSettings = {}) {
+  return applyCompositionGeometryDetailed(widgetId, geometry, additionalSettings).accepted;
+}
+
+export function handleCompositionMessageDetailed(event, iframe, origin) {
+  const type = event.data?.type;
+  const base = { messageType: type || null, widgetId: null, compositionId: null, presentation: null };
+  const reject = (reason, diagnostics = {}) => ({ accepted: false, reason, diagnostics: { ...base, ...diagnostics } });
+  if (!iframe || event.source !== iframe || origin === "*" || event.origin !== origin ||
+      !["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(type))
+    return reject("message-source-origin-or-type-invalid", { sourceMatches: event.source === iframe,
+      originMatches: event.origin === origin && origin !== "*", iframePresent: !!iframe });
   const p = event.data.payload,
     store = useWidgetStore.getState();
-  const found = compositionFor(usePageStore.getState().page, p?.widgetId);
-  if (
-    !p ||
-    p.interactionContext !== compositionInteractionContext() ||
-    store.selectedWidgetId !== p.widgetId ||
-    store.selectedBlockId ||
-    (event.data.type === "COMPOSITION_MOVE" && getCompositionMovementLocks()[p.widgetId]) ||
-    !found ||
-    found[0] !== p.compositionId
-  )
-    return false;
   const current = usePageStore.getState().page;
-  const original = found[1].placements[p.widgetId].frames.desktop;
-  if (event.data.type === "COMPOSITION_PIVOT") {
-    if (p.startRevision !== compositionRevision(current.widgets[p.widgetId], original) ||
-        JSON.stringify(p.startFrame) !== JSON.stringify(original)) return false;
-    return setCompositionRotationPivot(p.widgetId, p.rotationPivot);
+  const found = compositionFor(current, p?.widgetId);
+  const canonicalFrame = found?.[1]?.placements?.[p.widgetId]?.frames?.desktop || null;
+  const expectedRevision = found && current.widgets?.[p.widgetId]
+    ? compositionRevision(current.widgets[p.widgetId], canonicalFrame) : null;
+  const identity = { ...base, widgetId: p?.widgetId || null, compositionId: p?.compositionId || null,
+    presentation: store.compositionContext, requestedPresentation: p?.presentation || null,
+    presentationEpoch: p?.presentationEpoch ?? null, syncRevision: p?.syncRevision ?? null,
+    interactionContextMatches: p?.interactionContext === compositionInteractionContext(),
+    selectedWidgetMatches: store.selectedWidgetId === p?.widgetId, blockSelected: !!store.selectedBlockId,
+    foundAreaId: found?.[0] || null, areaMatches: !!found && found[0] === p?.compositionId,
+    movementLocked: type === "COMPOSITION_MOVE" ? !!getCompositionMovementLocks()[p?.widgetId] : false };
+  const frameDetails = { canonicalFrame, receivedStartFrame: p?.startFrame || null,
+    startFrameExactMatch: !!canonicalFrame && JSON.stringify(p?.startFrame) === JSON.stringify(canonicalFrame),
+    expectedRevision, receivedRevision: p?.startRevision ?? null,
+    revisionMatches: expectedRevision !== null && p?.startRevision === expectedRevision,
+    receivedFrame: p?.frame || null, receivedRotationPivot: p?.rotationPivot || null };
+  if (!p) return reject("payload-missing", identity);
+  const inspected = { ...identity, ...frameDetails };
+  if (!identity.interactionContextMatches) return reject("interaction-context-stale", inspected);
+  if (!identity.selectedWidgetMatches) return reject("widget-not-selected", inspected);
+  if (identity.blockSelected) return reject("block-selection-active", inspected);
+  if (identity.movementLocked) return reject("composition-movement-locked", inspected);
+  if (!found) return reject("composition-not-found", inspected);
+  if (!identity.areaMatches) return reject("composition-area-mismatch", inspected);
+  if (type === "COMPOSITION_PIVOT") {
+    if (!frameDetails.revisionMatches) return reject("stale-composition-revision", { ...identity, ...frameDetails });
+    if (!frameDetails.startFrameExactMatch) return reject("stale-start-frame", { ...identity, ...frameDetails });
+    const result = setCompositionRotationPivotDetailed(p.widgetId, p.rotationPivot);
+    return { ...result, diagnostics: { ...identity, ...frameDetails, ...result.diagnostics } };
   }
   // Each bridge authorizes only its own geometry channel.
-  if (event.data.type === "COMPOSITION_ROTATE") {
-    if (!p.frame || !Number.isFinite(p.frame.rotation) ||
-        JSON.stringify({ ...p.frame, rotation: undefined }) !== JSON.stringify({ ...original, rotation: undefined })) return false;
-  } else if ((p.frame?.rotation || 0) !== (original.rotation || 0) ||
-      JSON.stringify(p.frame?.rotationPivot) !== JSON.stringify(original.rotationPivot)) return false;
-  if (
-    p.startRevision !== compositionRevision(current.widgets[p.widgetId], found[1].placements[p.widgetId].frames.desktop)
-  )
-    return false;
+  const receivedFrame = p.frame;
+  const frameAuthorization = type === "COMPOSITION_ROTATE"
+    ? !!receivedFrame && Number.isFinite(receivedFrame.rotation) &&
+      JSON.stringify({ ...receivedFrame, rotation: undefined }) === JSON.stringify({ ...canonicalFrame, rotation: undefined })
+    : (receivedFrame?.rotation || 0) === (canonicalFrame.rotation || 0) &&
+      JSON.stringify(receivedFrame?.rotationPivot) === JSON.stringify(canonicalFrame.rotationPivot);
+  if (!frameAuthorization) return reject(type === "COMPOSITION_ROTATE" ? "rotation-frame-mutates-protected-fields" : "movement-frame-mutates-protected-fields",
+    { ...identity, ...frameDetails, receivedFrame: receivedFrame || null,
+      receivedRotation: receivedFrame?.rotation ?? null, canonicalRotation: canonicalFrame.rotation || 0,
+      receivedRotationPivot: receivedFrame?.rotationPivot || null, canonicalRotationPivot: canonicalFrame.rotationPivot || null });
+  if (!frameDetails.revisionMatches) return reject("stale-composition-revision", { ...identity, ...frameDetails });
   // Each interaction owns one geometry channel. Keep that ownership explicit
   // when applying the canonical update so a movement can never replace angle
   // or rotation pivot from a stale preview frame (and vice versa).
-  const frame = event.data.type === "COMPOSITION_MOVE"
-    ? { ...original, x: p.frame.x, y: p.frame.y }
-    : { ...original, rotation: p.frame.rotation };
-  return applyCompositionGeometry(p.widgetId, { frame, startFrame: p.startFrame });
+  const frame = type === "COMPOSITION_MOVE"
+    ? { ...canonicalFrame, x: receivedFrame.x, y: receivedFrame.y }
+    : { ...canonicalFrame, rotation: receivedFrame.rotation };
+  const result = applyCompositionGeometryDetailed(p.widgetId, { frame, startFrame: p.startFrame });
+  return { ...result, diagnostics: { ...identity, ...frameDetails, receivedFrame: receivedFrame || null,
+    proposedFrame: frame, ...result.diagnostics } };
+}
+
+export function handleCompositionMessage(event, iframe, origin) {
+  return handleCompositionMessageDetailed(event, iframe, origin).accepted;
 }
 
 export function handleOrderingMessage(event, iframe, origin) {

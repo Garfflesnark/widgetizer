@@ -72,8 +72,10 @@ function expectedCanonicalCorners(canonical, area, scale) {
   });
 }
 
-function comparePoints(left, right) {
-  if (!left || !right || left.length !== right.length) return { comparable: false, maxErrorPx: null, agrees: null };
+function comparePoints(left, right, sources = []) {
+  if (!left || !right || left.length !== right.length) return { comparable: false, maxErrorPx: null, agrees: null, reason: "corners-unavailable" };
+  if (sources.some(source => source === "axis-aligned-bounds-fallback"))
+    return { comparable: false, maxErrorPx: null, agrees: null, reason: "axis-aligned-bounds-is-not-transformed-corners" };
   const maxErrorPx = Math.max(...left.flatMap((point, index) => [
     Math.abs(point.x - right[index].x), Math.abs(point.y - right[index].y),
   ]));
@@ -122,11 +124,11 @@ export function createCompositionGeometryRecorder({ window, document, selected, 
     const wrapperCorners = cornersOf(child), imageCorners = cornersOf(image);
     const expectedCorners = expectedCanonicalCorners(canonical, areaData.bounds, scale);
     const comparison = {
-      wrapperToImage: comparePoints(wrapperCorners.points, imageCorners.points),
-      outlineToWrapper: comparePoints(outlineCorners, wrapperCorners.points),
-      outlineToImage: comparePoints(outlineCorners, imageCorners.points),
-      canonicalToWrapper: comparePoints(expectedCorners, wrapperCorners.points),
-      canonicalToImage: comparePoints(expectedCorners, imageCorners.points),
+      wrapperToImage: comparePoints(wrapperCorners.points, imageCorners.points, [wrapperCorners.source, imageCorners.source]),
+      outlineToWrapper: comparePoints(outlineCorners, wrapperCorners.points, [wrapperCorners.source]),
+      outlineToImage: comparePoints(outlineCorners, imageCorners.points, [imageCorners.source]),
+      canonicalToWrapper: comparePoints(expectedCorners, wrapperCorners.points, [wrapperCorners.source]),
+      canonicalToImage: comparePoints(expectedCorners, imageCorners.points, [imageCorners.source]),
       canonicalToOutline: comparePoints(expectedCorners, outlineCorners),
     };
     const issue = Object.entries(comparison).find(([, result]) => result.comparable && result.agrees === false);
@@ -181,6 +183,7 @@ export function createCompositionGeometryRecorder({ window, document, selected, 
       pendingMessages.delete(payload.diagnosticId);
       capture(`${pending.type.toLowerCase()}-result`, { diagnosticId: payload.diagnosticId,
         messageType: payload.messageType, accepted: payload.accepted === true, reason: payload.reason || null,
+        diagnostics: safeJson(payload.diagnostics || null),
         at: payload.at || null, pendingOrder: pending.order });
     } catch { /* diagnostic collection must never affect a user interaction */ }
   }
