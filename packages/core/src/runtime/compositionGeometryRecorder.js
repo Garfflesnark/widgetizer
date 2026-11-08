@@ -101,6 +101,7 @@ function diagnosticMessagePayload(payload) {
 export function createCompositionGeometryRecorder({ window, document, selected, maxEvents = MAX_EVENTS, moveIntervalMs = MOVE_INTERVAL_MS }) {
   const events = [];
   const pendingMessages = new Map();
+  let recording = true;
   let canonical = null, order = 0, dropped = 0, lastMoveAt = 0, nextMessageId = 0, firstDisagreement = null;
   const limit = Math.max(1, Math.floor(maxEvents));
 
@@ -147,10 +148,12 @@ export function createCompositionGeometryRecorder({ window, document, selected, 
   }
 
   function capture(label, detail) {
+    if (!recording) return null;
     try { return push(snapshot(label, detail)); } catch { return null; }
   }
 
   function captureSync(data, phase) {
+    if (!recording) return null;
     try {
       const widgetId = selected(), widget = widgetId ? Array.from(document.querySelectorAll("[data-widget-id]")).find(element => element.dataset.widgetId === widgetId) : null;
       const areaId = widget?.closest("[data-composition-child]")?.dataset?.compositionChild ?
@@ -161,7 +164,7 @@ export function createCompositionGeometryRecorder({ window, document, selected, 
   }
 
   function decorateMessage(message) {
-    if (!message || !["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(message.type)) return message;
+    if (!recording || !message || !["COMPOSITION_MOVE", "COMPOSITION_ROTATE", "COMPOSITION_PIVOT"].includes(message.type)) return message;
     try {
       const diagnosticId = `geometry-${++nextMessageId}`;
       pendingMessages.set(diagnosticId, { type: message.type, order: order + 1 });
@@ -190,6 +193,7 @@ export function createCompositionGeometryRecorder({ window, document, selected, 
 
   let activeKind = null;
   function observe(event) {
+    if (!recording) return;
     const target = event.target?.closest?.("[data-rotation-pivot], [data-reset-rotation-pivot], [data-composition-rotate], [data-composition-move]");
     if (event.type === "pointerdown" && target) activeKind = target.hasAttribute("data-rotation-pivot") ? "pivot" :
       target.hasAttribute("data-reset-rotation-pivot") ? "reset-pivot" :
@@ -212,17 +216,21 @@ export function createCompositionGeometryRecorder({ window, document, selected, 
 
   const listeners = ["pointerdown", "pointermove", "pointerup", "dblclick", "click"].map(type => {
     const listener = event => observe(event);
-    document.addEventListener(type, listener, true);
+    // Observe before document-level controllers consume the pointer event.
+    window.addEventListener(type, listener, true);
     return [type, listener];
   });
   return {
+    start() { this.clear(); canonical = null; activeKind = null; lastMoveAt = 0; recording = true; },
+    stop() { recording = false; activeKind = null; pendingMessages.clear(); },
+    status() { return { hasCapture: true, recording, retained: events.length, dropped, maxEvents: limit }; },
     capture,
     captureSync,
     decorateMessage,
     recordResult,
     report,
     clear() { events.length = 0; dropped = 0; order = 0; firstDisagreement = null; pendingMessages.clear(); },
-    destroy() { listeners.forEach(([type, listener]) => document.removeEventListener(type, listener, true)); },
+    destroy() { listeners.forEach(([type, listener]) => window.removeEventListener(type, listener, true)); },
   };
 }
 

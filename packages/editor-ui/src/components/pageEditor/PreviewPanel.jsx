@@ -1,3 +1,4 @@
+import GeometryRecorderPanel from "./GeometryRecorderPanel";
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { isCompositionGeometryOnlyChange } from "../../lib/compositionPreview";
 import { compositionFor } from "@widgetizer/core/composition";
@@ -591,6 +592,8 @@ const PreviewPanel = forwardRef(function PreviewPanel(
         previewMode === "desktop" ? "bg-white" : "bg-slate-200"
       }`}
     >
+      {import.meta.env.DEV && runtimeMode === "editor" && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname) &&
+        <GeometryRecorderPanel iframeRef={iframeRef} />}
       {loading && (
         <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-20">
           <div className="text-center">

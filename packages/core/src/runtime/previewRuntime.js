@@ -77,14 +77,38 @@ function getPreviewMode() {
 }
 
 const PREVIEW_MODE = getPreviewMode();
-const GEOMETRY_RECORDER_STORAGE_KEY = "wz:composition-geometry-recorder";
+const geometryRecorderSession = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+let geometryRecorderCommands = Promise.resolve();
+let lastGeometryRecorderSync = null;
 
-function geometryRecorderOptedIn() {
+function geometryRecorderAvailable() {
   const script = document.querySelector("script[data-preview-mode]");
-  const host = window.location.hostname;
-  if (PREVIEW_MODE !== "editor" || script?.dataset?.geometryRecorderAvailable !== "true" ||
-      !["localhost", "127.0.0.1", "::1", "[::1]"].includes(host)) return false;
-  try { return window.sessionStorage.getItem(GEOMETRY_RECORDER_STORAGE_KEY) === "1"; } catch { return false; }
+  return PREVIEW_MODE === "editor" && script?.dataset?.geometryRecorderAvailable === "true" &&
+    ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname);
+}
+
+async function controlGeometryRecorder(data) {
+  const reply = { type: "WZ_COMPOSITION_GEOMETRY_RECORDER_STATUS", requestId: data.requestId, session: geometryRecorderSession };
+  try {
+    if (!geometryRecorderAvailable()) throw new Error("Recorder unavailable: use the local development editor preview.");
+    if (!["start", "stop", "status", "export"].includes(data.command)) throw new Error("Unknown recorder command.");
+    if (data.command === "start") {
+      if (!compositionGeometryRecorder) {
+        const { createCompositionGeometryRecorder } = await import("./compositionGeometryRecorder.js");
+        compositionGeometryRecorder = createCompositionGeometryRecorder({ window, document, selected: () => currentSelectedWidgetId });
+      }
+      compositionGeometryRecorder.start();
+      if (lastGeometryRecorderSync) compositionGeometryRecorder.captureSync(lastGeometryRecorderSync, "start");
+      postToParent({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_READY" });
+    }
+    if (data.command === "stop") compositionGeometryRecorder?.stop();
+    if (data.command === "export") {
+      if (!compositionGeometryRecorder) throw new Error("No capture in this preview. Start Recording first.");
+      reply.report = compositionGeometryRecorder.report();
+    }
+    reply.status = compositionGeometryRecorder?.status() || { hasCapture: false, recording: false, retained: 0, dropped: 0, maxEvents: 300 };
+  } catch (error) { reply.error = error.message; }
+  postToParent(reply);
 }
 
 const COLLECTION_PREFIXES = (document.querySelector("script[data-preview-mode]")?.dataset?.collectionPrefixes || "")
@@ -1004,6 +1028,12 @@ function setupOverlayClickHandler() {
 
 let editorHistoryState = { canUndo: false, canRedo: false };
 function handleMessage(event) {
+  if (event.data?.type === "WZ_COMPOSITION_GEOMETRY_RECORDER_CONTROL") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    geometryRecorderCommands = geometryRecorderCommands.then(() => controlGeometryRecorder(event.data));
+    return;
+  }
+
   if (event.data?.type === "EDITOR_ZOOM") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     const zoom = event.data.payload;
@@ -1044,6 +1074,7 @@ function handleMessage(event) {
       compositionGeometryRecorder?.capture("composition-sync-rejected", { reason: "non-responsive-sync-while-presentation-active", activePresentation: presentation });
       return;
     }
+    if (geometryRecorderAvailable()) lastGeometryRecorderSync = event.data;
     compositionGeometryRecorder?.captureSync(event.data, "before");
     compositionNumericPreview?.cancel();
     compositionMoveController?.reconcile(event.data.context, event.data.revisions, event.data.force === true);
@@ -1502,13 +1533,6 @@ function initializeRuntime() {
   setupScrollBoundsReporting();
   setupOverlayClickHandler();
   window.addEventListener("message", handleMessage);
-
-  if (geometryRecorderOptedIn()) import("./compositionGeometryRecorder.js").then(({ createCompositionGeometryRecorder, installCompositionGeometryRecorderApi }) => {
-    if (!geometryRecorderOptedIn() || compositionGeometryRecorder) return;
-    compositionGeometryRecorder = createCompositionGeometryRecorder({ window, document, selected: () => currentSelectedWidgetId });
-    installCompositionGeometryRecorderApi(window, compositionGeometryRecorder);
-    postToParent({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_READY" });
-  }).catch(() => {});
 
   // Reconcile every image before redrawing selection controls at the new viewport size.
   let lastResponsivePresentation = activePresentation(document);
