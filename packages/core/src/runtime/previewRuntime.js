@@ -880,7 +880,8 @@ function renderOverlay() {
       const orderControl = orderingInfo.widgets[currentSelectedWidgetId] || (compositionContext(selEl) ? { scope: "image", id: currentSelectedWidgetId, up: false, down: false, upLabel: "Bring Forward", downLabel: "Send Backward" } : { scope: "widget", id: currentSelectedWidgetId, upLabel: "Move Block Up", downLabel: "Move Block Down" });
       const canMoveUp = orderControl.up ?? reorderInfo?.[currentSelectedWidgetId]?.up ?? (isPageWidget && widgetIndex > 0);
       const canMoveDown = orderControl.down ?? reorderInfo?.[currentSelectedWidgetId]?.down ?? (isPageWidget && widgetIndex < widgetOrder.length - 1);
-      const showReorder = orderControl.scope === "image" || (isPageWidget && widgetOrder.length > 1);
+      const mobilePresentation = activePresentation(document) === "mobile";
+      const showReorder = !mobilePresentation && (orderControl.scope === "image" || (isPageWidget && widgetOrder.length > 1));
 
       html += `<div class="wz-selection-box${imageRect ? " wz-image-selection" : ""}" style="top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;${imageRect ? (compositionContext(selEl) ? "border:2px solid transparent;box-shadow:none;" : "border:2px dashed #e0006d;box-shadow:none;") : ""}">`;
 
@@ -904,7 +905,7 @@ function renderOverlay() {
         const units = selEl.dataset.imageUnits === "2";
         html += `<div class="wz-controls wz-image-controls" style="top:-30px;">`;
         if (showReorder) html += `<button type="button" class="wz-reorder-btn" title="${orderControl.upLabel}" aria-label="${orderControl.upLabel}" data-reorder="up" data-order-scope="${orderControl.scope}" data-order-id="${orderControl.id}" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveUp ? "disabled" : ""}>${CHEVRON_UP_SVG}</button>`;
-        html += units ? `<button type="button" class="wz-widget-label" data-image-align-menu="${escapeHtml(currentSelectedWidgetId)}" aria-haspopup="menu" aria-expanded="${imageAlignmentMenuFor === currentSelectedWidgetId}">${escapeHtml(displayName)}</button>` :
+        html += units && !mobilePresentation ? `<button type="button" class="wz-widget-label" data-image-align-menu="${escapeHtml(currentSelectedWidgetId)}" aria-haspopup="menu" aria-expanded="${imageAlignmentMenuFor === currentSelectedWidgetId}">${escapeHtml(displayName)}</button>` :
           `<div class="wz-widget-label">${escapeHtml(displayName)}</div>`;
         if (showReorder) html += `<button type="button" class="wz-reorder-btn" title="${orderControl.downLabel}" aria-label="${orderControl.downLabel}" data-reorder="down" data-order-scope="${orderControl.scope}" data-order-id="${orderControl.id}" data-widget-reorder="${currentSelectedWidgetId}" ${!canMoveDown ? "disabled" : ""}>${CHEVRON_DOWN_SVG}</button>`;
         const composition = compositionContext(selEl);
@@ -932,9 +933,10 @@ function renderOverlay() {
     if (area && control) {
       const r = area.getBoundingClientRect();
       html += `<div class="wz-selection-box" style="top:${r.top}px;left:${r.left}px;width:${r.width}px;height:${r.height}px;border-color:#e0006d"><div class="wz-controls wz-image-controls">`;
-      html += `<button class="wz-reorder-btn" title="Move Block Up" aria-label="Move Block Up" data-order-scope="composition" data-order-id="${currentSelectedCompositionId}" data-reorder="up" ${control.up ? "" : "disabled"}>${CHEVRON_UP_SVG}</button>`;
+      if (activePresentation(document) !== "mobile") html += `<button class="wz-reorder-btn" title="Move Block Up" aria-label="Move Block Up" data-order-scope="composition" data-order-id="${currentSelectedCompositionId}" data-reorder="up" ${control.up ? "" : "disabled"}>${CHEVRON_UP_SVG}</button>`;
       html += `<button class="wz-widget-label" data-select-composition="${currentSelectedCompositionId}">Composition Area</button>`;
-      html += `<button class="wz-reorder-btn" title="Move Block Down" aria-label="Move Block Down" data-order-scope="composition" data-order-id="${currentSelectedCompositionId}" data-reorder="down" ${control.down ? "" : "disabled"}>${CHEVRON_DOWN_SVG}</button></div></div>`;
+      if (activePresentation(document) !== "mobile") html += `<button class="wz-reorder-btn" title="Move Block Down" aria-label="Move Block Down" data-order-scope="composition" data-order-id="${currentSelectedCompositionId}" data-reorder="down" ${control.down ? "" : "disabled"}>${CHEVRON_DOWN_SVG}</button>`;
+      html += `</div></div>`;
     }
   }
 

@@ -294,6 +294,7 @@ it("keeps handles at their physical target size in a scaled design viewport and 
 });
 
 it("switches exclusive arrow ownership immediately between child and Composition background", () => {
+  const previousWidth = Object.getOwnPropertyDescriptor(window, "innerWidth");
   const widget = document.querySelector('[data-widget-id="w1"]');
   const area = document.createElement("section"), child = document.createElement("div");
   Object.assign(area.dataset, { compositionId: "canvas", compositionWidth: "1000", compositionHeight: "800" });
@@ -318,6 +319,23 @@ it("switches exclusive arrow ownership immediately between child and Composition
   expect(sent).toEqual([{ type: "ORDER_SELECTION", payload: { scope: "composition", id: "canvas", direction: "down" } }]);
   message("UPDATE_SELECTION", { widgetId: "w1" });
   expect(document.querySelector('[data-order-scope]').title).toBe("Bring Forward");
+  widget.dataset.imageUnits = "2";
+  area.dataset.wyrmetizerResponsive = "";
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  expect(document.querySelectorAll('.wz-image-controls [data-order-scope]')).toHaveLength(0);
+  expect(document.querySelector('[data-image-align-menu]')).toBeNull();
+  expect(document.querySelectorAll(".wz-image-resize-handle")).toHaveLength(0);
+  message("UPDATE_SELECTION", { compositionId: "canvas" });
+  expect(document.querySelectorAll('.wz-image-controls [data-order-scope]')).toHaveLength(0);
+  expect(document.querySelector(".wz-widget-label").textContent).toBe("Composition Area");
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+  message("UPDATE_SELECTION", { widgetId: "w1" });
+  expect(document.querySelectorAll('.wz-image-controls [data-order-scope]')).toHaveLength(2);
+  expect(document.querySelector('[data-image-align-menu]')).not.toBeNull();
+  area.removeAttribute("data-wyrmetizer-responsive");
+  Object.defineProperty(window, "innerWidth", previousWidth);
 });
 
 it("starts unlocked, toggles a green position lock, and retains it across hierarchy and responsive contexts", () => {

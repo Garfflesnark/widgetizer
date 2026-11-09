@@ -211,6 +211,54 @@ it("ignores stale source, page, presentation and sync-revision measurements", ()
   expect(saveStore.getState().structureModified).toBe(false);
 });
 
+it("rejects Mobile ordering, then allows Desktop ordering after a rejected Mobile sync", () => {
+  const page = pageV3();
+  page.layout.mobile.areas = { canvas: { composition: { geometry: {
+    version: 1, referenceWidthPx: 390, heightPx: 400, readingOrder: ["a", "b"], stackOrder: ["a", "b"],
+    placements: {
+      a: { x: { value: 100, unit: "%" }, y: { value: 0, unit: "px" }, pivot: { x: 0, y: 0 } },
+      b: { x: { value: 0, unit: "px" }, y: { value: 0, unit: "px" }, pivot: { x: 0, y: 0 } },
+    },
+  } } } };
+  configure(page);
+  useWidgetStore.setState({ selectedWidgetId: "a", selectedBlockId: null, compositionContext: "desktop" });
+  usePageStore.temporal.getState().clear();
+  saveStore.setState({ structureModified: false, modifiedWidgets: new Set() });
+  const { postMessage, iframeRef } = harness();
+  render(<SelectionOverlay iframeRef={iframeRef} />);
+  const beforePresentationChanges = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  const dispatchMessage = data => {
+    const event = new Event("message");
+    Object.assign(event, { source: iframeRef.current.contentWindow, origin: getPreviewTargetOrigin(), data });
+    act(() => window.dispatchEvent(event));
+  };
+
+  iframeRef.current.contentWindow.innerWidth = 390;
+  dispatchMessage({ type: "PRESENTATION_CONTEXT", payload: { presentation: "mobile", epoch: 1 } });
+  expect(postMessage.mock.calls.some(([message]) => message.type === "COMPOSITION_SYNC" && message.presentation === "mobile")).toBe(false);
+  expect(useToastStore.getState().toasts.at(-1)).toMatchObject({ variant: "error", message: expect.stringContaining("extends beyond the Area") });
+  const mobileSyncRevision = postMessage.mock.calls.map(([message]) => message).filter(message => message.type === "COMPOSITION_SYNC").at(-1).syncRevision;
+  const mobileBefore = structuredClone(usePageStore.getState().page);
+  dispatchMessage({ type: "ORDER_SELECTION", payload: { scope: "image", id: "a", direction: "up",
+    presentation: "mobile", presentationEpoch: 1, syncRevision: mobileSyncRevision } });
+  expect(usePageStore.getState().page).toEqual(mobileBefore);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  expect(saveStore.getState().structureModified).toBe(false);
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters)).toEqual(beforePresentationChanges);
+
+  iframeRef.current.contentWindow.innerWidth = 1200;
+  dispatchMessage({ type: "PRESENTATION_CONTEXT", payload: { presentation: "desktop", epoch: 2 } });
+  const desktopSync = postMessage.mock.calls.map(([message]) => message).filter(message => message.type === "COMPOSITION_SYNC").at(-1);
+  expect(desktopSync).toMatchObject({ type: "COMPOSITION_SYNC", responsive: true, presentation: "desktop" });
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters)).toEqual(beforePresentationChanges);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  expect(saveStore.getState().structureModified).toBe(false);
+  dispatchMessage({ type: "ORDER_SELECTION", payload: { scope: "image", id: "a", direction: "up",
+    presentation: "desktop", presentationEpoch: desktopSync.presentationEpoch, syncRevision: desktopSync.syncRevision } });
+  expect(usePageStore.getState().page.layout.compositions.canvas.stackOrder).toEqual(["b", "a"]);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+});
+
 it("rechecks delayed dimensions and rejects invalid responsive geometry without changing authored data", async () => {
   const page = pageV3();
   configure(page);
