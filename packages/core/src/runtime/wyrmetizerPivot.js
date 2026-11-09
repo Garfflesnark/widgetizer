@@ -16,8 +16,15 @@ export function createWyrmetizerPivotController({ document, selected, getContext
     if (!committedPivot) {
       s.context.child.dataset.compositionFrame = JSON.stringify(s.context.frame);
       if (s.style === null) s.context.child.removeAttribute("style"); else s.context.child.setAttribute("style", s.style);
+    } else {
+      const rect = rebaseRotationPivot(s.rect, s.context.frame.rotation || 0, originalPivot, s.pivot);
+      const frame = { ...s.context.frame, x: (rect.left + s.context.frame.pivot.x * rect.width) / s.context.width,
+        y: (rect.top + s.context.frame.pivot.y * rect.height) / s.context.width, rotationPivot: s.pivot };
+      s.context.child.dataset.compositionFrame = JSON.stringify(frame);
+      applyCompositionRect({ ...s.context, frame }, rect);
     }
     if (s.drag != null && s.capture.hasPointerCapture?.(s.drag)) s.capture.releasePointerCapture(s.drag);
+    if (committedPivot) onPreview();
     if (commit) onCommit({ ...s.payload, rotationPivot: s.pivot });
     // The confirmed draft already matches the image and outline. Keep it until
     // the parent sync paints canonical geometry instead of briefly restoring
@@ -27,12 +34,6 @@ export function createWyrmetizerPivotController({ document, selected, getContext
   const update = pivot => {
     const s = session;
     s.pivot = { x: Math.max(0, Math.min(1, pivot.x)), y: Math.max(0, Math.min(1, pivot.y)) };
-    const rect = rebaseRotationPivot(s.rect, s.context.frame.rotation || 0,
-      s.context.frame.rotationPivot || centerRotationPivot, s.pivot);
-    const frame = { ...s.context.frame, x: (rect.left + s.context.frame.pivot.x * rect.width) / s.context.width,
-      y: (rect.top + s.context.frame.pivot.y * rect.height) / s.context.width, rotationPivot: s.pivot };
-    s.context.child.dataset.compositionFrame = JSON.stringify(frame);
-    applyCompositionRect({ ...s.context, frame }, rect);
     onPreview();
   };
   const begin = () => {
@@ -118,7 +119,8 @@ export function createWyrmetizerPivotController({ document, selected, getContext
       const context = compositionContext(widget);
       if (!context?.editable || blockId) return;
       const rect = unrotatedCompositionRect(context), pivot = context.frame.rotationPivot || centerRotationPivot;
-      const point = rotatedPoint(rect, pivot.x, pivot.y, context.frame.rotation || 0, pivot), box = context.area.getBoundingClientRect();
+      const markerPivot = session?.context.child === context.child ? session.pivot : pivot;
+      const point = rotatedPoint(rect, markerPivot.x, markerPivot.y, context.frame.rotation || 0, pivot), box = context.area.getBoundingClientRect();
       const zoom = Number(view.getComputedStyle(document.documentElement).getPropertyValue("--wz-editor-inverse-zoom")) || 1;
       const button = document.createElement("button"); button.type = "button";
       button.dataset.rotationPivot = widget.dataset.widgetId; button.textContent = session ? "+" : "⊙";
