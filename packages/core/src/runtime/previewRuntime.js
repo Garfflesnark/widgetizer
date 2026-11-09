@@ -1523,7 +1523,7 @@ function initializeRuntime() {
       onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_ROTATE", payload: withResponsiveMetadata(payload) }) });
     compositionMoveController = createCompositionMoveController({ document, measure: compositionImageAdapter.measure, getContext: () => compositionInteractionContext, onStart: () => { imageResizeController?.cancel(); compositionRotateController?.cancel(); compositionPivotController?.cancel(); compositionNumericPreview?.cancel(); }, selected: () => currentSelectedWidgetId, isEnabled: () => !compositionMovementLocks[currentSelectedWidgetId], onPreview: renderOverlay, onCommit: (payload) => postToParent({ type: "COMPOSITION_MOVE", payload: withResponsiveMetadata(payload) }) });
     imageResizeController = createImageResizeController({
-      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload: withResponsiveMetadata(payload) }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: withResponsiveMetadata({ ...payload, ...(compositionContext(activeWidget(document, payload.widgetId)) ? { interactionContext: compositionInteractionContext } : {}) }) }), onPreview: renderOverlay,
+      document, isMoving: () => !!compositionMoveController?.active || !!compositionRotateController?.active || !!compositionPivotController?.active, onContext: (payload) => postToParent({ type: "IMAGE_GEOMETRY_CONTEXT", payload: withResponsiveMetadata({ ...payload, interactionContext: compositionInteractionContext }) }), onCommit: (payload) => postToParent({ type: "IMAGE_RESIZE_COMMIT", payload: withResponsiveMetadata({ ...payload, ...(compositionContext(activeWidget(document, payload.widgetId)) ? { interactionContext: compositionInteractionContext } : {}) }) }), onPreview: renderOverlay,
     });
   }
   if (PREVIEW_MODE === "editor") document.addEventListener("keydown", (event) => {
@@ -1537,6 +1537,11 @@ function initializeRuntime() {
   setupScrollBoundsReporting();
   setupOverlayClickHandler();
   window.addEventListener("message", handleMessage);
+  document.addEventListener("load", event => {
+    if (event.target?.tagName !== "IMG" || !event.target.closest("[data-image-transform-version]")) return;
+    imageResizeController?.setSizes();
+    renderOverlay();
+  }, true);
 
   // Reconcile every image before redrawing selection controls at the new viewport size.
   let lastResponsivePresentation = activePresentation(document);

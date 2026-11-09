@@ -122,6 +122,7 @@ export default function SelectionOverlay({
   const responsiveContextRef = useRef({ presentation: previewMode === "mobile" ? "mobile" : "desktop", epoch: 0 });
   const responsiveSyncSequenceRef = useRef(0);
   const geometryRecorderReadyRef = useRef(false);
+  const naturalDimensionsSyncRef = useRef(null);
   const updateResponsiveContext = useCallback((payload) => {
     responsiveContextRef.current = { presentation: payload?.presentation, epoch: payload?.epoch,
       syncRevision: responsiveSyncSequenceRef.current };
@@ -236,6 +237,31 @@ export default function SelectionOverlay({
       } }, getPreviewTargetOrigin());
     };
     const reconcile = () => sync(true);
+    let naturalDimensionsTimer = null;
+    const scheduleNaturalDimensionsSync = () => {
+      if (!responsiveV3(page)) return;
+      if (naturalDimensionsTimer !== null) clearTimeout(naturalDimensionsTimer);
+      const currentPageState = usePageStore.getState();
+      const expected = {
+        page,
+        projectId: currentPageState.loadedProjectId,
+        interactionContext: compositionInteractionContext(),
+        presentation: responsiveContextRef.current.presentation,
+        epoch: responsiveContextRef.current.epoch,
+        syncRevision: responsiveSyncSequenceRef.current,
+      };
+      naturalDimensionsTimer = setTimeout(() => {
+        naturalDimensionsTimer = null;
+        const latest = usePageStore.getState();
+        const context = responsiveContextRef.current;
+        if (latest.page !== expected.page || latest.loadedProjectId !== expected.projectId ||
+            compositionInteractionContext() !== expected.interactionContext ||
+            context.presentation !== expected.presentation || context.epoch !== expected.epoch ||
+            responsiveSyncSequenceRef.current !== expected.syncRevision) return;
+        sync();
+      }, 0);
+    };
+    naturalDimensionsSyncRef.current = scheduleNaturalDimensionsSync;
     const presentationChanged = (event) => {
       if (event.source !== iframe.contentWindow || event.origin !== getPreviewTargetOrigin() || event.data?.type !== "PRESENTATION_CONTEXT") return;
       updateResponsiveContext(event.data.payload);
@@ -251,6 +277,8 @@ export default function SelectionOverlay({
       window.removeEventListener(IMAGE_SIZE_PREVIEW_EVENT, preview);
       window.removeEventListener("widgetizer:composition-reconcile", reconcile);
       window.removeEventListener("message", presentationChanged);
+      if (naturalDimensionsTimer !== null) clearTimeout(naturalDimensionsTimer);
+      if (naturalDimensionsSyncRef.current === scheduleNaturalDimensionsSync) naturalDimensionsSyncRef.current = null;
     };
   }, [iframeRef, page, schemas, previewReadyKey, compositionLayoutContext, movementLocks, previewMode, updateResponsiveContext]);
 
@@ -342,7 +370,8 @@ export default function SelectionOverlay({
           RESPONSIVE_RUNTIME_MESSAGES.includes(event.data?.type)) {
         if (!currentResponsiveMessage(event.data.payload, responsiveContextRef.current, responsiveSyncSequenceRef.current)) {
           acknowledgeGeometryMessage(false, "responsive-context-or-sync-revision-mismatch", responsiveRejectionDiagnostics());
-          reconcileRejectedGeometry(); return;
+          if (event.data?.type !== "IMAGE_GEOMETRY_CONTEXT") reconcileRejectedGeometry();
+          return;
         }
         if (responsiveContextRef.current.presentation !== "desktop" && RESPONSIVE_DESKTOP_ONLY_MESSAGES.includes(event.data.type)) {
           acknowledgeGeometryMessage(false, "desktop-only-interaction-in-mobile-presentation", responsiveRejectionDiagnostics());
@@ -373,7 +402,9 @@ export default function SelectionOverlay({
         return;
       }
       if (event.data?.type === "IMAGE_GEOMETRY_CONTEXT") {
-        handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin());
+        if (responsiveV3(page) && event.data.payload?.interactionContext !== compositionInteractionContext()) return;
+        handleImageGeometryMessage(event, iframeRef?.current?.contentWindow, getPreviewTargetOrigin(),
+          () => naturalDimensionsSyncRef.current?.());
         return;
       }
       if (event.data?.type === "EDITOR_HISTORY_SHORTCUT") {

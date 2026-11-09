@@ -9,7 +9,9 @@ import schema from "../../../../../../themes/arch/widgets/image/schema.json";
 import SelectionOverlay from "../SelectionOverlay";
 import usePageStore from "../../../stores/pageStore";
 import useWidgetStore from "../../../stores/widgetStore";
+import saveStore from "../../../stores/saveStore";
 import useToastStore from "../../../stores/toastStore";
+import { compositionInteractionContext } from "../../../lib/compositionActions";
 import { getPreviewTargetOrigin } from "../../../lib/previewBase";
 
 globalThis.ResizeObserver = class {
@@ -17,7 +19,7 @@ globalThis.ResizeObserver = class {
   disconnect() {}
 };
 
-afterEach(() => useToastStore.getState().clearToasts());
+afterEach(() => { vi.useRealTimers(); useToastStore.getState().clearToasts(); });
 
 function pageV3() {
   const page = convertWyrmetizerPageToV3(createWyrmetizerCopy(fixture(), compositionAdapters), compositionAdapters);
@@ -41,15 +43,30 @@ function harness() {
   return { postMessage, iframeRef };
 }
 
-function configure(page) {
+function configure(page, imageGeometry = Object.fromEntries(["a", "b"].map(id => [id, {
+  imageSource: "/uploads/images/photo.jpg", naturalWidth: 300, naturalHeight: 200,
+  width: 300, height: 200, containerWidth: 1200,
+}]))) {
   usePageStore.getState().setPage(page);
   useWidgetStore.setState({
     schemas: { image: { ...schema, displayName: "Image" } },
-    imageGeometry: Object.fromEntries(["a", "b"].map(id => [id, {
-      imageSource: "/uploads/images/photo.jpg", naturalWidth: 300, naturalHeight: 200,
-      width: 300, height: 200, containerWidth: 1200,
-    }])),
+    compositionContext: "desktop",
+    imageGeometry,
   });
+}
+
+function dispatchGeometry(iframeRef, payload) {
+  const event = new Event("message");
+  Object.assign(event, { source: iframeRef.current.contentWindow, origin: getPreviewTargetOrigin(),
+    data: { type: "IMAGE_GEOMETRY_CONTEXT", payload } });
+  window.dispatchEvent(event);
+}
+
+function measurement(widgetId, sync, changes = {}) {
+  return { widgetId, width: 390, height: 219.375, containerWidth: 390,
+    naturalWidth: 512, naturalHeight: 512, imageSource: "/uploads/images/photo.jpg",
+    presentation: sync.presentation, presentationEpoch: sync.presentationEpoch, syncRevision: sync.syncRevision,
+    interactionContext: compositionInteractionContext(), ...changes };
 }
 
 it("uses matching intrinsic image dimensions and reports invalid bounds without a partial sync", () => {
@@ -119,4 +136,102 @@ it("synchronizes the authored Desktop frame and revision used by transaction val
   } });
   act(() => window.dispatchEvent(event));
   expect(usePageStore.getState().page.layout.compositions.canvas.placements.a.frames.desktop.rotation).toBe(25);
+});
+
+it("coalesces delayed matching natural dimensions into one responsive sync without editing the page", async () => {
+  const page = pageV3();
+  page.layout.areas.canvas.composition.geometry.placements.b.frames.desktop.x = 0;
+  const mobileTransform = structuredClone(page.layout.areas.canvas.composition.presentation.a.image_transform);
+  mobileTransform.dimensions = { width: { unit: "px", value: 200 }, height: { unit: "px", value: null } };
+  page.layout.mobile.areas = { canvas: { composition: { presentation: { a: { image_transform: mobileTransform } } } } };
+  const placement = page.layout.areas.canvas.composition.geometry.placements.a;
+  placement.version = 3;
+  placement.frames.desktop.rotation = 8;
+  placement.frames.desktop.rotationPivot = { x: 0.3, y: 0.6 };
+  configure(page, Object.fromEntries(["a", "b"].map(id => [id, {
+    imageSource: "/uploads/images/photo.jpg", naturalWidth: 0, naturalHeight: 0,
+    width: 390, height: 219.375, containerWidth: 390,
+  }])));
+  usePageStore.temporal.getState().clear();
+  saveStore.setState({ structureModified: false, modifiedWidgets: new Set() });
+  const savedBefore = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  const { postMessage, iframeRef } = harness();
+  iframeRef.current.contentWindow.innerWidth = 390;
+  render(<SelectionOverlay iframeRef={iframeRef} />);
+  const initialSync = postMessage.mock.calls.map(([message]) => message).find(message => message.type === "COMPOSITION_SYNC");
+  expect(initialSync.resolvedPresentation.areas.canvas.placements.b.rect.height).toBeCloseTo(219.375, 3);
+  postMessage.mockClear();
+  vi.useFakeTimers();
+
+  act(() => {
+    dispatchGeometry(iframeRef, measurement("a", initialSync));
+    dispatchGeometry(iframeRef, measurement("b", initialSync));
+  });
+  await act(async () => { await vi.runOnlyPendingTimersAsync(); });
+
+  const responsiveSyncs = postMessage.mock.calls.map(([message]) => message)
+    .filter(message => message.type === "COMPOSITION_SYNC" && message.responsive === true);
+  expect(responsiveSyncs).toHaveLength(1);
+  expect(responsiveSyncs[0].resolvedPresentation.areas.canvas.placements.b.rect).toMatchObject({ width: 390, height: 390 });
+  expect(responsiveSyncs[0].resolvedPresentation.areas.canvas.placements.a.frame.rotationPivot).toEqual({ x: 0.3, y: 0.6 });
+  expect(useWidgetStore.getState().imageGeometry.a).toMatchObject({ naturalWidth: 512, naturalHeight: 512 });
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters)).toEqual(savedBefore);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  expect(saveStore.getState().structureModified).toBe(false);
+  expect(saveStore.getState().modifiedWidgets.size).toBe(0);
+
+  postMessage.mockClear();
+  act(() => {
+    dispatchGeometry(iframeRef, measurement("a", responsiveSyncs[0]));
+    dispatchGeometry(iframeRef, measurement("b", responsiveSyncs[0]));
+  });
+  await act(async () => { await vi.runOnlyPendingTimersAsync(); });
+  expect(postMessage.mock.calls.some(([message]) => message.type === "COMPOSITION_SYNC")).toBe(false);
+});
+
+it("ignores stale source, page, presentation and sync-revision measurements", () => {
+  const page = pageV3();
+  configure(page);
+  usePageStore.temporal.getState().clear();
+  saveStore.setState({ structureModified: false, modifiedWidgets: new Set() });
+  const { postMessage, iframeRef } = harness();
+  render(<SelectionOverlay iframeRef={iframeRef} />);
+  const sync = postMessage.mock.calls.map(([message]) => message).find(message => message.type === "COMPOSITION_SYNC");
+  const before = structuredClone(useWidgetStore.getState().imageGeometry);
+  postMessage.mockClear();
+  act(() => {
+    dispatchGeometry(iframeRef, measurement("a", sync, { imageSource: "/uploads/images/old-source.jpg" }));
+    dispatchGeometry(iframeRef, measurement("a", sync, { interactionContext: "old-project:old-page" }));
+    dispatchGeometry(iframeRef, measurement("a", sync, { presentation: "mobile" }));
+    dispatchGeometry(iframeRef, measurement("a", sync, { syncRevision: sync.syncRevision - 1 }));
+  });
+  expect(useWidgetStore.getState().imageGeometry).toEqual(before);
+  expect(postMessage.mock.calls.some(([message]) => message.type === "COMPOSITION_SYNC")).toBe(false);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  expect(saveStore.getState().structureModified).toBe(false);
+});
+
+it("rechecks delayed dimensions and rejects invalid responsive geometry without changing authored data", async () => {
+  const page = pageV3();
+  configure(page);
+  const { postMessage, iframeRef } = harness();
+  render(<SelectionOverlay iframeRef={iframeRef} />);
+  const initialSync = postMessage.mock.calls.map(([message]) => message).find(message => message.type === "COMPOSITION_SYNC");
+  const invalid = structuredClone(page);
+  invalid.layout.areas.canvas.composition.geometry.placements.a.frames.desktop.x = 0.99;
+  act(() => usePageStore.getState().setPage(invalid));
+  usePageStore.temporal.getState().clear();
+  saveStore.setState({ structureModified: false, modifiedWidgets: new Set() });
+  postMessage.mockClear();
+  vi.useFakeTimers();
+
+  act(() => dispatchGeometry(iframeRef, measurement("a", initialSync)));
+  await act(async () => { await vi.runOnlyPendingTimersAsync(); });
+
+  expect(postMessage.mock.calls.some(([message]) => message.type === "COMPOSITION_SYNC")).toBe(false);
+  expect(useToastStore.getState().toasts.at(-1)).toMatchObject({ variant: "error", message: expect.stringContaining("extends beyond the Area") });
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters))
+    .toEqual(serializeWyrmetizerEditorPage(invalid, compositionAdapters));
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  expect(saveStore.getState().structureModified).toBe(false);
 });

@@ -92,6 +92,39 @@ it("reconciles unselected images on repeated viewport switches before selection 
   }
 });
 
+it("reports loaded natural image dimensions instead of the responsive fallback", () => {
+  sent.length = 0;
+  const widget = document.createElement("section");
+  Object.assign(widget.dataset, { widgetId: "late-natural-size", widgetType: "image", imageSource: "/uploads/images/square.png",
+    imageTransformVersion: "2", imageTransformCapable: "true", imageNaturalWidth: "0", imageNaturalHeight: "0" });
+  widget.innerHTML = '<div><div data-image-resize-target><img src="/uploads/images/square.png"></div></div>';
+  document.body.append(widget);
+  const target = widget.querySelector("[data-image-resize-target]");
+  target.parentElement.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1200 });
+  const transform = { version: 2, reference: "intrinsic-fit", alignment: "center",
+    dimensions: { width: { unit: "%", value: null }, height: { unit: "%", value: null } },
+    flowInset: { inlinePercent: 0, blockPercent: 0 } };
+  message("SET_IMAGE_RESIZE_SUPPORT", { widgetIds: ["late-natural-size"], stretchWidgetIds: ["late-natural-size"],
+    transformWidgetIds: ["late-natural-size"] });
+  window.dispatchEvent(new MessageEvent("message", { source: window.parent, origin,
+    data: { type: "COMPOSITION_SYNC", context: "page-context-1", movementLocks: {}, sizes: {
+      "late-natural-size": { width: 100, height: 0, transform },
+    }, revisions: {}, payload: { compositions: {} } } }));
+  const fallback = sent.findLast(item => item.type === "IMAGE_GEOMETRY_CONTEXT");
+  expect(fallback.payload).toMatchObject({ naturalWidth: 0, naturalHeight: 0, width: 1200, height: 675 });
+  sent.length = 0;
+
+  const image = target.querySelector("img");
+  Object.defineProperties(image, { naturalWidth: { configurable: true, value: 512 }, naturalHeight: { configurable: true, value: 512 } });
+  image.dispatchEvent(new Event("load"));
+
+  const loaded = sent.findLast(item => item.type === "IMAGE_GEOMETRY_CONTEXT");
+  expect(loaded.payload).toMatchObject({ naturalWidth: 512, naturalHeight: 512, width: 512, height: 512,
+    imageSource: "/uploads/images/square.png", interactionContext: "page-context-1" });
+  message("SET_IMAGE_RESIZE_SUPPORT", { widgetIds: [] });
+  widget.remove();
+});
+
 it("selects genuine Flow containers and their nested children separately without applying canvas geometry", () => {
   const area = document.createElement("section");
   Object.assign(area.dataset, { compositionId: "flow-area", compositionMode: "flow" });

@@ -186,7 +186,7 @@ export function handleImageAlignmentMessage(event, iframeWindow, origin) {
   useAutoSave.getState().markWidgetModified(p.widgetId);
   return true;
 }
-export function handleImageGeometryMessage(event, iframeWindow, origin) {
+export function handleImageGeometryMessage(event, iframeWindow, origin, onNaturalDimensionsChanged) {
   if (!iframeWindow || origin === "*" || event.source !== iframeWindow || event.origin !== origin) return false;
   const p = event.data?.payload;
   const widget = usePageStore.getState().page?.widgets?.[p?.widgetId];
@@ -194,6 +194,12 @@ export function handleImageGeometryMessage(event, iframeWindow, origin) {
   if (!p || event.data.type !== "IMAGE_GEOMETRY_CONTEXT" || !supportedImageWidgetIds(usePageStore.getState().page, store.schemas).includes(p.widgetId) ||
       !supportsImageTransform(widget, store.schemas[widget?.type]) || p.imageSource !== (widget.settings?.image || "") ||
       ![p.width, p.height, p.containerWidth].every((n) => Number.isFinite(n) && n > 0 && n < 1e7) || p.width > p.containerWidth) return false;
+  const previous = store.imageGeometry[p.widgetId];
+  const validNaturalDimensions = Number.isFinite(p.naturalWidth) && p.naturalWidth > 0 &&
+    Number.isFinite(p.naturalHeight) && p.naturalHeight > 0;
+  const changedNaturalDimensions = validNaturalDimensions && (previous?.imageSource !== p.imageSource ||
+    previous?.naturalWidth !== p.naturalWidth || previous?.naturalHeight !== p.naturalHeight);
   store.setImageGeometry(p.widgetId, p);
+  if (changedNaturalDimensions) onNaturalDimensionsChanged?.(p);
   return true;
 }

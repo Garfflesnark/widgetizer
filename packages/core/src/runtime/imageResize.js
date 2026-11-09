@@ -81,6 +81,17 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
     const target = widget?.querySelector("[data-image-resize-target]");
     return { target, image: target?.querySelector("img") || target };
   }
+  function naturalDimensions(widget) {
+    const { image } = parts(widget);
+    const width = Number(image?.naturalWidth), height = Number(image?.naturalHeight);
+    if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) return { width, height };
+    return { width: Number(widget?.dataset.imageNaturalWidth), height: Number(widget?.dataset.imageNaturalHeight) };
+  }
+  function geometryContext(widget, basis = reference(widget)) {
+    const dimensions = naturalDimensions(widget);
+    return { widgetId: widget.dataset.widgetId, ...basis, hasCaption: !!widget.querySelector("figcaption"),
+      naturalWidth: dimensions.width, naturalHeight: dimensions.height, imageSource: widget.dataset.imageSource || "" };
+  }
   function eligible(widget, blockId, settingsPreview = false) {
     return (
       !blockId &&
@@ -122,8 +133,9 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
   }
   function reference(widget) {
     const { target } = parts(widget);
+    const dimensions = naturalDimensions(widget);
     return imageReference(compositionContext(widget)?.width || target.parentElement.getBoundingClientRect().width,
-      Number(widget.dataset.imageNaturalWidth), Number(widget.dataset.imageNaturalHeight));
+      dimensions.width, dimensions.height);
   }
   function currentTransform(widget) {
     if (canonicalValues.has(widget.dataset.widgetId)) return canonicalValues.get(widget.dataset.widgetId).transform || null;
@@ -332,9 +344,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
           if (!size) continue;
           canonicalValues.set(widgetId, size);
           const widget = find(widgetId);
-          if (transforms.has(widgetId) && widget) onContext?.({ widgetId, ...reference(widget),
-            hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth),
-            naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" });
+          if (transforms.has(widgetId) && widget) onContext?.(geometryContext(widget));
         }
         return;
       }
@@ -358,7 +368,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         if (basis) applyTransform(snapshot(widget), size.transform, basis);
         else apply(snapshot(widget), size.width, twoAxes ? size.height : undefined);
         canonicalSizes.set(widgetId, key);
-        if (transforms.has(widgetId)) onContext?.({ widgetId, ...(basis || reference(widget)), hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth), naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" });
+        if (transforms.has(widgetId)) onContext?.(geometryContext(widget, basis || reference(widget)));
       }
       onPreview();
     },
@@ -420,7 +430,7 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
       const modern = transforms.has(widgetId) && widget.dataset.imageTransformCapable === "true";
       if (modern) {
         const basis = reference(widget);
-        const context = { widgetId, ...basis, hasCaption: !!widget.querySelector("figcaption"), naturalWidth: Number(widget.dataset.imageNaturalWidth), naturalHeight: Number(widget.dataset.imageNaturalHeight), imageSource: widget.dataset.imageSource || "" };
+        const context = geometryContext(widget, basis);
         const key = JSON.stringify(context);
         if (contextKeys.get(widgetId) !== key) {
           contextKeys.set(widgetId, key);
