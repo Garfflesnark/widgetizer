@@ -12,7 +12,7 @@ let sequence = 0;
 async function command(command, overrides = {}) {
   const requestId = String(++sequence);
   window.dispatchEvent(new MessageEvent("message", { source: window.parent, origin: window.location.origin,
-    ...overrides, data: { type: "WZ_COMPOSITION_GEOMETRY_RECORDER_CONTROL", command, requestId } }));
+    data: { type: "WZ_COMPOSITION_GEOMETRY_RECORDER_CONTROL", command, requestId, ...overrides } }));
   await vi.waitFor(() => expect(sent.some(item => item.requestId === requestId)).toBe(true));
   return sent.find(item => item.requestId === requestId);
 }
@@ -23,6 +23,10 @@ it("starts on the existing preview, captures, stops without data loss, and expor
   expect((await command("status")).status).toMatchObject({ recording: false, retained: 0 });
   expect(sent.some(item => item.type === "WZ_COMPOSITION_GEOMETRY_RECORDER_READY")).toBe(false);
   await command("start");
+  expect((await command("status")).status.frameCaptureEnabled).toBe(false);
+  expect((await command("frame-capture", { enabled: true })).frameCaptureEnabled).toBe(true);
+  expect((await command("status")).status.frameCaptureEnabled).toBe(true);
+  expect((await command("frame-capture", { enabled: false })).frameCaptureEnabled).toBe(false);
   pivot(); await Promise.resolve();
   expect((await command("status")).status).toMatchObject({ recording: true, retained: 1, maxEvents: 300 });
   expect((await command("stop")).status).toMatchObject({ recording: false, retained: 1 });

@@ -21,9 +21,13 @@ function reply(overrides = {}) {
   if (data.command === "start") { recording = true; retained = 0; }
   if (data.command === "stop") recording = false;
   act(() => window.dispatchEvent(new MessageEvent("message", { source: iframe.contentWindow, origin: getPreviewTargetOrigin(),
-    data: { type: "WZ_COMPOSITION_GEOMETRY_RECORDER_STATUS", requestId: data.requestId, session,
-      status: { hasCapture: data.command !== "status" || recording || retained > 0, recording, retained, dropped: 0, maxEvents: 300 },
-      ...(data.command === "export" ? { report: { events: [], buffer: { retained } } } : {}), ...overrides } })));
+    data: {
+      type: "WZ_COMPOSITION_GEOMETRY_RECORDER_STATUS", requestId: data.requestId, session,
+      status: { hasCapture: data.command !== "status" || recording || retained > 0, recording, retained, dropped: 0, maxEvents: 300,
+        frameCaptureEnabled: false, retainedFrames: 0, maxFrames: 1800 },
+      ...(data.command === "export" ? { report: { events: [], frames: [], buffer: { retained }, frameBuffer: { retained: 0, dropped: 0 } } } : {}),
+      ...overrides,
+    } })));
 }
 function mount() { render(<GeometryRecorderPanel iframeRef={{ current: iframe }} />); reply(); }
 
@@ -32,14 +36,28 @@ it("shows disabled-by-default state, accurate counts, and start/stop/download co
   expect(post.mock.calls[0][0].command).toBe("status");
   expect(screen.getByRole("button", { name: "Stop Recording" }).disabled).toBe(true);
   fireEvent.click(screen.getByText("Start Recording")); reply();
+  expect(screen.getByRole("checkbox", { name: "Capture pivot frames" }).disabled).toBe(false);
   retained = 5; act(() => vi.advanceTimersByTime(750)); reply();
-  expect(screen.getByText("Recording · 5/300 events · 0 dropped")).toBeTruthy();
+  expect(screen.getByText("Recording · 5/300 events · 0 dropped · 0/1800 frames")).toBeTruthy();
   fireEvent.click(screen.getByText("Stop Recording")); reply();
-  expect(screen.getByText("Stopped · 5/300 events · 0 dropped")).toBeTruthy();
+  expect(screen.getByText("Stopped · 5/300 events · 0 dropped · 0/1800 frames")).toBeTruthy();
   fireEvent.click(screen.getByText("Export JSON")); reply();
   expect(downloaded).toHaveBeenCalledOnce();
   expect(iframe.getAttribute("src")).toBeNull();
   expect(post.mock.calls.every(([, origin]) => origin === getPreviewTargetOrigin())).toBe(true);
+});
+
+it("sends explicit frame-capture opt-in and includes frame data in exported JSON", () => {
+  mount(); fireEvent.click(screen.getByText("Start Recording")); reply();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Capture pivot frames" }));
+  expect(post.mock.lastCall[0]).toMatchObject({ command: "frame-capture", enabled: true });
+  reply({ status: { hasCapture: true, recording: true, retained: 1, dropped: 0, maxEvents: 300,
+    frameCaptureEnabled: true, retainedFrames: 2, maxFrames: 1800 } });
+  fireEvent.click(screen.getByText("Stop Recording")); reply();
+  fireEvent.click(screen.getByText("Export JSON")); reply();
+  expect(downloaded).toHaveBeenCalledOnce();
+  expect(URL.createObjectURL).toHaveBeenCalledOnce();
+  expect(URL.createObjectURL.mock.calls[0][0]).toBeInstanceOf(Blob);
 });
 
 it("reports loss on preview load and session replacement", () => {

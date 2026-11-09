@@ -91,7 +91,7 @@ async function controlGeometryRecorder(data) {
   const reply = { type: "WZ_COMPOSITION_GEOMETRY_RECORDER_STATUS", requestId: data.requestId, session: geometryRecorderSession };
   try {
     if (!geometryRecorderAvailable()) throw new Error("Recorder unavailable: use the local development editor preview.");
-    if (!["start", "stop", "status", "export"].includes(data.command)) throw new Error("Unknown recorder command.");
+    if (!["start", "stop", "status", "export", "frame-capture"].includes(data.command)) throw new Error("Unknown recorder command.");
     if (data.command === "start") {
       if (!compositionGeometryRecorder) {
         const { createCompositionGeometryRecorder } = await import("./compositionGeometryRecorder.js");
@@ -102,6 +102,10 @@ async function controlGeometryRecorder(data) {
       postToParent({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_READY" });
     }
     if (data.command === "stop") compositionGeometryRecorder?.stop();
+    if (data.command === "frame-capture") {
+      if (!compositionGeometryRecorder) throw new Error("Start recording before enabling frame capture.");
+      reply.frameCaptureEnabled = compositionGeometryRecorder.setFrameCapture(data.enabled === true);
+    }
     if (data.command === "export") {
       if (!compositionGeometryRecorder) throw new Error("No capture in this preview. Start Recording first.");
       reply.report = compositionGeometryRecorder.report();

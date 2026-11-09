@@ -10,7 +10,7 @@ export default function GeometryRecorderPanel({ iframeRef }) {
   useEffect(() => {
     const pending = new Map();
     let sequence = 0, session = null, hadCapture = false;
-    const send = (command) => {
+    const send = (command, payload = {}) => {
       if (command === "status" && pending.size) return;
       const requestId = `recorder-${++sequence}`;
       const timeout = window.setTimeout(() => {
@@ -21,7 +21,7 @@ export default function GeometryRecorderPanel({ iframeRef }) {
       }, 3000);
       pending.set(requestId, { command, timeout });
       if (command !== "status") setBusy(true);
-      iframeRef.current?.contentWindow?.postMessage({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_CONTROL", command, requestId }, getPreviewTargetOrigin());
+      iframeRef.current?.contentWindow?.postMessage({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_CONTROL", command, requestId, ...payload }, getPreviewTargetOrigin());
     };
     sendRef.current = send;
     const receive = (event) => {
@@ -92,9 +92,14 @@ export default function GeometryRecorderPanel({ iframeRef }) {
       <button className="rounded border border-slate-500 px-2 py-1 disabled:opacity-40" type="button" disabled={busy} onClick={() => sendRef.current("start")}>Start Recording</button>
       <button className="rounded border border-slate-500 px-2 py-1 disabled:opacity-40" type="button" disabled={busy || !status?.recording} onClick={() => sendRef.current("stop")}>Stop Recording</button>
       <button className="rounded border border-slate-500 px-2 py-1 disabled:opacity-40" type="button" disabled={busy || !status?.hasCapture} onClick={() => sendRef.current("export")}>Export JSON</button>
-      <span role="status">{status ? `${status.recording ? "Recording" : "Stopped"} · ${status.retained}/${status.maxEvents} events · ${status.dropped} dropped` : "Recorder status unavailable"}</span>
+      <label className="flex items-center gap-1">
+        <input type="checkbox" checked={status?.frameCaptureEnabled === true} disabled={busy || !status?.recording}
+          onChange={event => sendRef.current("frame-capture", { enabled: event.target.checked })} />
+        Capture pivot frames
+      </label>
+      <span role="status">{status ? `${status.recording ? "Recording" : "Stopped"} · ${status.retained}/${status.maxEvents} events · ${status.dropped} dropped · ${status.retainedFrames || 0}/${status.maxFrames || 1800} frames${status.frameCaptureTruncated ? " · frame limit reached" : ""}` : "Recorder status unavailable"}</span>
       <span role="status">{feedback}</span>
-      <span>Off by default. Start replaces the previous capture. Export before the preview regenerates.</span>
+      <span>Frame capture is off by default and samples only active pivot drags. Start replaces the previous capture. Export before the preview regenerates.</span>
     </div>
   </details>;
 }
