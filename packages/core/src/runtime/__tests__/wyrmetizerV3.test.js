@@ -80,6 +80,16 @@ describe("Wyrmetizer version 3 schema", () => {
     }
   });
 
+  it("rejects a root Mobile patch for an Area-owned Widget without mutating the caller page", () => {
+    const page = v3();
+    page.layout.mobile.presentation = { a: { fullwidth: false } };
+    const before = structuredClone(page);
+
+    expect(() => validateWyrmetizerPage(page, adapters))
+      .toThrow(/invalid Mobile root presentation ownership/);
+    expect(page).toEqual(before);
+  });
+
   it("rejects unknown schema versions and prevents a v2 envelope from carrying Mobile data", () => {
     const page = v3();
     page.layout.version = 4;

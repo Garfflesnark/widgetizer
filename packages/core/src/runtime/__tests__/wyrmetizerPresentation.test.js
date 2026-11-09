@@ -198,6 +198,18 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(second.widgets.a.settings).not.toHaveProperty("staleDerivedField");
   });
 
+  it("switches resolved presentations without changing authored page data", () => {
+    const page = v3();
+    const before = structuredClone(page);
+
+    const mobile = resolveWyrmetizerPresentation(page, 390);
+    const desktop = resolveWyrmetizerPresentation(page, 1200);
+
+    expect(mobile.presentation).toBe("mobile");
+    expect(desktop.presentation).toBe("desktop");
+    expect(page).toEqual(before);
+  });
+
   it("stages changes from resolved Mobile values and commits only changed properties", () => {
     const page = v3();
     page.layout.areas.canvas.composition.presentation.a.fullwidth = true;
@@ -264,6 +276,30 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(() => resolveWyrmetizerPresentation(result.page, 1200, { imageDimensions: {
       a: { width: 300, height: 200 }, b: { width: 300, height: 300 },
     } })).not.toThrow();
+  });
+
+  it("keeps Desktop-owned data and resolved geometry unchanged through a Mobile size edit", () => {
+    const page = v3();
+    const before = structuredClone(page);
+    const dimensions = { a: { width: 300, height: 200 }, b: { width: 300, height: 300 } };
+    const desktopBefore = resolveWyrmetizerPresentation(page, 1200, { imageDimensions: dimensions });
+    const transaction = beginWyrmetizerMobileTransaction(page,
+      { areaId: "canvas", mode: "composition", widgetId: "b" }, adapters);
+    const transform = structuredClone(transaction.initialValues.image_transform);
+    transform.dimensions = {
+      width: { unit: "px", value: null },
+      height: { unit: "px", value: 200 },
+    };
+
+    const result = commitWyrmetizerMobileTransaction(
+      setWyrmetizerMobileTransactionValue(transaction, "image_transform", transform), adapters, page, dimensions,
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.page.layout.areas).toEqual(before.layout.areas);
+    expect(result.page.widgets).toEqual(before.widgets);
+    expect(resolveWyrmetizerPresentation(result.page, 1200, { imageDimensions: dimensions })).toEqual(desktopBefore);
+    expect(page).toEqual(before);
   });
 
   it("rejects repeated out-of-bounds Mobile size attempts atomically and preserves Desktop geometry", () => {

@@ -1,0 +1,200 @@
+# Wyrmetizer Geometry Ownership Contract
+
+Status labels used here:
+
+- **Implemented** — represented in the current schema or enforced by current code.
+- **Established contract** — required behavior for accepted operations; covered
+  where noted, but not a claim that every future interaction exists.
+- **Proposed** — future behavior requiring implementation and approval.
+- **Pending test specification** — intended regression coverage for proposed
+  behavior; it is not an executable passing test or evidence that the feature
+  exists.
+
+## Canonical ownership
+
+| Rule | Status | Current meaning |
+|---|---|---|
+| Widget identity, content, and media references are shared. | **Implemented** | Mobile patches contain presentation values, not duplicate Widgets or media/content settings. |
+| Desktop owns Desktop Composition geometry, rotation, rotation pivot, reading order, and stack order. | **Implemented** | These remain in the Desktop Area geometry. Existing Desktop geometry and manipulation contracts remain authoritative. |
+| Mobile size and supported presentation values can be separately overridden. | **Implemented** | Sparse patches are stored in the root or Area/mode Mobile presentation owner. |
+| Mobile Composition geometry can be stored independently when present. | **Implemented, partial** | The v3 optional geometry stores canvas height, reading/stack order, positions, and placement anchor pivots. The editor does not yet expose a Mobile geometry authoring transaction. |
+| If Mobile Composition geometry is absent, positions and anchor pivots inherit proportionally from Desktop. | **Implemented** | The read-only resolver maps Desktop anchors to the 390px Mobile reference width. Desktop rotation and rotation pivot also remain inherited. |
+| Switching the viewport presentation does not edit authored page data. | **Implemented** | Resolution and preview synchronization operate on disposable views. Presentation changes alone must not create page history or dirty/save state. |
+| For an accepted operation, live preview, resolved geometry, and committed state agree for the active presentation. | **Established contract** | The preview sync is presentation/epoch/revision guarded. Rejected or stale work must not be treated as a successful commit. |
+| A rejected operation leaves page data, revision, history, and dirty state unchanged. | **Established contract** | Existing Mobile size validation rejects before page commit; structural operations must follow the same atomic rule. |
+| A Mobile operation never changes Desktop-authored geometry. | **Established contract** | Current supported Mobile size transactions write Mobile presentation patches. Any future Mobile geometry transaction must preserve the Desktop Area record byte-for-byte/structurally. |
+| Placement `pivot` and rotation pivot are distinct. | **Implemented** | Placement `pivot` is the normalized anchor used to position the image rectangle. `rotationPivot` is the transform origin in the Desktop frame. Current Mobile geometry has only the former; it does not own the latter. |
+
+The v3 Mobile geometry structure is optional. Existing v2 and v3 pages without
+it retain the proportional fallback; presentation resolution does not
+initialize or persist geometry.
+
+## Ownership paths
+
+- Shared content and media: `widgets[widgetId]`.
+- Desktop root order and Area order: `layout.contentOrder` and each Area's
+  Desktop arrangement.
+- Desktop Composition: `layout.areas[areaId].composition.geometry`, including
+  Desktop frames, rotation, rotation pivot, and stack order.
+- Desktop Flow: `layout.areas[areaId].flow`.
+- Mobile standalone presentation: `layout.mobile.presentation[widgetId]`.
+- Mobile Area Flow: `layout.mobile.areas[areaId].flow`.
+- Mobile Area Composition presentation: `layout.mobile.areas[areaId].composition.presentation`.
+- Optional Mobile Composition geometry: `layout.mobile.areas[areaId].composition.geometry`.
+- Mobile root arrangement: optional `layout.mobile.rootOrder`.
+
+Mobile Composition geometry currently has `heightPx`, `readingOrder`,
+`stackOrder`, and per-Widget `x`, `y`, and anchor `pivot`. Position coordinates
+may use pixels or percentages. It does not store independent width/height
+frames, rotation, or rotation pivot; image sizing is represented by Mobile
+presentation patches. The resolver currently sources rotation and rotation
+pivot from the Desktop frame even when a Mobile placement exists.
+
+## Ownership-transfer contract — proposed, not implemented
+
+All transfers must operate on a candidate clone, validate the complete
+resulting page, and commit once. If any effective Mobile state cannot be
+represented without loss, reject atomically with an actionable explanation.
+Do not silently discard patches, order, or geometry.
+
+### Standalone Widget to a new Composition Area
+
+- Remove its root Mobile presentation patch and place equivalent patches in
+  the new Area's Mobile Flow and Composition presentation owners. This
+  preserves values when the user switches the Area's mode.
+- Replace the moved root Widget entries in `mobile.rootOrder` with the new Area
+  at the first moved entry's position. Preserve the relative order of moved
+  Widgets in the Area's Mobile Flow order and stack order.
+- If the move changes an interleaved root ordering or effective presentation
+  that the nested Area cannot represent, reject and explain what must be
+  reset or reordered first.
+- Do not initialize independent Mobile geometry as a side effect of the move.
+
+### Standalone Widget to an existing Area
+
+- Transfer its root Mobile patch to both Mobile mode owners for that Area.
+- Remove the Widget from `mobile.rootOrder`; the existing Area root entry stays
+  in place.
+- Insert the Widget into Mobile Flow reading order and Composition reading and
+  stack orders using a documented deterministic rule. If the source root order
+  cannot be represented inside the Area without changing effective order,
+  reject atomically.
+- If existing independent Mobile geometry needs a new placement and no
+  lossless placement fits the target canvas, reject with an actionable error.
+
+### Area Widget to standalone
+
+- Re-home an identical Mobile presentation patch to the root owner only when
+  the Flow and Composition Mobile patches can be represented by one root
+  patch. If they differ, require an explicit choice or reject; do not select
+  the active mode silently.
+- Insert the Widget in `mobile.rootOrder` using a recorded/restorable root
+  position. Remove it from the Area's Mobile reading order, stack order, and
+  geometry.
+- If the Mobile placement cannot be represented as standalone responsive
+  flow, explain the loss and require an explicit reset/confirmation in a later
+  approved feature; M5 defines no such UI.
+
+### Widget between Areas
+
+- Transfer each mode's Mobile presentation patch to the corresponding target
+  mode, preserving independent Flow and Composition values.
+- Leave `mobile.rootOrder` unchanged because both Areas remain root entries.
+- Remove the Widget from source Area reading/stack order and geometry, then add
+  it to target Area orders and geometry. Preserve its Mobile placement only if
+  valid in the target canvas; otherwise reject atomically.
+
+### Remove or delete
+
+- Removing a Widget from an Area means Area-to-standalone transfer and follows
+  that contract. Restoration records must retain enough Mobile state to make
+  a later re-include lossless, or the remove must reject when it cannot.
+- Deleting a Widget deletes its owned Mobile patches and removes its ID from
+  root order, Area order, stack order, placements, and restoration records.
+  No stale Mobile references may remain.
+
+These transfer rules are **proposed**. In particular, the existing root patch
+ownership validator is correct to reject a patch whose Widget is no longer a
+standalone root; the Area creation/inclusion operations need a future atomic
+transfer policy.
+
+## Explicit Mobile initialization — proposed
+
+Add a deliberate **Customize Mobile Layout** action for a Composition Area.
+The action should resolve the current Mobile presentation with matching image
+dimensions, then snapshot the resolved Mobile canvas height, positions, anchor
+pivots, reading order, and stack order into the existing optional v3 Mobile
+geometry structure where those values are representable.
+
+The snapshot must not alter Desktop geometry, rotation, rotation pivot, or
+ordering. It must be one undoable history entry and must not run during viewport
+switching, rendering, or image measurement. Pages without explicit Mobile
+geometry continue proportional inheritance.
+
+Reset behavior is also **proposed**:
+
+- Reset a Mobile property without deleting geometry or unrelated Mobile
+  overrides.
+- Reset Mobile Composition geometry only through a separately labeled,
+  undoable action that warns that Mobile positions/orders will return to
+  proportional inheritance.
+- A general “reset Mobile mode” must disclose whether it removes geometry as
+  well as presentation/order patches; it must not silently erase customized
+  placement.
+- Undo must restore the exact previous Mobile geometry and patches.
+
+Independent Mobile rotation and rotation-pivot ownership remain a separate
+**proposed** schema and interaction decision. They must not be inferred from
+the placement anchor `pivot`.
+
+## Pending test specifications — not implemented behavior
+
+These specifications are intentionally not executable passing tests in M5.
+
+1. **Root to new Area:** Move one or several patched standalone Widgets;
+   transfer patches to both Mobile mode owners; update `mobile.rootOrder`; keep
+   unaffected root entries and Desktop data unchanged. Verify ambiguous or
+   unrepresentable ordering rejects atomically.
+2. **Root to existing Area:** Transfer the root patch, preserve both mode values,
+   update complete Mobile orders, and reject a target placement that fails
+   Mobile bounds without page/history/dirty changes.
+3. **Area to root:** Preserve identical mode patches and restorable root
+   position; reject differing/unrepresentable mode values unless the caller
+   makes an explicit choice. Restore all state with Undo.
+4. **Area to Area:** Transfer both mode patches and valid Mobile placement,
+   update source/target reading and stack orders, and preserve root order.
+   Invalid target bounds reject atomically.
+5. **Remove versus delete:** Remove retains restorable Mobile state; delete
+   removes every Mobile reference and does not leave orphan IDs.
+6. **Customize Mobile Layout:** One action snapshots resolved Mobile values,
+   creates one history step, leaves Desktop geometry and resolved Desktop
+   output unchanged, and round-trips through save/reload. Switching or image
+   loading alone must not initialize geometry.
+7. **Independent geometry:** After initialization, Mobile position, anchor
+   pivot, size, reading order, and stack order can change without changing
+   Desktop output. Reset restores documented inheritance behavior.
+8. **Independent rotation (future schema decision):** Mobile rotation and
+   rotation pivot have distinct Mobile-owned fields, survive round-trip and
+   reset, and do not change Desktop rotation/pivot. Anchor pivot remains
+   independent. Do not enable this test until the schema and controls are
+   approved.
+
+## Current applicable regression coverage
+
+Current passing tests cover Mobile presentation validation and resolution,
+proportional inheritance, optional Mobile geometry, atomic supported Mobile
+size edits, non-mutating resolver behavior, responsive message staleness,
+Mobile ordering rejection, and Desktop ordering after Mobile sync rejection.
+Desktop rotation, pivot relocation, release, and preview stability are covered
+by the existing Desktop tests. None of those tests implements the pending
+transfers or independent Mobile rotation described above.
+
+## M6 boundary
+
+The smallest safe M6 scope is the atomic root-to-Area ownership transfer for
+Mobile presentation patches and `mobile.rootOrder`, covering both new-Area
+creation and inclusion in an existing Area. Keep Desktop geometry untouched.
+If preserving Mobile ordering cannot be defined losslessly for a case, reject
+it with a clear explanation and leave the page, revision, history, and dirty
+state unchanged. Area-to-root, Area-to-Area, initialization, and independent
+rotation should remain separately scoped follow-up work.
