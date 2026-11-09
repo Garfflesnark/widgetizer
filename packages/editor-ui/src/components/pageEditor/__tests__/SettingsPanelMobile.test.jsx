@@ -23,6 +23,10 @@ function Panel() {
 const saved = () => serializeWyrmetizerEditorPage(pageStore.getState().page, compositionAdapters);
 beforeEach(() => {
   const source = fixture();
+  // Keep the inherited Mobile projection inside 390px so size-edit tests start from valid geometry.
+  source.widgets.b.settings.image_transform.dimensions = {
+    width: { unit: "px", value: 100 }, height: { unit: "px", value: 70 },
+  };
   source.id = "mobile-controls";
   source.widgets.a.settings.top_spacing = "px";
   source.widgets.a.settings.top_spacing_px = 12;

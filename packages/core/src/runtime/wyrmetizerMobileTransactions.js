@@ -135,13 +135,13 @@ export function setWyrmetizerMobileTransactionValue(transaction, property, value
 }
 
 /** Apply all staged properties together, validating the complete v3 envelope before returning it. */
-export function commitWyrmetizerMobileTransaction(transaction, adapters, currentPage = transaction?.sourcePage) {
+export function commitWyrmetizerMobileTransaction(transaction, adapters, currentPage = transaction?.sourcePage, imageDimensions = {}) {
   if (transaction?.kind !== "wyrmetizer-mobile-presentation-transaction") fail("invalid transaction");
   const changed = Object.keys(transaction.changes || {}).filter(property =>
     imagePresentationKeys.includes(property) && !isSame(transaction.changes[property], transaction.initialValues[property]));
   if (changed.length === 0) return { page: clone(transaction.sourcePage), changed: false, upgraded: false };
 
-  let next = canonicalPage(currentPage, adapters);
+  let next = clone(canonicalPage(currentPage, adapters));
   if (transaction.pageId !== next.id) fail("page changed during the transaction");
   const target = normalizeTarget(next, transaction.target);
   const upgraded = next.layout.version === 2;
@@ -151,6 +151,18 @@ export function commitWyrmetizerMobileTransaction(transaction, adapters, current
   for (const property of changed) patch[property] = clone(transaction.changes[property]);
   applyTargetPatch(next, target, patch);
   validateWyrmetizerPage(next, adapters);
+  const sizeChanged = changed.some(property =>
+    ["image_transform", "fullwidth", "image_width_percent", "image_height_px"].includes(property));
+  if (target.mode === "composition" && sizeChanged) {
+    try {
+      const validationPage = clone(next);
+      validationPage.layout.areas[target.areaId].activeMode = target.mode;
+      validationPage.widgetsOrder = resolveWyrmetizerPage(validationPage).widgetsOrder;
+      resolveWyrmetizerPresentation(validationPage, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, { adapters, imageDimensions });
+    } catch (error) {
+      throw new Error(`Mobile image size would exceed Composition Area bounds. Reduce the image width, height or scale and try again. ${error.message}`);
+    }
+  }
   return { page: pageShape(next, transaction.editorProjection, adapters), changed: true, upgraded };
 }
 

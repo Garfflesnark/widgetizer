@@ -598,7 +598,9 @@ it("clears locks on Return to Flow without restoring them on Undo", () => {
 });
 
 it("commits one Mobile transaction, upgrades v2 only on edit, and restores inheritance through Undo", () => {
-  usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
+  const source = fixture();
+  source.layout.compositions.canvas.placements.b.frames.desktop.x = 0.1;
+  usePageStore.getState().setPage(createWyrmetizerCopy(source, compositionAdapters));
   usePageStore.temporal.getState().clear();
   useAutoSave.setState({ structureModified: false });
   const before = structuredClone(usePageStore.getState().page);
@@ -627,6 +629,76 @@ it("commits one Mobile transaction, upgrades v2 only on edit, and restores inher
   expect(usePageStore.getState().page).toEqual(committed);
   usePageStore.getState().setPage(JSON.parse(JSON.stringify(canonical)));
   expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters)).toEqual(canonical);
+});
+
+it("rejects invalid Mobile size edits before page, dirty state, revision, or history changes", () => {
+  const canonical = createWyrmetizerCopy(fixture(), compositionAdapters);
+  for (const id of ["a", "b"]) canonical.layout.areas.canvas.composition.presentation[id].image_transform.dimensions = {
+    width: { unit: "px", value: 100 }, height: { unit: "px", value: 70 },
+  };
+  usePageStore.getState().setPage(canonical);
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false, modifiedWidgets: new Set() });
+  useWidgetStore.setState({ compositionContext: "mobile", selectedWidgetId: "b", imageGeometry: {
+    a: { imageSource: "/uploads/images/photo.jpg", naturalWidth: 300, naturalHeight: 300, width: 300, height: 300 },
+    b: { imageSource: "/uploads/images/photo.jpg", naturalWidth: 300, naturalHeight: 300, width: 300, height: 300 },
+  } });
+  const before = structuredClone(usePageStore.getState().page);
+  const revision = compositionRevision(before.widgets.b,
+    before.wyrmetizerEditorLayout.areas.canvas.composition.geometry.placements.b.frames.desktop);
+  const target = { areaId: "canvas", mode: "composition", widgetId: "b" };
+  const transaction = beginMobilePresentationTransaction(target);
+  const transform = structuredClone(transaction.initialValues.image_transform);
+  transform.dimensions.width.value = 300;
+  const staged = stageMobilePresentationValue(transaction, "image_transform", transform);
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    expect(() => commitMobilePresentationTransaction(staged)).toThrow(/Reduce the image width, height or scale/);
+    expect(usePageStore.getState().page).toEqual(before);
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+    expect(useAutoSave.getState().structureModified).toBe(false);
+    expect(useAutoSave.getState().modifiedWidgets.size).toBe(0);
+    expect(compositionRevision(usePageStore.getState().page.widgets.b,
+      usePageStore.getState().page.wyrmetizerEditorLayout.areas.canvas.composition.geometry.placements.b.frames.desktop)).toBe(revision);
+  }
+});
+
+it("commits valid Mobile dimensions without changing Desktop geometry", () => {
+  const canonical = createWyrmetizerCopy(fixture(), compositionAdapters);
+  for (const id of ["a", "b"]) canonical.layout.areas.canvas.composition.presentation[id].image_transform.dimensions = {
+    width: { unit: "px", value: 100 }, height: { unit: "px", value: 70 },
+  };
+  usePageStore.getState().setPage(canonical);
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false });
+  useWidgetStore.setState({ compositionContext: "mobile", selectedWidgetId: "b", imageGeometry: {
+    a: { imageSource: "/uploads/images/photo.jpg", containerWidth: 1200, naturalWidth: 300, naturalHeight: 200, width: 300, height: 200 },
+    b: { imageSource: "/uploads/images/photo.jpg", containerWidth: 1200, naturalWidth: 300, naturalHeight: 300, width: 300, height: 300 },
+  } });
+  useWidgetStore.setState({ compositionContext: "desktop" });
+  expect(rotateCompositionImage("b", 12)).toBe(true);
+  expect(setCompositionRotationPivot("b", { x: 0.4, y: 0.6 })).toBe(true);
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false });
+  const before = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  const target = { areaId: "canvas", mode: "composition", widgetId: "b" };
+  const transaction = beginMobilePresentationTransaction(target);
+  const transform = structuredClone(transaction.initialValues.image_transform);
+  transform.dimensions = { width: { unit: "px", value: null }, height: { unit: "px", value: 200 } };
+  expect(commitMobilePresentationTransaction(stageMobilePresentationValue(transaction, "image_transform", transform))).toBe(true);
+
+  const after = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(after.layout.areas.canvas.composition).toEqual(before.layout.areas.canvas.composition);
+  expect(after.layout.mobile.areas.canvas.composition.presentation.b.image_transform).toEqual(transform);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(useAutoSave.getState().structureModified).toBe(true);
+  const dimensions = { a: { width: 300, height: 200 }, b: { width: 300, height: 300 } };
+  const mobileRect = resolveWyrmetizerPresentation(after, 390, { imageDimensions: dimensions }).areas.canvas.geometry.placements.b.rect;
+  expect(mobileRect.left).toBeCloseTo(156, 0);
+  expect(mobileRect).toMatchObject({ width: 200, height: 200 });
+  expect(resolveWyrmetizerPresentation(after, 1200, { imageDimensions: dimensions }).areas.canvas.geometry.placements)
+    .toEqual(resolveWyrmetizerPresentation(before, 1200, { imageDimensions: dimensions }).areas.canvas.geometry.placements);
 });
 
 it("records each Mobile reset as one Undo/Redo step and leaves untouched v2 pages unchanged", () => {

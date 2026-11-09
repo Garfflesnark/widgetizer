@@ -136,7 +136,17 @@ export function cancelMobilePresentationTransaction(transaction) {
 }
 
 export function commitMobilePresentationTransaction(transaction) {
-  const result = commitWyrmetizerMobileTransaction(transaction, compositionAdapters, usePageStore.getState().page);
+  const page = usePageStore.getState().page;
+  const geometry = useWidgetStore.getState().imageGeometry;
+  const imageDimensions = Object.fromEntries(Object.entries(page?.widgets || {}).flatMap(([id, widget]) => {
+    const measured = geometry[id];
+    if (!measured || measured.imageSource !== (widget.settings?.image || "")) return [];
+    const width = measured.naturalWidth ?? measured.width;
+    const height = measured.naturalHeight ?? measured.height;
+    return Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+      ? [[id, { width, height }]] : [];
+  }));
+  const result = commitWyrmetizerMobileTransaction(transaction, compositionAdapters, page, imageDimensions);
   if (!result.changed) return false;
   return commitCompositionPage(editorPageForMobileTransaction(result.page));
 }

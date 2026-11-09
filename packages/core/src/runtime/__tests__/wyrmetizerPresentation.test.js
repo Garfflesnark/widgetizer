@@ -218,6 +218,8 @@ describe("Wyrmetizer presentation resolver", () => {
 
   it("upgrades v2 only for a committed change and round trips the sparse override", () => {
     const page = v2();
+    // Keep the inherited Mobile projection within the fixed canvas for this commit test.
+    page.layout.areas.canvas.composition.geometry.placements.b.frames.desktop.x = 0.1;
     const before = structuredClone(page);
     const target = { areaId: "canvas", mode: "composition", widgetId: "a" };
     const transaction = beginWyrmetizerMobileTransaction(page, target, adapters);
@@ -236,6 +238,74 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(committed.page.layout.mobile.areas.canvas.composition.presentation.a).toEqual({ image_transform: nextTransform });
     const reloaded = JSON.parse(JSON.stringify(committed.page));
     expect(resolveWyrmetizerPresentation(reloaded, 390, { deferBoundsValidation: true }).widgets.a.settings.image_transform).toEqual(nextTransform);
+  });
+
+  it("accepts valid Mobile width and height overrides using the source image dimensions", () => {
+    const page = v3();
+    const target = { areaId: "canvas", mode: "composition", widgetId: "b" };
+    const transaction = beginWyrmetizerMobileTransaction(page, target, adapters);
+    const transform = structuredClone(transaction.initialValues.image_transform);
+    transform.dimensions = {
+      width: { unit: "px", value: null },
+      height: { unit: "px", value: 200 },
+    };
+    const result = commitWyrmetizerMobileTransaction(
+      setWyrmetizerMobileTransactionValue(transaction, "image_transform", transform), adapters, page,
+      { a: { width: 300, height: 200 }, b: { width: 300, height: 300 } },
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.page.layout.areas.canvas.composition).toEqual(page.layout.areas.canvas.composition);
+    expect(result.page.layout.mobile.areas.canvas.composition.presentation.b.image_transform).toEqual(transform);
+    const mobile = resolveWyrmetizerPresentation(result.page, 390, { imageDimensions: {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 300 },
+    } });
+    expect(mobile.areas.canvas.geometry.placements.b.rect).toMatchObject({ left: 156, width: 200, height: 200 });
+    expect(() => resolveWyrmetizerPresentation(result.page, 1200, { imageDimensions: {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 300 },
+    } })).not.toThrow();
+  });
+
+  it("rejects repeated out-of-bounds Mobile size attempts atomically and preserves Desktop geometry", () => {
+    const page = v3();
+    const before = structuredClone(page);
+    const target = { areaId: "canvas", mode: "composition", widgetId: "b" };
+    const transaction = beginWyrmetizerMobileTransaction(page, target, adapters);
+    const invalidTransform = structuredClone(transaction.initialValues.image_transform);
+    invalidTransform.dimensions.width.value = 300;
+    const staged = setWyrmetizerMobileTransactionValue(transaction, "image_transform", invalidTransform);
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      expect(() => commitWyrmetizerMobileTransaction(staged, adapters, page, {
+        a: { width: 300, height: 200 }, b: { width: 300, height: 200 },
+      })).toThrow(/Mobile image size would exceed Composition Area bounds.*Reduce the image width, height or scale/);
+      expect(page).toEqual(before);
+    }
+    expect(page.layout.areas.canvas.composition.geometry).toEqual(before.layout.areas.canvas.composition.geometry);
+    expect(page.layout.mobile.areas).toBeUndefined();
+  });
+
+  it("does not repair pre-existing invalid Mobile geometry during an unrelated presentation edit", () => {
+    const page = v3();
+    page.layout.mobile.areas = { canvas: { composition: { presentation: {
+      b: { image_transform: { ...structuredClone(page.layout.areas.canvas.composition.presentation.b.image_transform),
+        dimensions: { width: { unit: "px", value: 300 }, height: { unit: "px", value: 70 } } } },
+    } } } };
+    const before = structuredClone(page);
+    const transaction = beginWyrmetizerMobileTransaction(page, { areaId: "canvas", mode: "composition", widgetId: "a" }, adapters);
+    const result = commitWyrmetizerMobileTransaction(
+      setWyrmetizerMobileTransactionValue(transaction, "top_spacing_px", 12), adapters, page,
+      { a: { width: 300, height: 200 }, b: { width: 300, height: 200 } },
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.page.layout.mobile.areas.canvas.composition.presentation.b).toEqual(
+      before.layout.mobile.areas.canvas.composition.presentation.b,
+    );
+    expect(page).toEqual(before);
+    expect(() => resolveWyrmetizerPresentation(result.page, 390, { imageDimensions: {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 200 },
+    } })).toThrow(/exceeds Area canvas bounds/);
   });
 
   it("resets one property, one Widget, or the Mobile Flow mode without disturbing other ownership", () => {
