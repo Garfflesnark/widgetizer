@@ -2,7 +2,7 @@ import { compositionRevision, compositionRect } from "@widgetizer/core/compositi
 import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
 import { rotatedPoint } from "@widgetizer/core/rotationGeometry";
 import { transformRect } from "@widgetizer/core/imageTransform";
-import { convertWyrmetizerPageToV3, createWyrmetizerCopy, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage, initializeWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { convertWyrmetizerPageToV3, createWyrmetizerCopy, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage, initializeWyrmetizerPage, resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { renderPageContent } from "../../../../render-engine/src/compositionRenderer.js";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
@@ -58,6 +58,26 @@ beforeEach(() => {
   });
 });
 afterEach(() => useAutoSave.getState().stopAutoSave());
+function v3WithStandaloneImage(mobilePatch) {
+  const page = convertWyrmetizerPageToV3(createWyrmetizerCopy(fixture(), compositionAdapters), compositionAdapters);
+  const desktopView = resolveWyrmetizerPage(page);
+  page.widgets.c = structuredClone(desktopView.widgets.a);
+  page.widgetsOrder.push("c");
+  page.layout.contentOrder.push({ kind: "widget", id: "c" });
+  page.layout.mobile.rootOrder = [
+    ...page.layout.contentOrder.map(entry => structuredClone(entry)),
+  ];
+  page.layout.mobile.presentation = { c: mobilePatch };
+  const transform = structuredClone(page.layout.areas.canvas.composition.presentation.a.image_transform);
+  transform.dimensions = {
+    width: { unit: "px", value: 100 },
+    height: { unit: "px", value: 70 },
+  };
+  page.layout.mobile.areas = { canvas: { composition: { presentation: {
+    a: { image_transform: transform }, b: { image_transform: transform },
+  } } } };
+  return { canonical: page, editor: openWyrmetizerEditorPage(page, compositionAdapters) };
+}
 it("orders a Flow parent as one root and its children within the Area with atomic history and persisted rendering", async () => {
   usePageStore.getState().setPage(createWyrmetizerCopy(fixture(), compositionAdapters));
   switchPairedCompositionMode("canvas", "flow");
@@ -201,6 +221,52 @@ it("creates paired Composition from authored Flow and retains independent edits 
     expect(returnCompositionToFlow(areaId)).toBe(true);
     expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.areas[areaId].flow).toEqual(authoredFlow);
   }
+});
+it("commits existing-Area root Mobile transfers as one reversible editor action", () => {
+  const { canonical, editor } = v3WithStandaloneImage({ fullwidth: false, top_spacing_px: 0 });
+  const desktopBefore = structuredClone(canonical.layout.areas.canvas.composition);
+  usePageStore.getState().setPage(editor);
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false, modifiedWidgets: new Set() });
+
+  expect(addImagesToComposition("canvas", ["c"])).toBe(true);
+  const saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+
+  expect(saved.layout.mobile.presentation?.c).toBeUndefined();
+  expect(saved.layout.mobile.areas.canvas.flow.presentation.c).toEqual({ fullwidth: false, top_spacing_px: 0 });
+  expect(saved.layout.mobile.areas.canvas.composition.presentation.c).toEqual({ fullwidth: false, top_spacing_px: 0 });
+  expect(saved.layout.mobile.rootOrder).toEqual([{ kind: "area", id: "canvas" }, { kind: "widget", id: "after" }]);
+  expect(saved.layout.areas.canvas.composition.geometry.placements.a).toEqual(desktopBefore.geometry.placements.a);
+  expect(saved.layout.areas.canvas.composition.geometry.placements.b).toEqual(desktopBefore.geometry.placements.b);
+  expect(resolveWyrmetizerPresentation(saved, 390).widgets.c.settings).toMatchObject({ fullwidth: false, top_spacing_px: 0 });
+  expect(serializeWyrmetizerEditorPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(saved)), compositionAdapters), compositionAdapters)).toEqual(saved);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(useAutoSave.getState().structureModified).toBe(true);
+});
+it("rejects a transferred Mobile size that exceeds bounds before changing editor state", () => {
+  const { canonical } = v3WithStandaloneImage({ fullwidth: false });
+  const desktopView = resolveWyrmetizerPage(canonical);
+  canonical.widgets.d = structuredClone(desktopView.widgets.c);
+  canonical.widgetsOrder.push("d");
+  canonical.layout.contentOrder.push({ kind: "widget", id: "d" });
+  canonical.layout.mobile.rootOrder.push({ kind: "widget", id: "d" });
+  const oversized = structuredClone(canonical.widgets.d.settings.image_transform);
+  oversized.dimensions = {
+    width: { unit: "px", value: 400 },
+    height: { unit: "px", value: 10000 },
+  };
+  canonical.layout.mobile.presentation.d = { image_transform: oversized };
+  const invalidEditor = openWyrmetizerEditorPage(canonical, compositionAdapters);
+  usePageStore.getState().setPage(invalidEditor);
+  const before = structuredClone(usePageStore.getState().page);
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false, modifiedWidgets: new Set() });
+
+  expect(() => addImagesToComposition("canvas", ["c", "d"]))
+    .toThrow(/Cannot transfer these Widgets into the Area because their resolved Mobile layout is invalid/);
+  expect(usePageStore.getState().page).toEqual(before);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+  expect(useAutoSave.getState().structureModified).toBe(false);
 });
 it("does not silently create paired geometry on an older Flow page", () => {
   const page = structuredClone(usePageStore.getState().page);

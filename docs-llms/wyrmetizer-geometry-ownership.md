@@ -50,27 +50,37 @@ frames, rotation, or rotation pivot; image sizing is represented by Mobile
 presentation patches. The resolver currently sources rotation and rotation
 pivot from the Desktop frame even when a Mobile placement exists.
 
-## Ownership-transfer contract — proposed, not implemented
+## Root-to-Area ownership transfer — implemented in M6A
 
-All transfers must operate on a candidate clone, validate the complete
-resulting page, and commit once. If any effective Mobile state cannot be
-represented without loss, reject atomically with an actionable explanation.
-Do not silently discard patches, order, or geometry.
+New-Area creation and inclusion in an existing Area clone and validate the
+candidate before returning it. A root Mobile patch is copied to the destination
+Area's Mobile Flow and Composition presentation owners, then removed from the
+root owner. Existing patches for other Area members are retained. When
+`mobile.rootOrder` exists, creation replaces transferred root Widgets with the
+new Area at the first transferred slot; inclusion removes the transferred
+Widgets. All remaining root entries keep their relative order. Mobile Flow
+order is extended when needed to retain the moved Widgets' relative order.
 
-### Standalone Widget to a new Composition Area
+Inclusion is atomically rejected when the destination already has independent
+Mobile Composition geometry: its complete geometry has no placement for the
+new member, and M6A does not guess or initialize one. The user must reset that
+Mobile geometry before retrying. The editor also resolves the full Mobile
+candidate with matching cached image dimensions before committing, so a
+transferred size patch that makes the Mobile Composition invalid is rejected.
+
+### Standalone Widget to a new Composition Area — implemented
 
 - Remove its root Mobile presentation patch and place equivalent patches in
   the new Area's Mobile Flow and Composition presentation owners. This
   preserves values when the user switches the Area's mode.
 - Replace the moved root Widget entries in `mobile.rootOrder` with the new Area
-  at the first moved entry's position. Preserve the relative order of moved
-  Widgets in the Area's Mobile Flow order and stack order.
-- If the move changes an interleaved root ordering or effective presentation
-  that the nested Area cannot represent, reject and explain what must be
-  reset or reordered first.
+  at the first moved entry's position. Interleaved entries are supported, and
+  every non-transferred root entry retains its relative order.
+- Preserve the moved Widgets' relative root order in the Area's Mobile Flow
+  order when it differs from Desktop Flow order.
 - Do not initialize independent Mobile geometry as a side effect of the move.
 
-### Standalone Widget to an existing Area
+### Standalone Widget to an existing Area — implemented, with a geometry limit
 
 - Transfer its root Mobile patch to both Mobile mode owners for that Area.
 - Remove the Widget from `mobile.rootOrder`; the existing Area root entry stays
@@ -79,8 +89,9 @@ Do not silently discard patches, order, or geometry.
   stack orders using a documented deterministic rule. If the source root order
   cannot be represented inside the Area without changing effective order,
   reject atomically.
-- If existing independent Mobile geometry needs a new placement and no
-  lossless placement fits the target canvas, reject with an actionable error.
+- If the destination has independent Mobile Composition geometry, reject with
+  an actionable error rather than synthesize a Mobile placement. The geometry
+  structure requires placements for every member.
 
 ### Area Widget to standalone
 
@@ -113,10 +124,10 @@ Do not silently discard patches, order, or geometry.
   root order, Area order, stack order, placements, and restoration records.
   No stale Mobile references may remain.
 
-These transfer rules are **proposed**. In particular, the existing root patch
-ownership validator is correct to reject a patch whose Widget is no longer a
-standalone root; the Area creation/inclusion operations need a future atomic
-transfer policy.
+Area-to-root, Area-to-Area, and remove/delete transfer rules below remain
+**proposed**. The root-patch ownership validator correctly rejects a patch
+whose Widget is no longer a standalone root; M6A routes root patches to their
+Area owners before final validation.
 
 ## Explicit Mobile initialization — proposed
 
@@ -151,29 +162,22 @@ the placement anchor `pivot`.
 
 These specifications are intentionally not executable passing tests in M5.
 
-1. **Root to new Area:** Move one or several patched standalone Widgets;
-   transfer patches to both Mobile mode owners; update `mobile.rootOrder`; keep
-   unaffected root entries and Desktop data unchanged. Verify ambiguous or
-   unrepresentable ordering rejects atomically.
-2. **Root to existing Area:** Transfer the root patch, preserve both mode values,
-   update complete Mobile orders, and reject a target placement that fails
-   Mobile bounds without page/history/dirty changes.
-3. **Area to root:** Preserve identical mode patches and restorable root
+1. **Area to root:** Preserve identical mode patches and restorable root
    position; reject differing/unrepresentable mode values unless the caller
    makes an explicit choice. Restore all state with Undo.
-4. **Area to Area:** Transfer both mode patches and valid Mobile placement,
+2. **Area to Area:** Transfer both mode patches and valid Mobile placement,
    update source/target reading and stack orders, and preserve root order.
    Invalid target bounds reject atomically.
-5. **Remove versus delete:** Remove retains restorable Mobile state; delete
+3. **Remove versus delete:** Remove retains restorable Mobile state; delete
    removes every Mobile reference and does not leave orphan IDs.
-6. **Customize Mobile Layout:** One action snapshots resolved Mobile values,
+4. **Customize Mobile Layout:** One action snapshots resolved Mobile values,
    creates one history step, leaves Desktop geometry and resolved Desktop
    output unchanged, and round-trips through save/reload. Switching or image
    loading alone must not initialize geometry.
-7. **Independent geometry:** After initialization, Mobile position, anchor
+5. **Independent geometry:** After initialization, Mobile position, anchor
    pivot, size, reading order, and stack order can change without changing
    Desktop output. Reset restores documented inheritance behavior.
-8. **Independent rotation (future schema decision):** Mobile rotation and
+6. **Independent rotation (future schema decision):** Mobile rotation and
    rotation pivot have distinct Mobile-owned fields, survive round-trip and
    reset, and do not change Desktop rotation/pivot. Anchor pivot remains
    independent. Do not enable this test until the schema and controls are
@@ -183,18 +187,18 @@ These specifications are intentionally not executable passing tests in M5.
 
 Current passing tests cover Mobile presentation validation and resolution,
 proportional inheritance, optional Mobile geometry, atomic supported Mobile
-size edits, non-mutating resolver behavior, responsive message staleness,
-Mobile ordering rejection, and Desktop ordering after Mobile sync rejection.
+size edits, root-to-Area patch transfer with and without `mobile.rootOrder`,
+interleaved root ordering, no duplicate root/Area patch ownership, rejection
+when the destination has independent Mobile geometry, non-mutating resolver
+behavior, responsive message staleness, Mobile ordering rejection, and Desktop
+ordering after Mobile sync rejection.
 Desktop rotation, pivot relocation, release, and preview stability are covered
 by the existing Desktop tests. None of those tests implements the pending
 transfers or independent Mobile rotation described above.
 
-## M6 boundary
+## Follow-up boundary after M6A
 
-The smallest safe M6 scope is the atomic root-to-Area ownership transfer for
-Mobile presentation patches and `mobile.rootOrder`, covering both new-Area
-creation and inclusion in an existing Area. Keep Desktop geometry untouched.
-If preserving Mobile ordering cannot be defined losslessly for a case, reject
-it with a clear explanation and leave the page, revision, history, and dirty
-state unchanged. Area-to-root, Area-to-Area, initialization, and independent
-rotation should remain separately scoped follow-up work.
+M6A is limited to root-to-Area transfer. Keep Area-to-root, Area-to-Area,
+initialization, and independent rotation separately scoped. Existing
+independent Mobile Composition geometry is a documented inclusion limit and
+must not be silently rewritten to make a transfer pass.

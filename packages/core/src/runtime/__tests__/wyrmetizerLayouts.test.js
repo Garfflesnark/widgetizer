@@ -5,12 +5,25 @@ import { defaultImageTransform } from "../imageTransform.js";
 import { createWyrmetizerCopy, resolveWyrmetizerPage, switchWyrmetizerMode,
   editWyrmetizerWidget, duplicateWyrmetizerWidget, deleteWyrmetizerWidget, validateWyrmetizerPage,
   addWyrmetizerWidget, reorderWyrmetizerFlow, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage,
-  initializeWyrmetizerPage, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget,
+  initializeWyrmetizerPage, convertWyrmetizerPageToV3, createWyrmetizerComposition, includeWyrmetizerWidgets, removeWyrmetizerWidget,
   createEmptyWyrmetizerComposition, deleteWyrmetizerComposition,
   copyWyrmetizerComposition, pasteWyrmetizerComposition } from "../wyrmetizerLayouts.js";
 import { validateCompositionLayout } from "../composition.js";
+import { resolveWyrmetizerPresentation } from "../wyrmetizerPresentation.js";
 const adapters = compositionAdapters;
 const roundTrip = page => serializeWyrmetizerEditorPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(page)), adapters), adapters);
+const pairedV3 = () => convertWyrmetizerPageToV3(createWyrmetizerCopy(fixture(), adapters), adapters);
+function withStandaloneImages(ids = ["c"]) {
+  const page = pairedV3(), resolved = resolveWyrmetizerPage(page);
+  page.layout.mobile.areas = { area: { composition: { height: { mode: "custom", valuePx: 400 } } } };
+  for (const id of ids) {
+    page.widgets[id] = structuredClone(resolved.widgets.a);
+    page.widgetsOrder.push(id);
+    page.layout.contentOrder.push({ kind: "widget", id });
+  }
+  return page;
+}
+const mobileRootOrder = (...entries) => entries.map(([kind, id]) => ({ kind, id }));
 it.each(["flow", "composition"])("copies paired content and every authored arrangement independently in %s", mode => {
   let page = duplicateWyrmetizerWidget(createWyrmetizerCopy(fixture(), adapters), "a", "b", adapters);
   page.layout.areas.area.flow.order.reverse();
@@ -264,6 +277,106 @@ it("creates a first paired area without replacing Flow presentation or an existi
   page = createWyrmetizerComposition(page, "second", ["b"], { b: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } } }, 1200, 800, adapters);
   expect(page.layout.areas.first).toEqual(first);
   expect(page.layout.areas.second.flow.presentation.b).toEqual(first.flow.presentation.a);
+});
+it.each([false, true])("transfers root Mobile ownership into a new Area (patch: %s) and round-trips", hasPatch => {
+  const page = withStandaloneImages(["c", "d", "e"]);
+  const mobilePatch = { fullwidth: false, top_spacing_px: 0, image_transform: structuredClone(page.widgets.c.settings.image_transform) };
+  mobilePatch.image_transform.dimensions = {
+    width: { unit: "px", value: 200 }, height: { unit: "px", value: null },
+  };
+  if (hasPatch) page.layout.mobile.presentation = { c: mobilePatch };
+  page.layout.mobile.rootOrder = mobileRootOrder(["widget", "c"], ["widget", "d"], ["widget", "e"], ["area", "area"]);
+  const before = structuredClone(page), desktopBefore = resolveWyrmetizerPage(page);
+  const mobileBefore = resolveWyrmetizerPresentation(page, 390);
+  const frames = {
+    c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } },
+    e: { x: 0.2, y: 0.1, pivot: { x: 0, y: 0 } },
+  };
+  const baseline = createWyrmetizerComposition(withStandaloneImages(["c", "d", "e"]), "new-area", ["c", "e"], frames, 1200, 800, adapters);
+
+  const next = createWyrmetizerComposition(page, "new-area", ["c", "e"], frames, 1200, 800, adapters);
+
+  expect(page).toEqual(before);
+  expect(next.layout.areas["new-area"]).toEqual(baseline.layout.areas["new-area"]);
+  expect(resolveWyrmetizerPage(next).layout.compositions).toEqual(resolveWyrmetizerPage(baseline).layout.compositions);
+  expect(resolveWyrmetizerPage(next).widgets.c.settings).toEqual(desktopBefore.widgets.c.settings);
+  expect(next.layout.mobile.presentation?.c).toBeUndefined();
+  expect(next.layout.mobile.rootOrder).toEqual(mobileRootOrder(["area", "new-area"], ["widget", "d"], ["area", "area"]));
+  expect(next.layout.mobile.areas?.["new-area"]?.composition?.presentation?.c ?? {}).toEqual(
+    hasPatch ? mobilePatch : {});
+  expect(next.layout.mobile.areas?.["new-area"]?.flow?.presentation?.c ?? {}).toEqual(
+    hasPatch ? mobilePatch : {});
+  expect(resolveWyrmetizerPresentation(next, 390).widgets.c.settings.fullwidth)
+    .toBe(hasPatch ? false : mobileBefore.widgets.c.settings.fullwidth);
+  expect(resolveWyrmetizerPresentation(next, 390).widgets.c.settings.image_transform)
+    .toEqual(hasPatch ? mobilePatch.image_transform : mobileBefore.widgets.c.settings.image_transform);
+
+  let switched = switchWyrmetizerMode(next, "new-area", "flow", adapters);
+  expect(resolveWyrmetizerPresentation(switched, 390).widgets.c.settings.top_spacing_px)
+    .toBe(hasPatch ? 0 : mobileBefore.widgets.c.settings.top_spacing_px);
+  switched = switchWyrmetizerMode(switched, "new-area", "composition", adapters);
+  expect(roundTrip(switched)).toEqual(switched);
+});
+it.each([false, true])("transfers root Mobile ownership when including into an Area (patch: %s)", hasPatch => {
+  const page = withStandaloneImages(["c", "d", "e"]);
+  if (hasPatch) page.layout.mobile.presentation = { c: { fullwidth: false, top_spacing_px: 0 } };
+  page.layout.mobile.rootOrder = mobileRootOrder(["widget", "c"], ["widget", "d"], ["widget", "e"], ["area", "area"]);
+  const before = structuredClone(page), desktopBefore = resolveWyrmetizerPage(page);
+  const mobileBefore = resolveWyrmetizerPresentation(page, 390);
+  const frames = {
+    c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } },
+    e: { x: 0.2, y: 0.1, pivot: { x: 0, y: 0 } },
+  };
+  const baseline = includeWyrmetizerWidgets(withStandaloneImages(["c", "d", "e"]), "area", ["c", "e"], frames, adapters);
+
+  const next = includeWyrmetizerWidgets(page, "area", ["c", "e"], frames, adapters);
+
+  expect(page).toEqual(before);
+  expect(next.layout.mobile.presentation?.c).toBeUndefined();
+  expect(next.layout.mobile.rootOrder).toEqual(mobileRootOrder(["widget", "d"], ["area", "area"]));
+  expect(next.layout.mobile.areas?.area?.composition?.presentation?.c ?? {})
+    .toEqual(hasPatch ? { fullwidth: false, top_spacing_px: 0 } : {});
+  expect(next.layout.mobile.areas?.area?.flow?.presentation?.c ?? {})
+    .toEqual(hasPatch ? { fullwidth: false, top_spacing_px: 0 } : {});
+  expect(next.layout.areas.area.flow.order).toEqual(["a", "c", "e"]);
+  expect(next.layout.areas.area.flow).toEqual(baseline.layout.areas.area.flow);
+  expect(next.layout.areas.area.composition).toEqual(baseline.layout.areas.area.composition);
+  expect(resolveWyrmetizerPage(next).widgets.c.settings).toEqual(desktopBefore.widgets.c.settings);
+  expect(resolveWyrmetizerPresentation(next, 390).widgets.c.settings.fullwidth)
+    .toBe(hasPatch ? false : mobileBefore.widgets.c.settings.fullwidth);
+  expect(roundTrip(next)).toEqual(next);
+});
+it.each(["new Area", "existing Area"]) ("keeps Mobile root order sparse when it was omitted during transfer to a %s", destination => {
+  const page = withStandaloneImages(["c"]);
+  page.layout.mobile.presentation = { c: { top_spacing_px: 0 } };
+  const frames = { c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } } };
+  const next = destination === "new Area"
+    ? createWyrmetizerComposition(page, "new-area", ["c"], frames, 1200, 800, adapters)
+    : includeWyrmetizerWidgets(page, "area", ["c"], frames, adapters);
+
+  expect(next.layout.mobile.rootOrder).toBeUndefined();
+  expect(next.layout.mobile.presentation?.c).toBeUndefined();
+  const areaId = destination === "new Area" ? "new-area" : "area";
+  expect(next.layout.mobile.areas[areaId].flow.presentation.c).toEqual({ top_spacing_px: 0 });
+  expect(next.layout.mobile.areas[areaId].composition.presentation.c).toEqual({ top_spacing_px: 0 });
+  expect(roundTrip(next)).toEqual(next);
+});
+it("rejects inclusion that would invalidate existing independent Mobile geometry without mutating input", () => {
+  const page = withStandaloneImages(["c"]);
+  page.layout.mobile.areas = { area: { composition: { geometry: {
+    version: 1, referenceWidthPx: 390, heightPx: 400,
+    readingOrder: ["a"], stackOrder: ["a"],
+    placements: {
+      a: { x: { value: 0, unit: "px" }, y: { value: 0, unit: "px" }, pivot: { x: 0, y: 0 } },
+    },
+  } } } };
+  page.layout.mobile.presentation = { c: { fullwidth: false } };
+  const before = structuredClone(page);
+
+  expect(() => includeWyrmetizerWidgets(page, "area", ["c"], {
+    c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } },
+  }, adapters)).toThrow(/cannot include standalone Widgets.*independent Mobile Composition geometry/);
+  expect(page).toEqual(before);
 });
 it("opens legacy Flow without upgrading, and explicitly converts only a separate copy", () => {
   const legacy = { widgets: fixture().widgets, widgetsOrder: ["a"] };

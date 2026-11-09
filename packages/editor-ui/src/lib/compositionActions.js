@@ -1,6 +1,7 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget, resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget, resolveWyrmetizerPage, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX } from "@widgetizer/core/wyrmetizerLayouts";
+import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
 import {
   changeStack,
   compositionFor,
@@ -180,6 +181,25 @@ export function compositionHeightValue(id, requested) {
   });
   return Math.max(1, requested, minimumCompositionHeight(items, c.profiles.desktop.referenceWidthPx));
 }
+
+function validateTransferredMobileLayout(page) {
+  if (page.layout?.version !== 3) return;
+  const imageGeometry = useWidgetStore.getState().imageGeometry || {};
+  const imageDimensions = Object.fromEntries(Object.entries(page.widgets || {}).flatMap(([id, widget]) => {
+    const measured = imageGeometry[id];
+    if (!measured || measured.imageSource !== (widget.settings?.image || "")) return [];
+    const width = measured.naturalWidth ?? measured.width;
+    const height = measured.naturalHeight ?? measured.height;
+    return Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+      ? [[id, { width, height }]] : [];
+  }));
+  try {
+    resolveWyrmetizerPresentation(page, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, { adapters: compositionAdapters, imageDimensions });
+  } catch (error) {
+    throw new Error(`Cannot transfer these Widgets into the Area because their resolved Mobile layout is invalid. ${error.message}`);
+  }
+}
+
 export function setCompositionHeight(id, requested) {
   if (useWidgetStore.getState().compositionContext !== "desktop") return false;
   const value = compositionHeightValue(id, requested);
@@ -239,6 +259,7 @@ export function convertImages(ids, height = 1000) {
   const width = 1200, { frames, page } = initialImageFrames(ids, width, height);
   const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
   const next = createWyrmetizerComposition(canonical, `composition_${crypto.randomUUID()}`, ids, frames, width, height, compositionAdapters);
+  validateTransferredMobileLayout(next);
   const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
   if (changed) useWidgetStore.getState().clearCompositionSelection();
   return changed;
@@ -290,6 +311,7 @@ export function addImagesToComposition(areaId, ids) {
   }
   const { frames, page } = initialImageFrames(ids, profile.referenceWidthPx, profile.height.valuePx, restored);
   const next = includeWyrmetizerWidgets(serializeWyrmetizerEditorPage(page, compositionAdapters), areaId, ids, frames, compositionAdapters, id => !!restored[id]);
+  validateTransferredMobileLayout(next);
   const changed = commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
   if (changed) useWidgetStore.getState().clearCompositionSelection();
   return changed;

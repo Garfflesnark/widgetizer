@@ -25,6 +25,78 @@ function presented(widget, presentation) {
   return { ...clone(widget), settings: { ...clone(widget.settings || {}), ...clone(presentation) } };
 }
 
+function transferRootMobileOwnership(page, ids, areaId, { createdArea = false, priorFlowOrder = [] } = {}) {
+  const mobile = page.layout.mobile;
+  if (!mobile) return;
+
+  const rootOrder = mobile.rootOrder;
+  const movedOrder = rootOrder
+    ? rootOrder.filter(entry => entry.kind === "widget" && ids.includes(entry.id)).map(entry => entry.id)
+    : [...ids];
+  const rootPatches = mobile.presentation || {};
+  const patches = Object.fromEntries(ids.flatMap(id =>
+    Object.hasOwn(rootPatches, id) ? [[id, clone(rootPatches[id])]] : []));
+  const mobileArea = mobile.areas?.[areaId] || {};
+
+  for (const [mode, modeData] of Object.entries(mobileArea)) {
+    if (mode === "composition" && modeData.geometry)
+      fail("cannot include standalone Widgets while the destination Area has independent Mobile Composition geometry; reset that Mobile geometry first");
+  }
+
+  for (const mode of ["flow", "composition"]) {
+    const existing = mobileArea[mode]?.presentation || {};
+    for (const [id, patch] of Object.entries(patches)) {
+      if (Object.hasOwn(existing, id) && JSON.stringify(existing[id]) !== JSON.stringify(patch))
+        fail(`conflicting Mobile ${mode} presentation for Widget ${id}; resolve the Area override before transferring it`);
+    }
+  }
+
+  if (Object.keys(patches).length) {
+    mobile.areas ??= {};
+    mobile.areas[areaId] ??= {};
+    for (const mode of ["flow", "composition"]) {
+      const modeData = mobile.areas[areaId][mode] ??= {};
+      modeData.presentation ??= {};
+      for (const [id, patch] of Object.entries(patches)) modeData.presentation[id] = clone(patch);
+    }
+  }
+
+  // A Mobile Flow order is sparse, but once present it must remain a complete
+  // permutation. Keep existing member order and append transferred Widgets in
+  // their Mobile root order (or the requested order when no root order exists).
+  const flowData = mobile.areas?.[areaId]?.flow;
+  const hadFlowOrder = Array.isArray(flowData?.order);
+  if (hadFlowOrder || rootOrder) {
+    const base = hadFlowOrder ? flowData.order : (createdArea ? [] : priorFlowOrder);
+    const flowOrder = [...base, ...movedOrder.filter(id => !base.includes(id))];
+    const desktopOrder = page.layout.areas[areaId].flow.order;
+    if (hadFlowOrder || JSON.stringify(flowOrder) !== JSON.stringify(desktopOrder)) {
+      mobile.areas ??= {};
+      mobile.areas[areaId] ??= {};
+      mobile.areas[areaId].flow ??= {};
+      mobile.areas[areaId].flow.order = flowOrder;
+    }
+  }
+
+  if (rootPatches && Object.keys(rootPatches).length) {
+    for (const id of ids) delete rootPatches[id];
+    if (Object.keys(rootPatches).length === 0) delete mobile.presentation;
+  }
+  if (rootOrder) {
+    if (createdArea) {
+      let insertedArea = false;
+      mobile.rootOrder = rootOrder.flatMap(entry => {
+        if (entry.kind !== "widget" || !ids.includes(entry.id)) return [clone(entry)];
+        if (insertedArea) return [];
+        insertedArea = true;
+        return [{ kind: "area", id: areaId }];
+      });
+    } else {
+      mobile.rootOrder = rootOrder.filter(entry => entry.kind !== "widget" || !ids.includes(entry.id)).map(clone);
+    }
+  }
+}
+
 // Only creation entry points call this; opening an existing page never upgrades it.
 export function initializeWyrmetizerPage(page, adapters) {
   if (page.layout?.version === 1 && Object.keys(page.layout.compositions).length)
@@ -61,6 +133,7 @@ export function createWyrmetizerComposition(page, areaId, ids, frames, width, he
   next.layout.areas[areaId] = { version: 1, activeMode: "composition", members: [...ids],
     flow: { order: page.widgetsOrder.filter(id => ids.includes(id)), presentation: clone(presentation) },
     composition: { geometry: clone(projected.layout.compositions[areaId]), presentation: clone(presentation) } };
+  transferRootMobileOwnership(next, ids, areaId, { createdArea: true });
   next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
   validateWyrmetizerPage(next, adapters);
   return next;
@@ -393,6 +466,7 @@ export function includeWyrmetizerWidgets(page, areaId, ids, frames, adapters, ca
       ids.some(id => !page.widgets[id] || Object.values(page.layout.areas).some(area => area.members.includes(id))))
     fail("invalid existing Widget membership");
   const next = clone(page), area = next.layout.areas[areaId], geometry = area.composition.geometry;
+  const priorFlowOrder = [...area.flow.order];
   const insertIndex = (saved, key, order) => Math.max(0, Math.min(order.length, saved[key] -
     Object.values(area.detached || {}).filter(value => value[key] < saved[key]).length));
   for (const id of ids) {
@@ -412,6 +486,7 @@ export function includeWyrmetizerWidgets(page, areaId, ids, frames, adapters, ca
     for (const other of Object.values(next.layout.areas)) if (other.detached) delete other.detached[id];
   }
   next.layout.contentOrder = next.layout.contentOrder.filter(entry => entry.kind !== "widget" || !ids.includes(entry.id));
+  transferRootMobileOwnership(next, ids, areaId, { priorFlowOrder });
   next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
   validateWyrmetizerPage(next, adapters);
   return next;
