@@ -50,8 +50,11 @@ export default function CompositionWidgetHierarchy({ page, widgetSchemas, onAddW
         <input type="checkbox" aria-label={`Include ${name} in Composition`} checked={selectedImages.includes(id)}
           disabled={compositionContext !== "desktop"} onChange={() => useWidgetStore.getState().toggleCompositionImage(id)} />Include in Composition
       </label>}
-      {areaId && <button type="button" className="p-1 text-xs text-pink-700" disabled={compositionContext !== "desktop"}
-        aria-label={`Remove ${name} from Composition`} onClick={() => run(() => removeImageFromComposition(areaId, id))}>Remove from Composition</button>}
+      {areaId && <>
+        <button type="button" className="p-1 text-xs text-pink-700" disabled={compositionContext !== "desktop"}
+          aria-label={`Remove ${name} from Composition`} onClick={() => run(() => removeImageFromComposition(areaId, id))}>Remove from Composition</button>
+        {compositionContext === "mobile" && <p className="px-1 text-xs text-slate-600">Switch to Desktop to remove this image from the Composition Area. Mobile ownership transfers are not supported.</p>}
+      </>}
     </div>;
   };
   const insertion = index => <WidgetInsertionZone position={index} onAddClick={onAddWidgetClick}

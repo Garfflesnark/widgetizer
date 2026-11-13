@@ -211,6 +211,18 @@ it.each(["composition", "flow"])("removes a selected Image in %s with atomic his
   expect(saved().layout.areas[areaId].flow.presentation.a.image_transform.dimensions.height.value).toBe(1500);
 });
 
+it("explains why Mobile removal from a Composition Area is unavailable", () => {
+  const { rerender } = render(<CompositionControls widgetId="a" />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
+  const areaId = Object.keys(saved().layout.areas)[0];
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  rerender(<CompositionControls compositionId={areaId} widgetId="a" />);
+
+  expect(screen.getByRole("button", { name: "Remove from Composition" })).toBeDisabled();
+  expect(screen.getByText("Switch to Desktop to remove this image from the Composition Area. Mobile ownership transfers are not supported.")).toBeVisible();
+});
+
 it("keeps the final empty Area editable through reload and permits rejoining it", () => {
   const { rerender } = render(<CompositionControls widgetId="a" />);
   fireEvent.click(screen.getByRole("checkbox", { name: "A" }));

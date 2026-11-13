@@ -189,7 +189,7 @@ it("exposes Mobile customization from the mounted selected-Area panel and initia
   expect(saved().layout.mobile.areas.canvas.composition.geometry).toBeDefined();
   expect(saved().layout.areas.canvas.composition.geometry).toEqual(desktopGeometry);
   expect(saved().layout.areas.canvas.flow).toEqual(flow);
-  expect(screen.getByText(/Mobile Composition layout is customized/)).toBeVisible();
+  expect(screen.getByRole("status")).toHaveTextContent(/Mobile Composition layout is customized/);
 
   act(() => {
     useWidgetStore.getState().setCompositionContext("desktop");
@@ -200,6 +200,17 @@ it("exposes Mobile customization from the mounted selected-Area panel and initia
   fireEvent.click(within(areaRegion("canvas")).getByRole("button", { name: "Alpha" }));
   expect(screen.getByLabelText("Mobile X position")).toBeVisible();
   expect(screen.getByLabelText("Mobile Y position")).toBeVisible();
+});
+
+it.each(["flow", "composition"])("enables Mobile customization for a nonempty v3 Area while %s is active", mode => {
+  authoredArea(mode);
+  usePageStore.getState().setPage(convertWyrmetizerPageToV3(saved(), compositionAdapters));
+  useWidgetStore.setState({ compositionContext: "mobile", selectedCompositionId: "canvas" });
+  render(<Editor />);
+
+  const customize = screen.getByRole("button", { name: "Customize Mobile Layout" });
+  expect(customize).toBeVisible();
+  expect(customize).toBeEnabled();
 });
 
 it("explains why an empty v3 Area cannot customize Mobile placement", () => {
@@ -533,4 +544,5 @@ it("keeps legacy pages behind copy-first conversion and mobile membership read-o
   fireEvent.click(within(areaRegion("canvas")).getByRole("button", { name: "Composition Area" }));
   expect(screen.getByRole("button", { name: "Delete Composition Area" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Remove Alpha from Composition" })).toBeDisabled();
+  expect(screen.getAllByText("Switch to Desktop to remove this image from the Composition Area. Mobile ownership transfers are not supported.").length).toBeGreaterThan(0);
 });

@@ -70,7 +70,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
   const button =
     "shadow-sm shadow-slate-100 hover:shadow-lg hover:shadow-slate-100 aria-pressed:ring-2 aria-pressed:ring-pink-200 aria-pressed:shadow-lg aria-pressed:shadow-pink-100 border border-slate-200 rounded-md px-3 py-2 text-xs text-pink-700 hover:bg-pink-50 focus-visible:outline-2 focus-visible:outline-pink-600 aria-pressed:bg-pink-50 aria-pressed:border-pink-500 disabled:opacity-40 break-words";
   const mobileLayoutControl = context !== "mobile" || !paired ? null : mobileGeometryCustomized
-    ? <p className="form-description">Mobile Composition layout is customized. Its saved positions apply when this Area uses Composition.</p>
+    ? <p role="status" className="form-description">Mobile Composition layout is customized. Its saved positions apply when this Area uses Composition.</p>
     : <div className="space-y-2">
       <p className="form-description">Mobile Composition placement inherits proportionally from Desktop until customized.</p>
       <button className={button} disabled={!mobileLayoutEligible} onClick={() => run(() => customizeMobileCompositionLayout(paired[0]))}>
@@ -101,8 +101,11 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
       onClick={() => run(() => addImagesToComposition(paired[0], ids))}>Add checked images to Composition Area</button>
   </div>;
   const removeMember = paired && !blockSelected && paired[1].members.includes(widgetId) &&
-    <button className={button} disabled={context !== "desktop"}
-      onClick={() => run(() => removeImageFromComposition(paired[0], widgetId))}>Remove from Composition</button>;
+    <div className="space-y-2">
+      <button className={button} disabled={context !== "desktop"}
+        onClick={() => run(() => removeImageFromComposition(paired[0], widgetId))}>Remove from Composition</button>
+      {context === "mobile" && <p className="form-description">Switch to Desktop to remove this image from the Composition Area. Mobile ownership transfers are not supported.</p>}
+    </div>;
   const deleteArea = paired && compositionId && <div className="space-y-2 border-t border-slate-200 pt-4">
     <p className="form-description">Deleting this area releases its children as independent Flow Widgets.</p>
     <button className={button} disabled={context !== "desktop"}
