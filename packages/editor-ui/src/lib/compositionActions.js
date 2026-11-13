@@ -20,6 +20,10 @@ import {
   resetWyrmetizerMobileMode,
   resetWyrmetizerMobileWidget,
   setWyrmetizerMobileTransactionValue,
+  customizeWyrmetizerMobileComposition,
+  beginWyrmetizerMobilePlacementTransaction,
+  setWyrmetizerMobilePlacementTransactionValue,
+  commitWyrmetizerMobilePlacementTransaction,
 } from "@widgetizer/core/wyrmetizerMobileTransactions";
 import { transformRect, imageReference, imageTransformV2, supportsImageUnits } from "@widgetizer/core/imageTransform";
 import usePageStore from "../stores/pageStore";
@@ -182,10 +186,9 @@ export function compositionHeightValue(id, requested) {
   return Math.max(1, requested, minimumCompositionHeight(items, c.profiles.desktop.referenceWidthPx));
 }
 
-function validateTransferredMobileLayout(page) {
-  if (page.layout?.version !== 3) return;
+function currentImageDimensions(page) {
   const imageGeometry = useWidgetStore.getState().imageGeometry || {};
-  const imageDimensions = Object.fromEntries(Object.entries(page.widgets || {}).flatMap(([id, widget]) => {
+  return Object.fromEntries(Object.entries(page.widgets || {}).flatMap(([id, widget]) => {
     const measured = imageGeometry[id];
     if (!measured || measured.imageSource !== (widget.settings?.image || "")) return [];
     const width = measured.naturalWidth ?? measured.width;
@@ -193,11 +196,37 @@ function validateTransferredMobileLayout(page) {
     return Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
       ? [[id, { width, height }]] : [];
   }));
+}
+
+function validateTransferredMobileLayout(page) {
+  if (page.layout?.version !== 3) return;
   try {
-    resolveWyrmetizerPresentation(page, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, { adapters: compositionAdapters, imageDimensions });
+    resolveWyrmetizerPresentation(page, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, {
+      adapters: compositionAdapters, imageDimensions: currentImageDimensions(page),
+    });
   } catch (error) {
     throw new Error(`Cannot transfer these Widgets into the Area because their resolved Mobile layout is invalid. ${error.message}`);
   }
+}
+
+export function customizeMobileCompositionLayout(areaId) {
+  if (useWidgetStore.getState().compositionContext !== "mobile") return false;
+  const page = usePageStore.getState().page;
+  const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  const result = customizeWyrmetizerMobileComposition(canonical, areaId, compositionAdapters, currentImageDimensions(canonical));
+  if (!result.changed) return false;
+  return commitCompositionPage(openWyrmetizerEditorPage(result.page, compositionAdapters));
+}
+
+export function setMobileCompositionPlacement(areaId, widgetId, axis, value) {
+  if (useWidgetStore.getState().compositionContext !== "mobile") return false;
+  const page = usePageStore.getState().page;
+  const dimensions = currentImageDimensions(serializeWyrmetizerEditorPage(page, compositionAdapters));
+  const transaction = beginWyrmetizerMobilePlacementTransaction(page, areaId, widgetId, compositionAdapters, dimensions);
+  const staged = setWyrmetizerMobilePlacementTransactionValue(transaction, axis, value);
+  const result = commitWyrmetizerMobilePlacementTransaction(staged, compositionAdapters, page, dimensions);
+  if (!result.changed) return false;
+  return commitCompositionPage(result.page);
 }
 
 export function setCompositionHeight(id, requested) {

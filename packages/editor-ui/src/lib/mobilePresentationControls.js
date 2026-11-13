@@ -13,7 +13,8 @@ export function mobilePresentationControlState(page, widgetId) {
   const patch = entry ? canonical.layout.mobile?.areas?.[target.areaId]?.[mode]?.presentation?.[widgetId]
     : canonical.layout.mobile?.presentation?.[widgetId];
   const view = resolveWyrmetizerPresentation(canonical, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, { deferBoundsValidation: true });
-  return { target, mode, patch: patch || {}, widget: view.widgets[widgetId] };
+  return { target, mode, patch: patch || {}, widget: view.widgets[widgetId],
+    customizedCompositionGeometry: !!(entry && canonical.layout.mobile?.areas?.[target.areaId]?.composition?.geometry) };
 }
 
 export function mobileImageControlGeometry(mobile, geometry) {

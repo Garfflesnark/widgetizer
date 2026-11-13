@@ -253,6 +253,7 @@ export default function SettingsPanel({
           <p>Mobile · {mobile.mode}. Image presentation is independent; content settings are shared across viewports.</p>
           <button type="button" className="underline mr-3" onClick={() => runMobile(() => resetMobileWidgetPresentation(mobile.target))}>Reset Widget</button>
           <button type="button" className="underline" onClick={() => runMobile(() => resetMobileModePresentation(mobile.mode))}>Reset Current Mobile Mode</button>
+          {mobile.customizedCompositionGeometry && <p>Resetting Mobile Composition presentation overrides keeps the customized placement.</p>}
         </div>}
         <fieldset disabled={!!compositionFor(page, selectedWidgetId) && compositionContext !== "desktop" && !mobile} className="disabled:opacity-60">
         <div

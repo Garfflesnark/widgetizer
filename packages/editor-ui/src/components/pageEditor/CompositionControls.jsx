@@ -21,6 +21,8 @@ import {
   switchPairedCompositionMode,
   compositionInteractionContext,
   resetMobileModePresentation,
+  customizeMobileCompositionLayout,
+  setMobileCompositionPlacement,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, compositionId, blockSelected = false }) {
@@ -36,6 +38,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
   const found = compositionId && page?.layout?.compositions?.[compositionId] ?
     [compositionId, page.layout.compositions[compositionId]] : compositionFor(page, widgetId);
   const paired = Object.entries(page?.wyrmetizerEditorLayout?.areas || {}).find(([id, area]) => id === compositionId || area.members.includes(widgetId));
+  const mobileGeometryCustomized = !!(paired && page?.wyrmetizerEditorLayout?.mobile?.areas?.[paired[0]]?.composition?.geometry);
   const mobileArea = paired && context === "mobile" ? resolveWyrmetizerPresentation(
     serializeWyrmetizerEditorPage(page, compositionAdapters), WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, { deferBoundsValidation: true },
   ).areas[paired[0]] : null;
@@ -137,15 +140,44 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
           <p className="form-description">
             {context === "desktop"
               ? "Desktop source · Proportional"
-              : `${context}: generated Proportional${found[1].placements[widgetId]?.responsive.mode === "custom" || found[1].responsive.defaultMode === "custom" ? " (Custom not initialized)" : ""} · geometry read-only`}
+              : mobileGeometryCustomized ? "Mobile source · customized placement" : `${context}: generated Proportional · geometry read-only`}
           </p>
           <p className="form-description">
-            {mobileArea ? "Canvas height shows the resolved Mobile value. Area geometry overrides are unsupported in this stage." : "Dimensions are desktop design units. Proportional scales both dimensions and positions on smaller screens."}
+            {mobileArea ? mobileGeometryCustomized
+              ? "Canvas height and placement use saved Mobile geometry. Rotation and rotation pivot remain shared with Desktop."
+              : "Canvas height shows the resolved Mobile value. Customize Mobile Layout to keep current positions independent of Desktop."
+              : "Dimensions are desktop design units. Proportional scales both dimensions and positions on smaller screens."}
           </p>
-          {mobileArea && compositionId && <button className={button} onClick={() => run(() => resetMobileModePresentation("composition"))}>Reset Current Mobile Mode</button>}
+          {mobileArea && compositionId && <>
+            <button className={button} onClick={() => run(() => resetMobileModePresentation("composition"))}>Reset Current Mobile Mode</button>
+            {mobileGeometryCustomized && <p className="form-description">Resetting Mobile presentation overrides keeps the customized placement.</p>}
+          </>}
+          {context === "mobile" && paired && page?.wyrmetizerEditorLayout?.version === 3 && !mobileGeometryCustomized &&
+            <div className="space-y-2">
+              <p className="form-description">Mobile placement currently inherits proportionally from Desktop.</p>
+              <button className={button} onClick={() => run(() => customizeMobileCompositionLayout(paired[0]))}>
+                Customize Mobile Layout
+              </button>
+            </div>}
+          {context === "mobile" && paired && mobileGeometryCustomized && mobileArea?.geometry?.placements?.[widgetId] && !blockSelected &&
+            <div className="space-y-2 border-t border-slate-200 pt-3" aria-label="Mobile placement controls">
+              <p className="form-description">Customized Mobile placement is independent of Desktop. Image size remains controlled by Mobile presentation settings.</p>
+              <div>
+                <span className="form-label">Mobile X (px)</span>
+                <CompositionNumberInput label="Mobile X position" value={mobileArea.geometry.placements[widgetId].xPx}
+                  min={0} max={WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX} step={1} disabled={context !== "mobile"}
+                  onPreview={() => { }} onCommit={value => run(() => setMobileCompositionPlacement(paired[0], widgetId, "x", value))} />
+              </div>
+              <div>
+                <span className="form-label">Mobile Y (px)</span>
+                <CompositionNumberInput label="Mobile Y position" value={mobileArea.geometry.placements[widgetId].yPx}
+                  min={0} max={10000} step={1} disabled={context !== "mobile"}
+                  onPreview={() => { }} onCommit={value => run(() => setMobileCompositionPlacement(paired[0], widgetId, "y", value))} />
+              </div>
+            </div>}
           {context !== "desktop" && (
             <p className="form-description">
-              {paired && context === "mobile" ? "Select an image to edit Mobile presentation below. Area height, rotation, movement and order are unsupported Mobile controls in this stage." : "Return to Desktop to edit image properties. Custom/Reflow authoring is not included yet."}
+              {paired && context === "mobile" ? "Select an image to edit Mobile presentation below. Area height, drag movement, rotation, rotation pivot and ordering remain unsupported; customize the layout for numeric x/y placement." : "Return to Desktop to edit image properties. Custom/Reflow authoring is not included yet."}
             </p>
           )}
           <button className={button} onClick={() => useWidgetStore.getState().setSelectedCompositionId(found[0])}>

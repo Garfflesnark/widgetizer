@@ -17,7 +17,7 @@ Status labels used here:
 | Widget identity, content, and media references are shared. | **Implemented** | Mobile patches contain presentation values, not duplicate Widgets or media/content settings. |
 | Desktop owns Desktop Composition geometry, rotation, rotation pivot, reading order, and stack order. | **Implemented** | These remain in the Desktop Area geometry. Existing Desktop geometry and manipulation contracts remain authoritative. |
 | Mobile size and supported presentation values can be separately overridden. | **Implemented** | Sparse patches are stored in the root or Area/mode Mobile presentation owner. |
-| Mobile Composition geometry can be stored independently when present. | **Implemented, partial** | The v3 optional geometry stores canvas height, reading/stack order, positions, and placement anchor pivots. The editor does not yet expose a Mobile geometry authoring transaction. |
+| Mobile Composition geometry can be stored independently when present. | **Implemented** | The v3 optional geometry stores canvas height, reading/stack order, positions, and placement anchor pivots. An explicit action snapshots current resolved positions; Mobile x/y edits use atomic Mobile-only transactions. |
 | If Mobile Composition geometry is absent, positions and anchor pivots inherit proportionally from Desktop. | **Implemented** | The read-only resolver maps Desktop anchors to the 390px Mobile reference width. Desktop rotation and rotation pivot also remain inherited. |
 | Switching the viewport presentation does not edit authored page data. | **Implemented** | Resolution and preview synchronization operate on disposable views. Presentation changes alone must not create page history or dirty/save state. |
 | For an accepted operation, live preview, resolved geometry, and committed state agree for the active presentation. | **Established contract** | The preview sync is presentation/epoch/revision guarded. Rejected or stale work must not be treated as a successful commit. |
@@ -129,38 +129,40 @@ Area-to-root, Area-to-Area, and remove/delete transfer rules below remain
 whose Widget is no longer a standalone root; M6A routes root patches to their
 Area owners before final validation.
 
-## Explicit Mobile initialization — proposed
+## Explicit Mobile initialization — implemented in M7
 
-Add a deliberate **Customize Mobile Layout** action for a Composition Area.
-The action should resolve the current Mobile presentation with matching image
-dimensions, then snapshot the resolved Mobile canvas height, positions, anchor
-pivots, reading order, and stack order into the existing optional v3 Mobile
-geometry structure where those values are representable.
+The deliberate **Customize Mobile Layout** action for a v3 Composition Area
+resolves current Mobile output with matching available image dimensions, then
+snapshots Mobile canvas height, positions, anchor pivots, reading order, and
+stack order into the existing optional v3 Mobile geometry structure. It rejects
+empty Areas, invalid bounds, or inherited positions that cannot fit the Mobile
+geometry contract. The snapshot and later x/y placement edits are atomic and
+undoable. Presentation patches, including size/scale overrides, remain in their
+existing Mobile owners.
 
-The snapshot must not alter Desktop geometry, rotation, rotation pivot, or
-ordering. It must be one undoable history entry and must not run during viewport
-switching, rendering, or image measurement. Pages without explicit Mobile
-geometry continue proportional inheritance.
+The snapshot does not alter Desktop geometry, rotation, rotation pivot, or
+ordering. It is never run during viewport switching, rendering, or image
+measurement. Pages without explicit Mobile geometry continue proportional
+inheritance. Mobile x/y controls are available only after explicit
+customization; changing a position validates the resolved Mobile bounds before
+commit. Resetting Mobile Composition presentation overrides preserves explicit
+Mobile geometry.
 
-Reset behavior is also **proposed**:
+Reset behavior remains limited:
 
-- Reset a Mobile property without deleting geometry or unrelated Mobile
-  overrides.
-- Reset Mobile Composition geometry only through a separately labeled,
-  undoable action that warns that Mobile positions/orders will return to
-  proportional inheritance.
-- A general “reset Mobile mode” must disclose whether it removes geometry as
-  well as presentation/order patches; it must not silently erase customized
-  placement.
-- Undo must restore the exact previous Mobile geometry and patches.
+- Per-property reset leaves geometry and unrelated overrides unchanged.
+- Current Mobile Composition mode reset removes its presentation/order patches
+  but keeps customized geometry. There is not yet a separate reset-to-inherited
+  geometry action.
+- Undo restores the exact previous Mobile geometry and patches.
 
 Independent Mobile rotation and rotation-pivot ownership remain a separate
 **proposed** schema and interaction decision. They must not be inferred from
 the placement anchor `pivot`.
 
-## Pending test specifications — not implemented behavior
+## Pending test specifications
 
-These specifications are intentionally not executable passing tests in M5.
+Specifications below remain pending unless marked implemented.
 
 1. **Area to root:** Preserve identical mode patches and restorable root
    position; reject differing/unrepresentable mode values unless the caller
@@ -170,13 +172,14 @@ These specifications are intentionally not executable passing tests in M5.
    Invalid target bounds reject atomically.
 3. **Remove versus delete:** Remove retains restorable Mobile state; delete
    removes every Mobile reference and does not leave orphan IDs.
-4. **Customize Mobile Layout:** One action snapshots resolved Mobile values,
-   creates one history step, leaves Desktop geometry and resolved Desktop
-   output unchanged, and round-trips through save/reload. Switching or image
-   loading alone must not initialize geometry.
-5. **Independent geometry:** After initialization, Mobile position, anchor
-   pivot, size, reading order, and stack order can change without changing
-   Desktop output. Reset restores documented inheritance behavior.
+4. **Customize Mobile Layout — implemented in M7:** One action snapshots
+   resolved Mobile values, creates one history step, leaves Desktop geometry
+   and resolved Desktop output unchanged, and round-trips through save/reload.
+   Switching or image loading alone does not initialize geometry.
+5. **Independent geometry — partially implemented in M7:** Mobile x/y position
+   edits and existing Mobile size patches can change without changing Desktop
+   output. Mobile geometry stores anchor pivot and orders, but editor controls
+   for editing those values and a reset-to-inherited action are not present.
 6. **Independent rotation (future schema decision):** Mobile rotation and
    rotation pivot have distinct Mobile-owned fields, survive round-trip and
    reset, and do not change Desktop rotation/pivot. Anchor pivot remains
@@ -190,15 +193,16 @@ proportional inheritance, optional Mobile geometry, atomic supported Mobile
 size edits, root-to-Area patch transfer with and without `mobile.rootOrder`,
 interleaved root ordering, no duplicate root/Area patch ownership, rejection
 when the destination has independent Mobile geometry, non-mutating resolver
-behavior, responsive message staleness, Mobile ordering rejection, and Desktop
-ordering after Mobile sync rejection.
+behavior, explicit Mobile geometry initialization and x/y edits, bounds
+rejection, save/reload and Undo/Redo, responsive message staleness, Mobile
+ordering rejection, and Desktop ordering after Mobile sync rejection.
 Desktop rotation, pivot relocation, release, and preview stability are covered
-by the existing Desktop tests. None of those tests implements the pending
-transfers or independent Mobile rotation described above.
+by the existing Desktop tests. Area-to-root/Area-to-Area transfers and
+independent Mobile rotation remain pending.
 
 ## Follow-up boundary after M6A
 
-M6A is limited to root-to-Area transfer. Keep Area-to-root, Area-to-Area,
-initialization, and independent rotation separately scoped. Existing
-independent Mobile Composition geometry is a documented inclusion limit and
-must not be silently rewritten to make a transfer pass.
+M6A is limited to root-to-Area transfer. Keep Area-to-root and Area-to-Area
+transfers and independent Mobile rotation separately scoped. Existing
+independent Mobile Composition geometry remains a documented inclusion limit
+and must not be silently rewritten to make a transfer pass.

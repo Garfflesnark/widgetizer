@@ -99,6 +99,113 @@ function pageShape(page, editorProjection, adapters) {
   return editorProjection ? openWyrmetizerEditorPage(page, adapters) : page;
 }
 
+function mobileCompositionView(page, areaId, adapters, imageDimensions) {
+  const viewPage = clone(page);
+  const area = viewPage.layout.areas[areaId];
+  if (!area) fail("unknown Composition Area");
+  area.activeMode = "composition";
+  viewPage.widgetsOrder = resolveWyrmetizerPage(viewPage).widgetsOrder;
+  return resolveWyrmetizerPresentation(viewPage, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX, { adapters, imageDimensions });
+}
+
+/** Explicitly snapshot inherited Mobile Composition output into the existing v3 optional geometry. */
+export function customizeWyrmetizerMobileComposition(page, areaId, adapters, imageDimensions = {}) {
+  const canonical = canonicalPage(page, adapters);
+  if (canonical.layout.version !== 3) fail("Customize Mobile Layout requires a v3 responsive page");
+  const area = canonical.layout.areas[areaId];
+  if (!area) fail("unknown Composition Area");
+  if (area.members.length === 0) fail("add an Image to the Composition Area before customizing its Mobile layout");
+  if (canonical.layout.mobile.areas?.[areaId]?.composition?.geometry)
+    return { page: clone(page), changed: false };
+
+  let resolved;
+  try {
+    resolved = mobileCompositionView(canonical, areaId, adapters, imageDimensions).areas[areaId];
+  } catch (error) {
+    fail(`cannot customize this Mobile layout safely. ${error.message}`);
+  }
+  const placements = Object.fromEntries(area.members.map(id => {
+    const placement = resolved.geometry.placements[id];
+    return [id, {
+      x: { value: placement.xPx, unit: "px" },
+      y: { value: placement.yPx, unit: "px" },
+      pivot: clone(placement.pivot),
+    }];
+  }));
+  const next = clone(canonical);
+  next.layout.mobile.areas ??= {};
+  next.layout.mobile.areas[areaId] ??= {};
+  next.layout.mobile.areas[areaId].composition ??= {};
+  next.layout.mobile.areas[areaId].composition.geometry = {
+    version: 1,
+    referenceWidthPx: WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX,
+    heightPx: resolved.geometry.heightPx,
+    readingOrder: clone(resolved.readingOrder),
+    stackOrder: clone(resolved.stackOrder),
+    placements,
+  };
+  try {
+    validateWyrmetizerPage(next, adapters);
+    const initialized = mobileCompositionView(next, areaId, adapters, imageDimensions).areas[areaId];
+    if (JSON.stringify(initialized.geometry) !== JSON.stringify(resolved.geometry))
+      fail("the resolved Mobile layout could not be preserved exactly; check image dimensions and Area bounds");
+  } catch (error) {
+    if (error.message.startsWith("Wyrmetizer Mobile transaction:")) throw error;
+    fail(`cannot customize this Mobile layout safely. ${error.message}`);
+  }
+  return { page: pageShape(next, !!page.wyrmetizerEditorLayout, adapters), changed: true };
+}
+
+/** Begin a Mobile-only x/y placement edit for an explicitly customized Area. */
+export function beginWyrmetizerMobilePlacementTransaction(page, areaId, widgetId, adapters, imageDimensions = {}) {
+  const canonical = canonicalPage(page, adapters);
+  if (canonical.layout.version !== 3 || !canonical.layout.areas[areaId]?.members.includes(widgetId))
+    fail("invalid Mobile Composition placement target");
+  if (!canonical.layout.mobile.areas?.[areaId]?.composition?.geometry)
+    fail("Customize Mobile Layout before editing Mobile placement");
+  const resolved = mobileCompositionView(canonical, areaId, adapters, imageDimensions).areas[areaId];
+  const placement = resolved.geometry.placements[widgetId];
+  return {
+    kind: "wyrmetizer-mobile-placement-transaction",
+    sourcePage: clone(page),
+    pageId: canonical.id,
+    editorProjection: !!page.wyrmetizerEditorLayout,
+    target: { areaId, widgetId },
+    initialValues: { x: placement.xPx, y: placement.yPx },
+    changes: {},
+  };
+}
+
+export function setWyrmetizerMobilePlacementTransactionValue(transaction, axis, value) {
+  if (transaction?.kind !== "wyrmetizer-mobile-placement-transaction") fail("invalid placement transaction");
+  if (!["x", "y"].includes(axis) || !Number.isFinite(value)) fail("Mobile placement must use finite x/y pixel coordinates");
+  return { ...transaction, changes: { ...transaction.changes, [axis]: value } };
+}
+
+export function commitWyrmetizerMobilePlacementTransaction(transaction, adapters, currentPage = transaction?.sourcePage, imageDimensions = {}) {
+  if (transaction?.kind !== "wyrmetizer-mobile-placement-transaction") fail("invalid placement transaction");
+  const changed = Object.keys(transaction.changes).some(axis => transaction.changes[axis] !== transaction.initialValues[axis]);
+  if (!changed) return { page: clone(transaction.sourcePage), changed: false };
+  const next = clone(canonicalPage(currentPage, adapters));
+  if (transaction.pageId !== next.id) fail("page changed during the placement transaction");
+  const { areaId, widgetId } = transaction.target;
+  const geometry = next.layout.mobile?.areas?.[areaId]?.composition?.geometry;
+  if (next.layout.version !== 3 || !next.layout.areas[areaId]?.members.includes(widgetId) || !geometry)
+    fail("Mobile Composition ownership changed during the placement transaction");
+  const placement = geometry.placements[widgetId];
+  for (const axis of ["x", "y"]) {
+    if (Object.hasOwn(transaction.changes, axis))
+      placement[axis] = { value: transaction.changes[axis], unit: "px" };
+  }
+  try {
+    validateWyrmetizerPage(next, adapters);
+    mobileCompositionView(next, areaId, adapters, imageDimensions);
+  } catch (error) {
+    fail(`Mobile placement would exceed the Area bounds. Choose an x/y position that keeps the image inside the Mobile canvas. ${error.message}`);
+  }
+  return { page: pageShape(next, transaction.editorProjection, adapters), changed: true };
+}
+
 /** Start a disposable property-edit transaction from the resolved Mobile value. */
 export function beginWyrmetizerMobileTransaction(page, target, adapters) {
   const canonical = canonicalPage(page, adapters);
@@ -214,8 +321,16 @@ export function resetWyrmetizerMobileMode(page, mode, adapters) {
   }
   for (const area of Object.values(next.layout.mobile.areas || {})) {
     if (Object.hasOwn(area, mode)) {
-      delete area[mode];
-      changed = true;
+      const value = area[mode];
+      if (mode === "composition" && record(value?.geometry)) {
+        for (const key of Object.keys(value)) if (key !== "geometry") {
+          delete value[key];
+          changed = true;
+        }
+      } else {
+        delete area[mode];
+        changed = true;
+      }
     }
   }
   pruneMobile(next);

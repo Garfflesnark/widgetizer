@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { compositionAdapters } from "../compositionImage.js";
-import { convertWyrmetizerPageToV3, createWyrmetizerCopy, switchWyrmetizerMode } from "../wyrmetizerLayouts.js";
+import { convertWyrmetizerPageToV3, createWyrmetizerCopy, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage, switchWyrmetizerMode } from "../wyrmetizerLayouts.js";
 import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
 import {
   beginWyrmetizerMobileTransaction,
   cancelWyrmetizerMobileTransaction,
   commitWyrmetizerMobileTransaction,
+  customizeWyrmetizerMobileComposition,
+  beginWyrmetizerMobilePlacementTransaction,
+  setWyrmetizerMobilePlacementTransactionValue,
+  commitWyrmetizerMobilePlacementTransaction,
   resetWyrmetizerMobileMode,
   resetWyrmetizerMobileWidget,
   setWyrmetizerMobileTransactionValue,
@@ -183,6 +187,87 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(() => resolveWyrmetizerPresentation(invalid, 1200, { imageDimensions: {
       a: { width: 300, height: 200 }, b: { width: 300, height: 200 },
     } })).toThrow(/exceeds Area canvas bounds/);
+  });
+
+  it("customizes Mobile Composition placement from the resolved appearance and isolates later Desktop movement", () => {
+    const page = v3();
+    const dimensions = { a: { width: 300, height: 200 }, b: { width: 300, height: 300 } };
+    const before = structuredClone(page);
+    const mobileBefore = resolveWyrmetizerPresentation(page, 390, { imageDimensions: dimensions });
+    const desktopBefore = resolveWyrmetizerPresentation(page, 1200, { imageDimensions: dimensions });
+    const flowSwitch = switchWyrmetizerMode(page, "canvas", "flow", adapters);
+    expect(flowSwitch.layout.mobile.areas).toBeUndefined();
+    expect(switchWyrmetizerMode(flowSwitch, "canvas", "composition", adapters).layout.mobile.areas).toBeUndefined();
+
+    const initialized = customizeWyrmetizerMobileComposition(page, "canvas", adapters, dimensions);
+    expect(initialized.changed).toBe(true);
+    expect(page).toEqual(before);
+    expect(initialized.page.layout.areas).toEqual(before.layout.areas);
+    expect(resolveWyrmetizerPresentation(initialized.page, 390, { imageDimensions: dimensions }).areas.canvas.geometry)
+      .toEqual(mobileBefore.areas.canvas.geometry);
+    expect(resolveWyrmetizerPresentation(initialized.page, 1200, { imageDimensions: dimensions })).toEqual(desktopBefore);
+
+    const reloaded = JSON.parse(JSON.stringify(initialized.page));
+    const customizedDesktop = structuredClone(reloaded.layout.areas.canvas.composition.geometry);
+    customizedDesktop.placements.a.frames.desktop.x = 0.24;
+    customizedDesktop.placements.a.frames.desktop.y = 0.31;
+    reloaded.layout.areas.canvas.composition.geometry = customizedDesktop;
+    expect(resolveWyrmetizerPresentation(reloaded, 390, { imageDimensions: dimensions }).areas.canvas.geometry)
+      .toEqual(mobileBefore.areas.canvas.geometry);
+    expect(resolveWyrmetizerPresentation(reloaded, 1200, { imageDimensions: dimensions }).areas.canvas.geometry.placements.a.xPx)
+      .toBe(288);
+    expect(serializeWyrmetizerEditorPage(openWyrmetizerEditorPage(reloaded, adapters), adapters)).toEqual(reloaded);
+  });
+
+  it("edits customized Mobile placement independently, preserves Mobile size and rejects invalid edits atomically", () => {
+    const page = v3();
+    const dimensions = { a: { width: 300, height: 200 }, b: { width: 300, height: 300 } };
+    const initialized = customizeWyrmetizerMobileComposition(page, "canvas", adapters, dimensions).page;
+    const before = structuredClone(initialized);
+    const desktopBefore = resolveWyrmetizerPresentation(initialized, 1200, { imageDimensions: dimensions });
+    let transaction = beginWyrmetizerMobilePlacementTransaction(initialized, "canvas", "b", adapters, dimensions);
+    transaction = setWyrmetizerMobilePlacementTransactionValue(transaction, "x", 120);
+    transaction = setWyrmetizerMobilePlacementTransactionValue(transaction, "y", 80);
+    const edited = commitWyrmetizerMobilePlacementTransaction(transaction, adapters, initialized, dimensions);
+
+    expect(edited.changed).toBe(true);
+    expect(initialized).toEqual(before);
+    expect(edited.page.layout.areas).toEqual(before.layout.areas);
+    expect(resolveWyrmetizerPresentation(edited.page, 1200, { imageDimensions: dimensions })).toEqual(desktopBefore);
+    expect(resolveWyrmetizerPresentation(edited.page, 390, { imageDimensions: dimensions }).areas.canvas.geometry.placements.b)
+      .toMatchObject({ xPx: 120, yPx: 80, rect: { width: 100, height: 70 } });
+
+    const sizeTransaction = beginWyrmetizerMobileTransaction(edited.page,
+      { areaId: "canvas", mode: "composition", widgetId: "b" }, adapters);
+    const mobileSize = structuredClone(sizeTransaction.initialValues.image_transform);
+    mobileSize.dimensions.width.value = 80;
+    const resized = commitWyrmetizerMobileTransaction(
+      setWyrmetizerMobileTransactionValue(sizeTransaction, "image_transform", mobileSize), adapters, edited.page, dimensions,
+    );
+    expect(resolveWyrmetizerPresentation(resized.page, 390, { imageDimensions: dimensions }).areas.canvas.geometry.placements.b)
+      .toMatchObject({ xPx: 120, yPx: 80, rect: { width: 80, height: 70 } });
+    expect(resolveWyrmetizerPresentation(resized.page, 1200, { imageDimensions: dimensions })).toEqual(desktopBefore);
+
+    let invalid = beginWyrmetizerMobilePlacementTransaction(resized.page, "canvas", "b", adapters, dimensions);
+    invalid = setWyrmetizerMobilePlacementTransactionValue(invalid, "x", 350);
+    const unchanged = structuredClone(resized.page);
+    expect(() => commitWyrmetizerMobilePlacementTransaction(invalid, adapters, resized.page, dimensions))
+      .toThrow(/Mobile placement would exceed the Area bounds/);
+    expect(resized.page).toEqual(unchanged);
+  });
+
+  it("rejects unsafe Mobile initialization without mutating the Desktop-valid source page", () => {
+    const page = v3();
+    page.layout.areas.canvas.composition.geometry.placements.a.frames.desktop.x = 0.35;
+    page.layout.areas.canvas.composition.presentation.a.image_transform.dimensions = {
+      width: { unit: "px", value: 300 }, height: { unit: "px", value: 200 },
+    };
+    const before = structuredClone(page);
+    expect(() => customizeWyrmetizerMobileComposition(page, "canvas", adapters, {
+      a: { width: 300, height: 200 }, b: { width: 300, height: 300 },
+    })).toThrow(/cannot customize this Mobile layout safely.*exceeds Area canvas bounds/);
+    expect(page).toEqual(before);
+    expect(page.layout.mobile.areas?.canvas?.composition?.geometry).toBeUndefined();
   });
 
   it("does not mutate or serialize derived values back to canonical settings", () => {
@@ -380,6 +465,11 @@ describe("Wyrmetizer presentation resolver", () => {
     expect(mode.page.layout.mobile.areas.canvas.flow).toBeUndefined();
     expect(mode.page.layout.mobile.areas.canvas.composition.geometry.heightPx).toBe(400);
     expect(mode.page.layout.mobile.areas.canvas.composition.presentation.b.top_spacing_px).toBe(12);
+    const resetComposition = resetWyrmetizerMobileMode(mode.page, "composition", adapters);
+    expect(resetComposition.changed).toBe(true);
+    expect(resetComposition.page.layout.mobile.areas.canvas.composition.geometry)
+      .toEqual(mode.page.layout.mobile.areas.canvas.composition.geometry);
+    expect(resetComposition.page.layout.mobile.areas.canvas.composition.presentation).toBeUndefined();
   });
 
   it("rejects bad paths, values and unsupported versions atomically", () => {

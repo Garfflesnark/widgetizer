@@ -41,6 +41,8 @@ import {
   resetMobilePresentationProperty,
   resetMobileWidgetPresentation,
   resetMobileModePresentation,
+  customizeMobileCompositionLayout,
+  setMobileCompositionPlacement,
 } from "../compositionActions";
 beforeEach(() => {
   const page = fixture();
@@ -267,6 +269,46 @@ it("rejects a transferred Mobile size that exceeds bounds before changing editor
   expect(usePageStore.getState().page).toEqual(before);
   expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
   expect(useAutoSave.getState().structureModified).toBe(false);
+});
+it("customizes Mobile placement as one undoable action and keeps Desktop independent through save/reload", () => {
+  const { canonical, editor } = v3WithStandaloneImage({ fullwidth: false });
+  usePageStore.getState().setPage(editor);
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false, modifiedWidgets: new Set() });
+  const mobileBefore = resolveWyrmetizerPresentation(canonical, 390);
+  const desktopBefore = resolveWyrmetizerPresentation(canonical, 750);
+
+  expect(customizeMobileCompositionLayout("canvas")).toBe(true);
+  let saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(saved.layout.mobile.areas.canvas.composition.geometry).toBeDefined();
+  expect(resolveWyrmetizerPresentation(saved, 390).areas.canvas.geometry).toEqual(mobileBefore.areas.canvas.geometry);
+  expect(resolveWyrmetizerPresentation(saved, 750)).toEqual(desktopBefore);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+
+  usePageStore.temporal.getState().undo();
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.mobile.areas?.canvas?.composition?.geometry).toBeUndefined();
+  usePageStore.temporal.getState().redo();
+  expect(setMobileCompositionPlacement("canvas", "a", "x", 100)).toBe(true);
+  saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(saved.layout.mobile.areas.canvas.composition.geometry.placements.a.x).toEqual({ value: 100, unit: "px" });
+  expect(resolveWyrmetizerPresentation(saved, 750)).toEqual(desktopBefore);
+  expect(serializeWyrmetizerEditorPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(saved)), compositionAdapters), compositionAdapters)).toEqual(saved);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(2);
+  expect(useAutoSave.getState().structureModified).toBe(true);
+
+  const beforeInvalid = structuredClone(usePageStore.getState().page);
+  expect(() => setMobileCompositionPlacement("canvas", "a", "x", 350))
+    .toThrow(/Mobile placement would exceed the Area bounds/);
+  expect(usePageStore.getState().page).toEqual(beforeInvalid);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(2);
+
+  const after = structuredClone(usePageStore.getState().page);
+  usePageStore.temporal.getState().undo();
+  expect(serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters).layout.mobile.areas.canvas.composition.geometry.placements.a.x)
+    .not.toEqual({ value: 100, unit: "px" });
+  usePageStore.temporal.getState().redo();
+  expect(usePageStore.getState().page).toEqual(after);
 });
 it("does not silently create paired geometry on an older Flow page", () => {
   const page = structuredClone(usePageStore.getState().page);

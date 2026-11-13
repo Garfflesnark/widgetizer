@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { initializeWyrmetizerPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { convertWyrmetizerPageToV3, initializeWyrmetizerPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { fixture } from "../../../../../core/src/runtime/__tests__/compositionFixture.js";
 import schema from "../../../../../../themes/arch/widgets/image/schema.json";
@@ -133,6 +133,28 @@ it("offers the recovered checkboxes in an existing area's Flow view and adds wit
   act(() => usePageStore.temporal.getState().redo()); expect(usePageStore.getState().page).toEqual(afterPage);
   act(() => usePageStore.getState().setPage(JSON.parse(JSON.stringify(page))));
   expect(saved()).toEqual(page);
+});
+
+it("requires explicit Mobile layout customization before exposing independent placement controls", () => {
+  const { rerender } = render(<CompositionControls widgetId="a" />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
+  const areaId = Object.keys(saved().layout.areas)[0];
+  usePageStore.getState().setPage(convertWyrmetizerPageToV3(saved(), compositionAdapters));
+  usePageStore.temporal.getState().clear();
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  rerender(<CompositionControls compositionId={areaId} widgetId="a" />);
+
+  expect(screen.getByRole("button", { name: "Customize Mobile Layout" })).toBeTruthy();
+  expect(screen.queryByLabelText("Mobile X position")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Customize Mobile Layout" }));
+  expect(saved().layout.mobile.areas[areaId].composition.geometry).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Customize Mobile Layout" })).toBeNull();
+
+  const x = screen.getByLabelText("Mobile X position");
+  fireEvent.change(x, { target: { value: "50" } });
+  fireEvent.blur(x);
+  expect(saved().layout.mobile.areas[areaId].composition.geometry.placements.a.x).toEqual({ value: 50, unit: "px" });
 });
 
 it("does not relax legacy-page gating for Images without explicit sizing", () => {
