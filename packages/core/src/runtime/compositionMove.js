@@ -1,4 +1,4 @@
-import { compositionContext, applyCompositionRect, compositionFrame, unrotatedCompositionRect } from "./compositionDOM.js";
+import { compositionContext, applyCompositionPosition, compositionFrame, unrotatedCompositionRect } from "./compositionDOM.js";
 import { rotatedBounds } from "./rotationGeometry.js";
 import { activeWidget } from "./responsiveDOM.js";
 
@@ -24,7 +24,7 @@ export function createCompositionMoveController({
   };
   const draw = () => {
     raf = null;
-    if (gesture) applyCompositionRect(gesture.context, gesture.rect);
+    if (gesture) applyCompositionPosition(gesture.context, gesture.rect);
     onPreview();
   };
   const finish = (commit) => {
@@ -44,7 +44,7 @@ export function createCompositionMoveController({
       releaseTimer = view.setTimeout(clearReleaseClick, 500);
     }
     if (commit && changed) {
-      applyCompositionRect(g.context, g.rect);
+      applyCompositionPosition(g.context, g.rect);
       onCommit({
         widgetId: g.widgetId,
         compositionId: g.context.area.dataset.compositionId,

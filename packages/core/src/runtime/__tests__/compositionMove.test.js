@@ -8,7 +8,7 @@ function pointer(type, x, y, target = document) {
   target.dispatchEvent(e);
 }
 beforeEach(() => {
-  document.body.innerHTML = `<section data-composition-id="c" data-composition-width="1200" data-composition-height="800"><div data-composition-child="a" data-composition-frame='{"x":0.1,"y":0.1,"pivot":{"x":0,"y":0}}'><section data-widget-id="a"><div data-image-resize-target><img></div></section></div></section><div id="wz-selection-overlay"><button data-composition-move="a">Move image</button></div>`;
+  document.body.innerHTML = `<section data-composition-id="c" data-composition-width="1200" data-composition-height="800"><div data-composition-child="a" data-composition-frame='{"x":0.1,"y":0.1,"pivot":{"x":0,"y":0}}' style="left:10%;top:15%;width:25%;height:25%"><section data-widget-id="a"><div data-image-resize-target><img></div></section></div></section><div id="wz-selection-overlay"><button data-composition-move="a">Move image</button></div>`;
   document.querySelector("[data-composition-id]").getBoundingClientRect = () => ({
     left: 0,
     top: 50,
@@ -38,6 +38,29 @@ it("moves independently, constrains canvas bounds and commits once on release", 
   expect(commit.mock.calls[0][0].frame).toEqual({ x: 0.75, y: 0.5, pivot: { x: 0, y: 0 } });
   expect(commit.mock.calls[0][0].startFrame.x).toBe(0.1);
 });
+it("keeps the authored Composition child size when the rendered widget has fractional dimensions", () => {
+  const child = document.querySelector("[data-composition-child]");
+  child.style.cssText = "left:10%;top:15%;width:25%;height:25%";
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { callback(); return 1; });
+  document.querySelector("[data-widget-id]").getBoundingClientRect = () => ({
+    left: 120,
+    top: 170,
+    width: 299.5,
+    height: 199.5,
+  });
+
+  pointer("pointerdown", 120, 170, document.querySelector("img"));
+  pointer("pointermove", 220, 270);
+  expect(child.style.width).toBe("25%");
+  expect(child.style.height).toBe("25%");
+  pointer("pointerup", 220, 270);
+
+  expect(child.style.width).toBe("25%");
+  expect(child.style.height).toBe("25%");
+  expect(child.style.left).not.toBe("10%");
+  expect(child.style.top).not.toBe("15%");
+  expect(commit).toHaveBeenCalledTimes(1);
+});
 it("retains a committed angle and pivot when dragging a rotated image", () => {
   const child = document.querySelector("[data-composition-child]");
   const frame = { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 }, rotation: 37.25, rotationPivot: { x: 0.2, y: 0.8 } };
@@ -58,7 +81,7 @@ it.each(["pointercancel", "lostpointercapture", "Escape"])(
     if (reason === "Escape") document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     else pointer(reason, 500, 400);
     expect(commit).not.toHaveBeenCalled();
-    expect(document.querySelector("[data-composition-child]").getAttribute("style")).toBeNull();
+    expect(document.querySelector("[data-composition-child]").getAttribute("style")).toBe("left:10%;top:15%;width:25%;height:25%");
   },
 );
 it("clicks below threshold and generated mobile have no gesture history", () => {

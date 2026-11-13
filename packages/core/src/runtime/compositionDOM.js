@@ -28,6 +28,11 @@ export function applyCompositionRect(context, rect) {
     transformOrigin: `${100 * (context.frame.rotationPivot?.x ?? 0.5)}% ${100 * (context.frame.rotationPivot?.y ?? 0.5)}%`,
   });
 }
+export function applyCompositionPosition(context, rect) {
+  const { child, width, height } = context;
+  child.style.left = `${(100 * rect.left) / width}%`;
+  child.style.top = `${(100 * rect.top) / height}%`;
+}
 export function resolvedCompositionRect(context, size) {
   return compositionRect(context.frame, size.width, size.height, context.width);
 }
