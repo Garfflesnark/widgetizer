@@ -521,6 +521,26 @@ it("reconciles canvas height alone without moving or resizing composition images
   }
 });
 
+it("does not reapply Desktop image dimensions when a Composition sync changes only placement", () => {
+  const { child, frame, model } = compositionFixture("px", "px");
+  const sizes = { w1: { width: 100, height: 0, transform: model } };
+  const widthSetter = vi.spyOn(child.style, "width", "set");
+  const heightSetter = vi.spyOn(child.style, "height", "set");
+  const movedFrame = { ...frame, x: 0.4, y: 0.2 };
+  child.dataset.compositionFrame = JSON.stringify(movedFrame);
+  child.style.left = "40%";
+  child.style.top = "25%";
+  widthSetter.mockClear();
+  heightSetter.mockClear();
+
+  controller.setSizes(sizes);
+
+  expect(child.style.left).toBe("40%");
+  expect(child.style.top).toBe("25%");
+  expect(widthSetter).not.toHaveBeenCalled();
+  expect(heightSetter).not.toHaveBeenCalled();
+});
+
 it("uses Composition reference width while preserving proportional viewport scaling", () => {
   const { area, child, model } = compositionFixture();
   preview.mockImplementation(() => {});

@@ -138,6 +138,50 @@ it("synchronizes the authored Desktop frame and revision used by transaction val
   expect(usePageStore.getState().page.layout.compositions.canvas.placements.a.frames.desktop.rotation).toBe(25);
 });
 
+it.each([false, true])("keeps Desktop movement size independent of Mobile customization (customized: %s)", customized => {
+  let canonical = pageV3();
+  if (customized) {
+    canonical.layout.mobile.areas = { canvas: { composition: { geometry: {
+      version: 1, referenceWidthPx: 390, heightPx: 500, readingOrder: ["a", "b"], stackOrder: ["a", "b"],
+      placements: {
+        a: { x: { value: 20, unit: "px" }, y: { value: 20, unit: "px" }, pivot: { x: 0, y: 0 } },
+        b: { x: { value: 20, unit: "px" }, y: { value: 260, unit: "px" }, pivot: { x: 0, y: 0 } },
+      },
+    } } } };
+    const mobileTransform = structuredClone(canonical.layout.areas.canvas.composition.presentation.a.image_transform);
+    mobileTransform.dimensions = { width: { unit: "%", value: 40 }, height: { unit: "%", value: null } };
+    canonical.layout.mobile.areas.canvas.composition.presentation = { a: { image_transform: mobileTransform } };
+  }
+  const page = openWyrmetizerEditorPage(canonical, compositionAdapters);
+  configure(page, Object.fromEntries(["a", "b"].map(id => [id, {
+    imageSource: "/uploads/images/photo.jpg", naturalWidth: 300, naturalHeight: 200,
+    width: 300, height: 200, containerWidth: 1200,
+  }])));
+  useWidgetStore.setState({ compositionContext: "desktop", selectedWidgetId: "a", selectedBlockId: null });
+  const { postMessage, iframeRef } = harness();
+  render(<SelectionOverlay iframeRef={iframeRef} />);
+  const sync = postMessage.mock.calls.map(([message]) => message).find(message => message.type === "COMPOSITION_SYNC");
+  const before = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  const mobileOwned = structuredClone(before.layout.mobile?.areas?.canvas || null);
+  const frame = structuredClone(sync.resolvedPresentation.areas.canvas.placements.a.frame);
+  const moved = { ...frame, x: frame.x + 0.04, y: frame.y + 0.02 };
+  const event = new Event("message");
+  Object.assign(event, { source: iframeRef.current.contentWindow, origin: getPreviewTargetOrigin(), data: {
+    type: "COMPOSITION_MOVE", payload: { widgetId: "a", compositionId: "canvas", interactionContext: sync.context,
+      startRevision: sync.revisions.a, startFrame: frame, frame: moved,
+      presentation: sync.presentation, presentationEpoch: sync.presentationEpoch, syncRevision: sync.syncRevision },
+  } });
+  act(() => window.dispatchEvent(event));
+
+  const after = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  const latestSync = postMessage.mock.calls.map(([message]) => message).filter(message => message.type === "COMPOSITION_SYNC").at(-1);
+  expect(after.layout.areas.canvas.composition.geometry.placements.a.frames.desktop).toMatchObject({ x: moved.x, y: moved.y });
+  expect(after.layout.mobile?.areas?.canvas || null).toEqual(mobileOwned);
+  expect(latestSync.sizes.a.transform).toEqual(before.layout.areas.canvas.composition.presentation.a.image_transform);
+  expect(latestSync.resolvedPresentation.areas.canvas.placements.a.rect.width)
+    .toBe(sync.resolvedPresentation.areas.canvas.placements.a.rect.width);
+});
+
 it("coalesces delayed matching natural dimensions into one responsive sync without editing the page", async () => {
   const page = pageV3();
   page.layout.areas.canvas.composition.geometry.placements.b.frames.desktop.x = 0;

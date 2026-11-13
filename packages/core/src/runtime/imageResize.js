@@ -360,7 +360,10 @@ export function createImageResizeController({ document, onCommit, onPreview, onC
         const composition = compositionContext(widget);
         // Applied pixel dimensions depend on the current reference as well as authored values.
         const basis = isImageTransform(size.transform) ? reference(widget) : null;
-        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing, composition?.frame, composition?.height, basis]);
+        // Composition placement is reconciled by COMPOSITION_SYNC. Reapplying
+        // image sizing for a position-only frame change can briefly overwrite
+        // its already-resolved rect with dimensions measured in this iframe.
+        const key = JSON.stringify([size.width, twoAxes ? size.height : "auto", size.transform || null, size.spacing, composition?.height, basis]);
         if (!force && canonicalSizes.get(widgetId) === key) continue;
         if (gesture?.widgetId === widgetId) finish(false);
         if (draft?.widgetId === widgetId || spacingDraft?.widgetId === widgetId) cancelDraft();
