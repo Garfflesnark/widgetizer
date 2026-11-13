@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { initializeWyrmetizerPage, createWyrmetizerCopy, serializeWyrmetizerEditorPage, resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { initializeWyrmetizerPage, createWyrmetizerCopy, convertWyrmetizerPageToV3, serializeWyrmetizerEditorPage, resolveWyrmetizerPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { fixture } from "../../../../../core/src/runtime/__tests__/compositionFixture.js";
 import schema from "../../../../../../themes/arch/widgets/image/schema.json";
@@ -171,6 +171,56 @@ function authoredArea(mode) {
   usePageStore.getState().setPage(page);
   usePageStore.temporal.getState().clear();
 }
+it("exposes Mobile customization from the mounted selected-Area panel and initializes the existing transaction", () => {
+  authoredArea("flow");
+  const responsive = convertWyrmetizerPageToV3(saved(), compositionAdapters);
+  for (const id of ["a", "b"]) responsive.layout.areas.canvas.composition.presentation[id].image_transform.dimensions = {
+    width: { unit: "px", value: 100 }, height: { unit: "px", value: 70 },
+  };
+  usePageStore.getState().setPage(responsive);
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  const { rerender } = render(<Editor />);
+
+  fireEvent.click(within(areaRegion("canvas")).getByRole("button", { name: "Composition Area" }));
+  expect(screen.getByRole("button", { name: "Customize Mobile Layout" })).toBeVisible();
+  const desktopGeometry = structuredClone(saved().layout.areas.canvas.composition.geometry);
+  const flow = structuredClone(saved().layout.areas.canvas.flow);
+  fireEvent.click(screen.getByRole("button", { name: "Customize Mobile Layout" }));
+  expect(saved().layout.mobile.areas.canvas.composition.geometry).toBeDefined();
+  expect(saved().layout.areas.canvas.composition.geometry).toEqual(desktopGeometry);
+  expect(saved().layout.areas.canvas.flow).toEqual(flow);
+  expect(screen.getByText(/Mobile Composition layout is customized/)).toBeVisible();
+
+  act(() => {
+    useWidgetStore.getState().setCompositionContext("desktop");
+    switchPairedCompositionMode("canvas", "composition");
+    useWidgetStore.getState().setCompositionContext("mobile");
+  });
+  rerender(<Editor />);
+  fireEvent.click(within(areaRegion("canvas")).getByRole("button", { name: "Alpha" }));
+  expect(screen.getByLabelText("Mobile X position")).toBeVisible();
+  expect(screen.getByLabelText("Mobile Y position")).toBeVisible();
+});
+
+it("explains why an empty v3 Area cannot customize Mobile placement", () => {
+  createEmptyCompositionArea();
+  const areaId = useWidgetStore.getState().selectedCompositionId;
+  usePageStore.getState().setPage(convertWyrmetizerPageToV3(saved(), compositionAdapters));
+  useWidgetStore.setState({ compositionContext: "mobile", selectedCompositionId: areaId });
+  render(<Editor />);
+
+  const customize = screen.getByRole("button", { name: "Customize Mobile Layout" });
+  expect(customize).toBeDisabled();
+  expect(screen.getByText("Add an Image to this Area before customizing its Mobile layout.")).toBeVisible();
+});
+it("keeps the v2 Mobile customization action visible but disabled with its version requirement", () => {
+  authoredArea("composition");
+  useWidgetStore.setState({ compositionContext: "mobile", selectedCompositionId: "canvas" });
+  render(<Editor />);
+
+  expect(screen.getByRole("button", { name: "Customize Mobile Layout" })).toBeDisabled();
+  expect(screen.getByText("This action requires a v3 responsive page. The control does not upgrade the page.")).toBeVisible();
+});
 function expectClonedArea(before, newId) {
   const next = saved(), old = before.layout.areas.canvas, copy = next.layout.areas[newId];
   expect(newId).not.toBe("canvas");
