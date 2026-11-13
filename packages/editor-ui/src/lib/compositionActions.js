@@ -1,6 +1,6 @@
 import { orderingControls } from "@widgetizer/core/orderingControls";
 import { normalizeAngle, rebaseRotationPivot, validRotationPivot, centerRotationPivot } from "@widgetizer/core/rotationGeometry";
-import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget, resolveWyrmetizerPage, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX } from "@widgetizer/core/wyrmetizerLayouts";
+import { serializeWyrmetizerEditorPage, switchWyrmetizerMode, createWyrmetizerComposition, openWyrmetizerEditorPage, includeWyrmetizerWidgets, removeWyrmetizerWidget, createEmptyWyrmetizerComposition, deleteWyrmetizerComposition, deleteWyrmetizerWidget, resolveWyrmetizerPage, convertWyrmetizerPageToV3, WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX } from "@widgetizer/core/wyrmetizerLayouts";
 import { resolveWyrmetizerPresentation } from "@widgetizer/core/wyrmetizerPresentation";
 import {
   changeStack,
@@ -122,6 +122,15 @@ export function commitCompositionPage(next) {
   store.beginHistoryStep();
   useAutoSave.getState().setStructureModified(true);
   return true;
+}
+
+export function createResponsiveLayoutV3() {
+  const page = usePageStore.getState().page;
+  const canonical = serializeWyrmetizerEditorPage(page, compositionAdapters);
+  if (canonical?.layout?.version !== 2) return false;
+  const next = convertWyrmetizerPageToV3(canonical, compositionAdapters);
+  if (next === canonical) return false;
+  return commitCompositionPage(openWyrmetizerEditorPage(next, compositionAdapters));
 }
 
 function editorPageForMobileTransaction(page) {

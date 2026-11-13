@@ -23,6 +23,7 @@ import {
   resetMobileModePresentation,
   customizeMobileCompositionLayout,
   setMobileCompositionPlacement,
+  createResponsiveLayoutV3,
 } from "../../lib/compositionActions";
 
 export default function CompositionControls({ widgetId, compositionId, blockSelected = false }) {
@@ -69,6 +70,10 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
   };
   const button =
     "shadow-sm shadow-slate-100 hover:shadow-lg hover:shadow-slate-100 aria-pressed:ring-2 aria-pressed:ring-pink-200 aria-pressed:shadow-lg aria-pressed:shadow-pink-100 border border-slate-200 rounded-md px-3 py-2 text-xs text-pink-700 hover:bg-pink-50 focus-visible:outline-2 focus-visible:outline-pink-600 aria-pressed:bg-pink-50 aria-pressed:border-pink-500 disabled:opacity-40 break-words";
+  const responsiveLayoutControl = page?.wyrmetizerEditorLayout?.version === 2 && <div className="space-y-2">
+    <p className="form-description">Add Mobile responsive metadata to this page. Existing Desktop layout and content are preserved; this change can be undone.</p>
+    <button className={button} onClick={() => run(createResponsiveLayoutV3)}>Create Responsive Layout (v3)</button>
+  </div>;
   const mobileLayoutControl = context !== "mobile" || !paired ? null : mobileGeometryCustomized
     ? <p role="status" className="form-description">Mobile Composition layout is customized. Its saved positions apply when this Area uses Composition.</p>
     : <div className="space-y-2">
@@ -78,7 +83,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
       </button>
       {!mobileLayoutEligible && <p className="form-description">
         {page?.wyrmetizerEditorLayout?.version !== 3
-          ? "This action requires a v3 responsive page. The control does not upgrade the page."
+          ? "Create Responsive Layout (v3) above to enable Mobile layout customization. The page is not upgraded automatically."
           : "Add an Image to this Area before customizing its Mobile layout."}
       </p>}
     </div>;
@@ -123,6 +128,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
       >
         <strong className="block text-sm font-semibold text-slate-900">Composition Area</strong>
         <p className="form-description">Flow arrangement active. Your Composition arrangement is preserved.</p>
+        {responsiveLayoutControl}
         {mobileArea && <p className="form-description">Mobile Flow · Area order editing is unsupported in this stage.</p>}
         {mobileLayoutControl}
         {mobileArea && compositionId && <button className={button} onClick={() => run(() => resetMobileModePresentation("flow"))}>Reset Current Mobile Mode</button>}
@@ -153,6 +159,7 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
         {found ? "Composition Area" : "Create Composition Area"}
       </strong>
       {!page?.wyrmetizerEditorLayout && <WyrmetizerCompatibility page={page} />}
+      {responsiveLayoutControl}
       {found ? (
         <>
           <p className="form-description">

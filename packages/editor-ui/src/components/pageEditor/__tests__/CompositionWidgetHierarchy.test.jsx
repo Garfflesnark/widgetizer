@@ -224,13 +224,14 @@ it("explains why an empty v3 Area cannot customize Mobile placement", () => {
   expect(customize).toBeDisabled();
   expect(screen.getByText("Add an Image to this Area before customizing its Mobile layout.")).toBeVisible();
 });
-it("keeps the v2 Mobile customization action visible but disabled with its version requirement", () => {
+it("keeps v2 Mobile customization disabled and exposes explicit v3 creation", () => {
   authoredArea("composition");
   useWidgetStore.setState({ compositionContext: "mobile", selectedCompositionId: "canvas" });
   render(<Editor />);
 
   expect(screen.getByRole("button", { name: "Customize Mobile Layout" })).toBeDisabled();
-  expect(screen.getByText("This action requires a v3 responsive page. The control does not upgrade the page.")).toBeVisible();
+  expect(screen.getByText("Create Responsive Layout (v3) above to enable Mobile layout customization. The page is not upgraded automatically.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Create Responsive Layout (v3)" })).toBeVisible();
 });
 function expectClonedArea(before, newId) {
   const next = saved(), old = before.layout.areas.canvas, copy = next.layout.areas[newId];

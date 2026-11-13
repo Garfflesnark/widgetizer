@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { convertWyrmetizerPageToV3, initializeWyrmetizerPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
+import { convertWyrmetizerPageToV3, initializeWyrmetizerPage, openWyrmetizerEditorPage, serializeWyrmetizerEditorPage } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 import { fixture } from "../../../../../core/src/runtime/__tests__/compositionFixture.js";
 import schema from "../../../../../../themes/arch/widgets/image/schema.json";
@@ -155,6 +155,50 @@ it("requires explicit Mobile layout customization before exposing independent pl
   fireEvent.change(x, { target: { value: "50" } });
   fireEvent.blur(x);
   expect(saved().layout.mobile.areas[areaId].composition.geometry.placements.a.x).toEqual({ value: 50, unit: "px" });
+});
+
+it("creates v3 through the editor, then supports Area customization with Undo/Redo and reload", () => {
+  const before = structuredClone(saved());
+  const { rerender } = render(<CompositionControls widgetId="a" />);
+  expect(saved()).toEqual(before);
+  fireEvent.click(screen.getByRole("button", { name: "Create Responsive Layout (v3)" }));
+  const responsive = structuredClone(saved());
+  expect(responsive.layout.version).toBe(3);
+  expect(responsive.layout.mobile).toEqual({ referenceWidthPx: 390 });
+  expect(responsive.layout.areas).toEqual(before.layout.areas);
+  expect(responsive.widgets).toEqual(before.widgets);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  act(() => usePageStore.temporal.getState().undo());
+  expect(saved()).toEqual(before);
+  act(() => usePageStore.temporal.getState().redo());
+  expect(saved()).toEqual(responsive);
+
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
+  const areaId = Object.keys(saved().layout.areas)[0];
+  expect(saved().layout.version).toBe(3);
+  const desktopGeometry = structuredClone(saved().layout.areas[areaId].composition.geometry);
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  rerender(<CompositionControls compositionId={areaId} widgetId="a" />);
+  expect(screen.getByRole("button", { name: "Customize Mobile Layout" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Customize Mobile Layout" }));
+  const initialMobileGeometry = structuredClone(saved().layout.mobile.areas[areaId].composition.geometry);
+  const customize = screen.getByLabelText("Mobile X position");
+  fireEvent.change(customize, { target: { value: "50" } });
+  fireEvent.blur(customize);
+  expect(saved().layout.mobile.areas[areaId].composition.geometry.placements.a.x).toEqual({ value: 50, unit: "px" });
+  expect(saved().layout.areas[areaId].composition.geometry).toEqual(desktopGeometry);
+  const placedMobileGeometry = structuredClone(saved().layout.mobile.areas[areaId].composition.geometry);
+  act(() => usePageStore.temporal.getState().undo());
+  expect(saved().layout.mobile.areas[areaId].composition.geometry).toEqual(initialMobileGeometry);
+  act(() => usePageStore.temporal.getState().redo());
+  expect(saved().layout.mobile.areas[areaId].composition.geometry).toEqual(placedMobileGeometry);
+
+  const finalPage = structuredClone(saved());
+  act(() => usePageStore.getState().setPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(finalPage)), compositionAdapters)));
+  rerender(<CompositionControls compositionId={areaId} widgetId="a" />);
+  expect(saved()).toEqual(finalPage);
+  expect(screen.getByLabelText("Mobile X position")).toBeVisible();
 });
 
 it("does not relax legacy-page gating for Images without explicit sizing", () => {
