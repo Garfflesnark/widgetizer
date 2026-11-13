@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { fixture } from "../../../../core/src/runtime/__tests__/compositionFixture.js";
-import { isCompositionGeometryOnlyChange } from "../compositionPreview";
+import { isCompositionGeometryOnlyChange, requiresPreviewRegeneration } from "../compositionPreview";
 import { createEmptyWyrmetizerComposition, initializeWyrmetizerPage, openWyrmetizerEditorPage, switchWyrmetizerMode } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
 
@@ -39,4 +39,26 @@ it.each(["source", "overflow", "block order", "theme"])("retains rendering for %
   if (action === "block order") after.page.layout.contentOrder.reverse();
   if (action === "theme") after.themeSettings = { color: "pink" };
   expect(isCompositionGeometryOnlyChange(before, after)).toBe(false);
+});
+
+it("keeps v3 Composition geometry updates in the current preview while retaining full renders for content or structure", () => {
+  const before = state(), after = structuredClone(before);
+  for (const value of [before, after]) value.page.wyrmetizerEditorLayout = { version: 3, areas: { canvas: { activeMode: "composition" } } };
+  after.page.layout.compositions.canvas.placements.a.frames.desktop.x = 0.6;
+  after.widgets = after.page.widgets;
+  expect(isCompositionGeometryOnlyChange(before, after)).toBe(true);
+  expect(requiresPreviewRegeneration(after, before, false, true)).toBe(false);
+
+  const content = structuredClone(after);
+  content.widgets.a.settings.image = "/uploads/other.png";
+  content.page.widgets = content.widgets;
+  expect(requiresPreviewRegeneration(content, after, false, true)).toBe(true);
+
+  const structure = structuredClone(after);
+  structure.page.layout.contentOrder.reverse();
+  expect(requiresPreviewRegeneration(structure, after, true, true)).toBe(true);
+
+  const responsiveChange = structuredClone(after);
+  responsiveChange.page.wyrmetizerEditorLayout.areas.canvas.mobile = { independent: true };
+  expect(requiresPreviewRegeneration(responsiveChange, after, false, true)).toBe(true);
 });

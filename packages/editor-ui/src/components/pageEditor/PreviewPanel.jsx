@@ -1,6 +1,6 @@
 import GeometryRecorderPanel from "./GeometryRecorderPanel";
 import { orderingControls } from "@widgetizer/core/orderingControls";
-import { isCompositionGeometryOnlyChange } from "../../lib/compositionPreview";
+import { isCompositionGeometryOnlyChange, requiresPreviewRegeneration } from "../../lib/compositionPreview";
 import { compositionFor } from "@widgetizer/core/composition";
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -217,7 +217,7 @@ const PreviewPanel = forwardRef(function PreviewPanel(
     if (contentChanged) {
       const newState = { page, widgets, globalWidgets, themeSettings };
       const { isStructural } = detectChangeType(newState, prev);
-      const fullPagePreview = isStructural || requiresFullPagePreview(newState, prev);
+      const fullPagePreview = requiresPreviewRegeneration(newState, prev, isStructural, requiresFullPagePreview(newState, prev));
       if (fullPagePreview && !structuralReloadRef.current) {
         structuralReloadRef.current = true;
         // Capture scrollY now while the old iframe content is still present
@@ -372,8 +372,9 @@ const PreviewPanel = forwardRef(function PreviewPanel(
 
     const newState = { page, widgets, globalWidgets, themeSettings };
     const { isStructural } = detectChangeType(newState, previousState);
-    const fullPagePreview = isStructural || requiresFullPagePreview(newState, previousState);
-    if (!fullPagePreview && isCompositionGeometryOnlyChange(previousState, newState)) {
+    const compositionGeometryOnly = isCompositionGeometryOnlyChange(previousState, newState);
+    const fullPagePreview = requiresPreviewRegeneration(newState, previousState, isStructural, requiresFullPagePreview(newState, previousState));
+    if (compositionGeometryOnly) {
       previousStateRef.current = { ...newState, selectedWidgetId, selectedBlockId, selectedGlobalWidgetId };
       return;
     }

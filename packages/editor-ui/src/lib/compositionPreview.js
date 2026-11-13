@@ -33,3 +33,10 @@ export function isCompositionGeometryOnlyChange(before, after) {
   };
   return JSON.stringify(normalize(before)) === JSON.stringify(normalize(after));
 }
+
+export function requiresPreviewRegeneration(newState, oldState, isStructural, requiresFullPage) {
+  const responsiveEditorLayoutChanged = JSON.stringify(oldState?.page?.wyrmetizerEditorLayout) !==
+    JSON.stringify(newState?.page?.wyrmetizerEditorLayout);
+  if (!responsiveEditorLayoutChanged && isCompositionGeometryOnlyChange(oldState, newState)) return false;
+  return isStructural || requiresFullPage;
+}
