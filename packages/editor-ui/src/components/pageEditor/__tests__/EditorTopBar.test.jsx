@@ -94,6 +94,22 @@ describe("EditorTopBar manual-save failure handling", () => {
   });
 });
 
+describe("EditorTopBar Wyrmetizer identity", () => {
+  beforeEach(() => {
+    usePageStore.setState({ page: { layout: { version: 2, areas: {}, contentOrder: [] } } });
+  });
+
+  it("tracks the selected Desktop/Mobile presentation", () => {
+    renderTopBar();
+    const identity = screen.getByTestId("wyrmetizer-identity-summary");
+    expect(identity).toHaveTextContent("v2");
+    expect(identity).toHaveTextContent("Desktop");
+
+    fireEvent.click(screen.getByTitle("pageEditor.toolbar.mobileView"));
+    expect(identity).toHaveTextContent("Mobile");
+  });
+});
+
 // A slug is unique per language, so the switcher would otherwise list the same
 // name twice and open whichever the default language holds.
 describe("EditorTopBar manual save while saving is suspended", () => {

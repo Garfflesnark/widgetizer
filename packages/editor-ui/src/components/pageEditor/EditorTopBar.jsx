@@ -15,6 +15,7 @@ import { pageEditorHref, pageAddHref, pagesListHref } from "../../lib/contentRou
 import { useEditorPath } from "../../lib/routeBase.jsx";
 import { openPagePreview } from "../../lib/openSitePreview.js";
 import { SlotOutlet } from "../../extension/PluginProvider.jsx";
+import WyrmetizerBuildIdentity from "./WyrmetizerBuildIdentity.jsx";
 
 export default function EditorTopBar({
   pageName,
@@ -203,6 +204,7 @@ export default function EditorTopBar({
           <ArrowLeft size={18} />
           {t("pageEditor.toolbar.backToPages")}
         </button>
+        <WyrmetizerBuildIdentity presentation={previewMode} />
       </div>
 
       <div className="flex items-center gap-3">

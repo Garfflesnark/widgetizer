@@ -66,6 +66,7 @@ export default [
         ...globals.browser,
         ...globals.node,
         __APP_VERSION__: "readonly",
+        __WYRMETIZER_BUILD_COMMIT__: "readonly",
         __APP_NAME__: "readonly",
       },
       parserOptions: {
@@ -116,6 +117,7 @@ export default [
       globals: {
         ...globals.browser,
         __APP_VERSION__: "readonly",
+        __WYRMETIZER_BUILD_COMMIT__: "readonly",
         __APP_NAME__: "readonly",
       },
       parserOptions: {
