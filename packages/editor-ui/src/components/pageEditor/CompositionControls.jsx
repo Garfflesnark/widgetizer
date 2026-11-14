@@ -108,7 +108,8 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
       }
     };
     return <MobilePlacementInput key={`${areaId}:${targetWidgetId}:${axis}`} label={`Mobile ${axis.toUpperCase()} position`}
-      value={value} min={0} max={axis === "x" ? WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX : 10000} step={1}
+      value={value} min={0} max={axis === "x" ? WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX : 10000}
+      sliderMin={0} sliderMax={axis === "x" ? 200 : 1000} step={1}
       onPreview={preview} onCommit={commit} />;
   };
   const preview = (field, value, phase = value === null ? "cancel" : "preview") => {

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 
-export default function MobilePlacementInput({ label, value, min, max, step = 1, onPreview, onCommit }) {
+export default function MobilePlacementInput({ label, value, min, max, sliderMin = min, sliderMax = max, step = 1, onPreview, onCommit }) {
   const [draft, setDraft] = useState(value);
   const [text, setText] = useState(String(value));
   const [shield, setShield] = useState(false);
@@ -87,8 +87,8 @@ export default function MobilePlacementInput({ label, value, min, max, step = 1,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const sliderValue = Math.max(min, Math.min(max, draft));
-  const valueFromPoint = (clientX, rect) => min + Math.round((clientX - rect.left) / rect.width * (max - min) / step) * step;
+  const sliderValue = Math.max(sliderMin, Math.min(sliderMax, draft));
+  const valueFromPoint = (clientX, rect) => sliderMin + Math.round((clientX - rect.left) / rect.width * (sliderMax - sliderMin) / step) * step;
   return <div
     className="space-y-1"
     onPointerDownCapture={event => {
@@ -101,14 +101,14 @@ export default function MobilePlacementInput({ label, value, min, max, step = 1,
       setShield(true);
       pointer.current = { id: event.pointerId, element: event.currentTarget, rect };
       event.currentTarget.setPointerCapture?.(event.pointerId);
-      preview(Math.max(min, Math.min(max, valueFromPoint(event.clientX, rect))));
+      preview(Math.max(sliderMin, Math.min(sliderMax, valueFromPoint(event.clientX, rect))));
     }}
     onPointerMove={event => {
       const session = pointer.current;
       if (!session || session.id !== event.pointerId) return;
       if (event.buttons === 0) { commit(); return; }
       event.preventDefault();
-      preview(Math.max(min, Math.min(max, valueFromPoint(event.clientX, session.rect))));
+      preview(Math.max(sliderMin, Math.min(sliderMax, valueFromPoint(event.clientX, session.rect))));
     }}
     onPointerCancel={cancel}
     onLostPointerCapture={event => { if (pointer.current?.id === event.pointerId) cancel(); }}
@@ -120,7 +120,7 @@ export default function MobilePlacementInput({ label, value, min, max, step = 1,
     style={{ touchAction: "pan-y" }}
   >
     <span className="form-label block">{label}</span>
-    <Slider disabled={false} min={min} max={max} step={step} value={sliderValue} ariaLabelForHandle={`${label} slider`}
+    <Slider disabled={false} min={sliderMin} max={sliderMax} step={step} value={sliderValue} ariaLabelForHandle={`${label} slider`}
       onBeforeChange={() => { active.current = true; }}
       onChange={next => preview(next)} onChangeComplete={next => commit(next)}
       styles={{ rail: { backgroundColor: "#e2e8f0", height: 6 }, track: { backgroundColor: "#e0006d", height: 6 },

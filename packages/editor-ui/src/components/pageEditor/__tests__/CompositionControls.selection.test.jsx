@@ -220,8 +220,10 @@ it("previews Mobile slider movement continuously and records one undoable positi
 
   const authoredBefore = structuredClone(usePageStore.getState().page);
   const serializedBefore = saved();
-  expect(mobileSliders["Mobile X position slider"]).toMatchObject({ min: 0, max: 390, step: 1 });
-  expect(mobileSliders["Mobile Y position slider"]).toMatchObject({ min: 0, max: 10000, step: 1 });
+  expect(mobileSliders["Mobile X position slider"]).toMatchObject({ min: 0, max: 200, step: 1 });
+  expect(mobileSliders["Mobile Y position slider"]).toMatchObject({ min: 0, max: 1000, step: 1 });
+  expect(screen.getByLabelText("Mobile X position")).toHaveAttribute("max", "390");
+  expect(screen.getByLabelText("Mobile Y position")).toHaveAttribute("max", "10000");
   const previews = [];
   const capture = event => previews.push(event.detail);
   window.addEventListener("wyrmetizer:mobile-placement-preview", capture);
