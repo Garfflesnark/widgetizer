@@ -160,13 +160,16 @@ it("previews Mobile placement without changing image dimensions and rejects stal
   const mobileSize = [mobileChild.style.width, mobileChild.style.height];
   const desktopStyle = desktopChild.getAttribute("style");
   const preview = { areaId: "canvas", widgetId: "w", frame: { x: 0.3, y: 0.4, pivot: { x: 0, y: 0 } },
-    rect: { left: 117, top: 200, width: 97.5, height: 100 }, widthPx: 390, heightPx: 500,
+    rect: { left: 117, top: 200, width: 97.5, height: 100 }, widthPx: 390, heightPx: 600,
     presentation: "mobile", presentationEpoch: mobileContext.epoch, syncRevision };
   send("COMPOSITION_MOBILE_PLACEMENT_PREVIEW", preview);
+  expect(mobileArea.dataset.compositionHeight).toBe("600");
+  expect(mobileArea.style.aspectRatio).toBe("390/600");
   expect(mobileChild.style.left).toBe("30%");
-  expect(mobileChild.style.top).toBe("40%");
+  expect(mobileChild.style.top).toBe("33.333333333333336%");
   expect(JSON.parse(mobileChild.dataset.compositionFrame)).toEqual(preview.frame);
-  expect([mobileChild.style.width, mobileChild.style.height]).toEqual(mobileSize);
+  expect(mobileChild.style.width).toBe(mobileSize[0]);
+  expect(mobileChild.style.height).toBe("16.666666666666668%");
   expect(desktopChild.getAttribute("style")).toBe(desktopStyle);
 
   send("COMPOSITION_MOBILE_PLACEMENT_PREVIEW", { ...preview, presentationEpoch: mobileContext.epoch - 1, rect: { ...preview.rect, left: 195 } });

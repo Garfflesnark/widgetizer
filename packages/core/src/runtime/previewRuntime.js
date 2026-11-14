@@ -1064,7 +1064,8 @@ function handleMessage(event) {
     if (activePresentation(document) !== "mobile" || !matchesResponsiveMessage(payload) ||
         typeof payload?.areaId !== "string" || payload.widgetId !== currentSelectedWidgetId || currentSelectedBlockId ||
         !Number.isFinite(payload.widthPx) || payload.widthPx <= 0 || !Number.isFinite(payload.heightPx) || payload.heightPx <= 0 ||
-        ![payload.frame?.x, payload.frame?.y, payload.rect?.left, payload.rect?.top].every(Number.isFinite)) return;
+        ![payload.frame?.x, payload.frame?.y, payload.rect?.left, payload.rect?.top,
+          payload.rect?.width, payload.rect?.height].every(Number.isFinite) || payload.rect.width <= 0 || payload.rect.height <= 0) return;
     const area = activeArea(document, payload.areaId);
     const child = area && Array.from(area.querySelectorAll(":scope > [data-composition-child]"))
       .find(node => node.dataset.compositionChild === payload.widgetId);
@@ -1075,6 +1076,8 @@ function handleMessage(event) {
     child.dataset.compositionFrame = JSON.stringify(payload.frame);
     child.style.left = `${100 * payload.rect.left / payload.widthPx}%`;
     child.style.top = `${100 * payload.rect.top / payload.heightPx}%`;
+    child.style.width = `${100 * payload.rect.width / payload.widthPx}%`;
+    child.style.height = `${100 * payload.rect.height / payload.heightPx}%`;
     renderOverlay();
     return;
   }
