@@ -227,15 +227,37 @@ export function customizeMobileCompositionLayout(areaId) {
   return commitCompositionPage(openWyrmetizerEditorPage(result.page, compositionAdapters));
 }
 
-export function setMobileCompositionPlacement(areaId, widgetId, axis, value) {
+export function beginMobileCompositionPlacement(areaId, widgetId) {
   if (useWidgetStore.getState().compositionContext !== "mobile") return false;
   const page = usePageStore.getState().page;
   const dimensions = currentImageDimensions(serializeWyrmetizerEditorPage(page, compositionAdapters));
-  const transaction = beginWyrmetizerMobilePlacementTransaction(page, areaId, widgetId, compositionAdapters, dimensions);
+  return beginWyrmetizerMobilePlacementTransaction(page, areaId, widgetId, compositionAdapters, dimensions);
+}
+
+export function previewMobileCompositionPlacement(transaction, axis, value) {
+  if (useWidgetStore.getState().compositionContext !== "mobile") return false;
+  const page = usePageStore.getState().page;
+  const dimensions = currentImageDimensions(serializeWyrmetizerEditorPage(page, compositionAdapters));
   const staged = setWyrmetizerMobilePlacementTransactionValue(transaction, axis, value);
   const result = commitWyrmetizerMobilePlacementTransaction(staged, compositionAdapters, page, dimensions);
+  return { transaction: staged, page: result.page, changed: result.changed };
+}
+
+export function commitMobileCompositionPlacement(transaction) {
+  if (useWidgetStore.getState().compositionContext !== "mobile") return false;
+  const page = usePageStore.getState().page;
+  const dimensions = currentImageDimensions(serializeWyrmetizerEditorPage(page, compositionAdapters));
+  const result = commitWyrmetizerMobilePlacementTransaction(transaction, compositionAdapters, page, dimensions);
   if (!result.changed) return false;
   return commitCompositionPage(result.page);
+}
+
+export function setMobileCompositionPlacement(areaId, widgetId, axis, value) {
+  const transaction = beginMobileCompositionPlacement(areaId, widgetId);
+  if (!transaction) return false;
+  const staged = previewMobileCompositionPlacement(transaction, axis, value);
+  if (!staged) return false;
+  return commitMobileCompositionPlacement(staged.transaction);
 }
 
 export function setCompositionHeight(id, requested) {

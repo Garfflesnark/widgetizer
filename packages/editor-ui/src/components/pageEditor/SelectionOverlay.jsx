@@ -156,6 +156,27 @@ export default function SelectionOverlay({
   const movementLocks = useWidgetStore((state) => state.compositionMovementLocks);
   const compositionLayoutContext = useWidgetStore((state) => state.compositionContext);
   useEffect(() => {
+    const previewPlacement = event => {
+      const detail = event.detail;
+      const context = responsiveContextRef.current;
+      const iframe = iframeRef?.current;
+      if (!responsiveV3(page) || context.presentation !== "mobile" || !iframe?.contentWindow ||
+          typeof detail?.areaId !== "string" || typeof detail?.widgetId !== "string") return;
+      try {
+        const resolved = responsiveSyncData(detail.page || page, schemas, 390, useWidgetStore.getState().imageGeometry);
+        const area = resolved.areas[detail.areaId], placement = area?.placements?.[detail.widgetId];
+        if (!placement) return;
+        iframe.contentWindow.postMessage({ type: "COMPOSITION_MOBILE_PLACEMENT_PREVIEW", payload: {
+          areaId: detail.areaId, widgetId: detail.widgetId, frame: placement.frame, rect: placement.rect,
+          widthPx: area.widthPx, heightPx: area.heightPx, presentation: "mobile",
+          presentationEpoch: context.epoch, syncRevision: responsiveSyncSequenceRef.current,
+        } }, getPreviewTargetOrigin());
+      } catch { /* Invalid draft remains unpreviewed; the transaction reports its validation error. */ }
+    };
+    window.addEventListener("wyrmetizer:mobile-placement-preview", previewPlacement);
+    return () => window.removeEventListener("wyrmetizer:mobile-placement-preview", previewPlacement);
+  }, [iframeRef, page, schemas]);
+  useEffect(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
     const sync = (force = false) => {

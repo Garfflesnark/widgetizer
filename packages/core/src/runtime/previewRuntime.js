@@ -1058,6 +1058,26 @@ function handleMessage(event) {
     compositionGeometryRecorder?.recordResult(event.data.payload);
     return;
   }
+  if (event.data?.type === "COMPOSITION_MOBILE_PLACEMENT_PREVIEW") {
+    if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
+    const payload = event.data.payload;
+    if (activePresentation(document) !== "mobile" || !matchesResponsiveMessage(payload) ||
+        typeof payload?.areaId !== "string" || payload.widgetId !== currentSelectedWidgetId || currentSelectedBlockId ||
+        !Number.isFinite(payload.widthPx) || payload.widthPx <= 0 || !Number.isFinite(payload.heightPx) || payload.heightPx <= 0 ||
+        ![payload.frame?.x, payload.frame?.y, payload.rect?.left, payload.rect?.top].every(Number.isFinite)) return;
+    const area = activeArea(document, payload.areaId);
+    const child = area && Array.from(area.querySelectorAll(":scope > [data-composition-child]"))
+      .find(node => node.dataset.compositionChild === payload.widgetId);
+    if (!area || area.dataset.compositionMode === "flow" || !child) return;
+    area.dataset.compositionWidth = String(payload.widthPx);
+    area.dataset.compositionHeight = String(payload.heightPx);
+    area.style.aspectRatio = `${payload.widthPx}/${payload.heightPx}`;
+    child.dataset.compositionFrame = JSON.stringify(payload.frame);
+    child.style.left = `${100 * payload.rect.left / payload.widthPx}%`;
+    child.style.top = `${100 * payload.rect.top / payload.heightPx}%`;
+    renderOverlay();
+    return;
+  }
   if (event.data?.type === "COMPOSITION_SYNC") {
     if (event.source !== window.parent || !PARENT_ORIGIN || event.origin !== PARENT_ORIGIN) return;
     if (compositionGeometryRecorder) postToParent({ type: "WZ_COMPOSITION_GEOMETRY_RECORDER_READY" });

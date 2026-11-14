@@ -78,7 +78,12 @@ export default function SettingsPanel({
       ? selectedBlock?.settings
       : currentWidget?.settings;
 
-  if (selectedComposition) return <div className="w-58 bg-white border-l border-slate-200 overflow-y-auto"><h2 className="p-3 font-bold">Composition Area</h2><CompositionControls key={selectedCompositionId} compositionId={selectedCompositionId} blockSelected widgetId={selectedComposition.childrenOrder[0]} /></div>;
+  if (selectedComposition) return <div className="w-58 bg-white border-l border-slate-200 flex flex-col h-full overflow-hidden">
+    <div className="px-3 pt-4 pb-2 border-b border-slate-100 font-bold">Composition Area</div>
+    <div className="px-3 pb-4 flex-1 min-w-0 overflow-y-auto">
+      <CompositionControls key={selectedCompositionId} compositionId={selectedCompositionId} blockSelected widgetId={selectedComposition.childrenOrder[0]} />
+    </div>
+  </div>;
 
   if (!isThemeSettings && (!currentWidget || (!selectedWidgetId && !selectedGlobalWidgetId))) {
     return (

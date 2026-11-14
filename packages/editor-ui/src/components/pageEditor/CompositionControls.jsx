@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import CompositionNumberInput from "./CompositionNumberInput";
+import MobilePlacementInput from "./MobilePlacementInput";
 import WyrmetizerCompatibility from "./WyrmetizerCompatibility";
 import CompositionAreaDeletionDialog from "./CompositionAreaDeletionDialog";
 import { compositionFor, compositionRevision } from "@widgetizer/core/composition";
@@ -22,7 +23,9 @@ import {
   compositionInteractionContext,
   resetMobileModePresentation,
   customizeMobileCompositionLayout,
-  setMobileCompositionPlacement,
+  beginMobileCompositionPlacement,
+  previewMobileCompositionPlacement,
+  commitMobileCompositionPlacement,
   createResponsiveLayoutV3,
 } from "../../lib/compositionActions";
 
@@ -60,6 +63,53 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
       setError(e.message);
       return false;
     }
+  };
+  const mobilePlacementTransactions = useRef({});
+  const mobilePlacementInput = (areaId, targetWidgetId, axis, value) => {
+    const key = `${areaId}:${targetWidgetId}:${axis}`;
+    const resetPreview = () => window.dispatchEvent(new CustomEvent("wyrmetizer:mobile-placement-preview", {
+      detail: { page: usePageStore.getState().page, areaId, widgetId: targetWidgetId, phase: "cancel" },
+    }));
+    const cancel = () => { delete mobilePlacementTransactions.current[key]; resetPreview(); };
+    const preview = next => {
+      if (next === null) { cancel(); return true; }
+      try {
+        const transaction = mobilePlacementTransactions.current[key] || beginMobileCompositionPlacement(areaId, targetWidgetId);
+        if (!transaction) return false;
+        const staged = previewMobileCompositionPlacement(transaction, axis, next);
+        if (!staged) return false;
+        mobilePlacementTransactions.current[key] = staged.transaction;
+        window.dispatchEvent(new CustomEvent("wyrmetizer:mobile-placement-preview", {
+          detail: { page: staged.page, areaId, widgetId: targetWidgetId, phase: "preview" },
+        }));
+        return true;
+      } catch (e) {
+        setError(e.message);
+        return false;
+      }
+    };
+    const commit = next => {
+      try {
+        let transaction = mobilePlacementTransactions.current[key] || beginMobileCompositionPlacement(areaId, targetWidgetId);
+        if (!transaction) return false;
+        const staged = previewMobileCompositionPlacement(transaction, axis, next);
+        if (!staged) return false;
+        transaction = staged.transaction;
+        delete mobilePlacementTransactions.current[key];
+        const accepted = commitMobileCompositionPlacement(transaction);
+        setError("");
+        if (!accepted) resetPreview();
+        return accepted;
+      } catch (e) {
+        delete mobilePlacementTransactions.current[key];
+        setError(e.message);
+        resetPreview();
+        return false;
+      }
+    };
+    return <MobilePlacementInput key={`${areaId}:${targetWidgetId}:${axis}`} label={`Mobile ${axis.toUpperCase()} position`}
+      value={value} min={0} max={axis === "x" ? WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX : 10000} step={1}
+      onPreview={preview} onCommit={commit} />;
   };
   const preview = (field, value, phase = value === null ? "cancel" : "preview") => {
     if (!found || !found[1].placements[widgetId]) return;
@@ -182,16 +232,10 @@ export default function CompositionControls({ widgetId, compositionId, blockSele
             <div className="space-y-2 border-t border-slate-200 pt-3" aria-label="Mobile placement controls">
               <p className="form-description">Customized Mobile placement is independent of Desktop. Image size remains controlled by Mobile presentation settings.</p>
               <div>
-                <span className="form-label">Mobile X (px)</span>
-                <CompositionNumberInput label="Mobile X position" value={mobileArea.geometry.placements[widgetId].xPx}
-                  min={0} max={WYRMTIZER_MOBILE_REFERENCE_WIDTH_PX} step={1} disabled={context !== "mobile"}
-                  onPreview={() => { }} onCommit={value => run(() => setMobileCompositionPlacement(paired[0], widgetId, "x", value))} />
+                {mobilePlacementInput(paired[0], widgetId, "x", mobileArea.geometry.placements[widgetId].xPx)}
               </div>
               <div>
-                <span className="form-label">Mobile Y (px)</span>
-                <CompositionNumberInput label="Mobile Y position" value={mobileArea.geometry.placements[widgetId].yPx}
-                  min={0} max={10000} step={1} disabled={context !== "mobile"}
-                  onPreview={() => { }} onCommit={value => run(() => setMobileCompositionPlacement(paired[0], widgetId, "y", value))} />
+                {mobilePlacementInput(paired[0], widgetId, "y", mobileArea.geometry.placements[widgetId].yPx)}
               </div>
             </div>}
           {context !== "desktop" && (

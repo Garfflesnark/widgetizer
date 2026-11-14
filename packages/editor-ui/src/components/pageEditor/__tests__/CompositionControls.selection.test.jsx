@@ -8,6 +8,11 @@ import schema from "../../../../../../themes/arch/widgets/image/schema.json";
 vi.mock("../../../queries/pageManager", () => ({ getPage: vi.fn() }));
 vi.mock("../../../queries/previewManager", () => ({ getGlobalWidgets: vi.fn(), getProjectWidgets: vi.fn() }));
 vi.mock("../../../stores/themeStore", () => ({ default: { getState: () => ({ settings: {} }) } }));
+let mobileSliders = {};
+vi.mock("rc-slider", () => ({ default: props => {
+  mobileSliders[props.ariaLabelForHandle] = props;
+  return <div className="rc-slider"><span role="slider" tabIndex={0} /></div>;
+} }));
 import CompositionControls from "../CompositionControls";
 import usePageStore from "../../../stores/pageStore";
 import useWidgetStore from "../../../stores/widgetStore";
@@ -17,6 +22,7 @@ import { compositionInteractionContext, handleCompositionSelectionMessage, switc
 
 const saved = () => serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
 beforeEach(() => {
+  mobileSliders = {};
   const source = fixture();
   delete source.layout;
   source.id = "selection";
@@ -199,6 +205,83 @@ it("creates v3 through the editor, then supports Area customization with Undo/Re
   rerender(<CompositionControls compositionId={areaId} widgetId="a" />);
   expect(saved()).toEqual(finalPage);
   expect(screen.getByLabelText("Mobile X position")).toBeVisible();
+});
+
+it("previews Mobile slider movement continuously and records one undoable position on release", () => {
+  const { rerender } = render(<CompositionControls widgetId="a" />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "A" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create Composition Area" }));
+  const areaId = Object.keys(saved().layout.areas)[0];
+  usePageStore.getState().setPage(convertWyrmetizerPageToV3(saved(), compositionAdapters));
+  useWidgetStore.setState({ compositionContext: "mobile" });
+  rerender(<CompositionControls compositionId={areaId} widgetId="a" />);
+  fireEvent.click(screen.getByRole("button", { name: "Customize Mobile Layout" }));
+  usePageStore.temporal.getState().clear();
+
+  const authoredBefore = structuredClone(usePageStore.getState().page);
+  const serializedBefore = saved();
+  expect(mobileSliders["Mobile X position slider"]).toMatchObject({ min: 0, max: 390, step: 1 });
+  expect(mobileSliders["Mobile Y position slider"]).toMatchObject({ min: 0, max: 10000, step: 1 });
+  const previews = [];
+  const capture = event => previews.push(event.detail);
+  window.addEventListener("wyrmetizer:mobile-placement-preview", capture);
+  try {
+    act(() => mobileSliders["Mobile X position slider"].onBeforeChange());
+    act(() => mobileSliders["Mobile X position slider"].onChange(45));
+    expect(screen.getByLabelText("Mobile X position").value).toBe("45");
+    expect(usePageStore.getState().page).toEqual(authoredBefore);
+    expect(usePageStore.temporal.getState().pastStates).toHaveLength(0);
+    expect(serializeWyrmetizerEditorPage(previews.at(-1).page, compositionAdapters).layout.mobile.areas[areaId].composition.geometry.placements.a.x)
+      .toEqual({ value: 45, unit: "px" });
+
+    act(() => mobileSliders["Mobile X position slider"].onChange(80));
+    expect(screen.getByLabelText("Mobile X position").value).toBe("80");
+    expect(usePageStore.getState().page).toEqual(authoredBefore);
+    act(() => mobileSliders["Mobile X position slider"].onChangeComplete(80));
+  } finally {
+    window.removeEventListener("wyrmetizer:mobile-placement-preview", capture);
+  }
+  expect(saved().layout.mobile.areas[areaId].composition.geometry.placements.a.x).toEqual({ value: 80, unit: "px" });
+  expect(saved().layout.areas[areaId].composition.geometry).toEqual(serializedBefore.layout.areas[areaId].composition.geometry);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  const committed = structuredClone(saved());
+  act(() => usePageStore.temporal.getState().undo());
+  expect(saved().layout.mobile.areas[areaId].composition.geometry.placements.a.x)
+    .toEqual(serializedBefore.layout.mobile.areas[areaId].composition.geometry.placements.a.x);
+  expect(screen.getByLabelText("Mobile X position").value)
+    .toBe(String(serializedBefore.layout.mobile.areas[areaId].composition.geometry.placements.a.x.value));
+  act(() => usePageStore.temporal.getState().redo());
+  expect(saved()).toEqual(committed);
+  expect(screen.getByLabelText("Mobile X position").value).toBe("80");
+  act(() => usePageStore.getState().setPage(openWyrmetizerEditorPage(JSON.parse(JSON.stringify(committed)), compositionAdapters)));
+  rerender(<CompositionControls compositionId={areaId} widgetId="a" />);
+  expect(saved()).toEqual(committed);
+  expect(screen.getByLabelText("Mobile X position").value).toBe("80");
+  const afterReload = saved();
+  usePageStore.temporal.getState().clear();
+
+  const initialY = Math.round(afterReload.layout.mobile.areas[areaId].composition.geometry.placements.a.y.value);
+  const finalY = initialY > 1 ? initialY - 1 : initialY + 1;
+  act(() => mobileSliders["Mobile Y position slider"].onBeforeChange());
+  act(() => mobileSliders["Mobile Y position slider"].onChange(finalY));
+  expect(screen.getByLabelText("Mobile Y position").value).toBe(String(finalY));
+  act(() => mobileSliders["Mobile Y position slider"].onChangeComplete(finalY));
+  expect(saved().layout.mobile.areas[areaId].composition.geometry.placements.a.y).toEqual({ value: finalY, unit: "px" });
+  expect(saved().layout.areas[areaId].composition.geometry).toEqual(serializedBefore.layout.areas[areaId].composition.geometry);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  const committedWithY = structuredClone(saved());
+  act(() => usePageStore.temporal.getState().undo());
+  expect(screen.getByLabelText("Mobile Y position").value)
+    .toBe(String(afterReload.layout.mobile.areas[areaId].composition.geometry.placements.a.y.value));
+  act(() => usePageStore.temporal.getState().redo());
+  expect(saved()).toEqual(committedWithY);
+
+  act(() => mobileSliders["Mobile X position slider"].onBeforeChange());
+  act(() => mobileSliders["Mobile X position slider"].onChange(90));
+  fireEvent(window, new Event("blur"));
+  expect(saved()).toEqual(committedWithY);
+  expect(screen.getByLabelText("Mobile X position").value).toBe("80");
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
 });
 
 it("does not relax legacy-page gating for Images without explicit sizing", () => {

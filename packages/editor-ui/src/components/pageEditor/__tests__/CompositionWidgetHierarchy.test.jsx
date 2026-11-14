@@ -171,6 +171,16 @@ function authoredArea(mode) {
   usePageStore.getState().setPage(page);
   usePageStore.temporal.getState().clear();
 }
+it("uses the standard padded and scrollable settings-panel layout for Composition controls", () => {
+  authoredArea("composition");
+  useWidgetStore.setState({ selectedCompositionId: "canvas" });
+  const { container } = render(<Editor />);
+  const title = container.querySelector("div.px-3.pt-4.pb-2.font-bold");
+  expect(title).toHaveTextContent("Composition Area");
+  expect(title.parentElement.className).toContain("flex flex-col h-full overflow-hidden");
+  expect(title.nextElementSibling.className).toContain("px-3 pb-4 flex-1 min-w-0 overflow-y-auto");
+});
+
 it("exposes Mobile customization from the mounted selected-Area panel and initializes the existing transaction", () => {
   authoredArea("flow");
   const responsive = convertWyrmetizerPageToV3(saved(), compositionAdapters);

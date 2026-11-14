@@ -129,6 +129,50 @@ it("applies only the active v3 presentation geometry and rejects stale sync mess
   expect(mobileChild.dataset.compositionRevision).toBe("rev-mobile-3");
 });
 
+it("previews Mobile placement without changing image dimensions and rejects stale placement drafts", () => {
+  width = 750;
+  const markup = `<section data-composition-id="canvas" data-composition-mode="composition" data-composition-width="390" data-composition-height="500" style="aspect-ratio:390/500">
+    <div data-composition-child="w" data-composition-frame='{"x":0.2,"y":0.2,"pivot":{"x":0,"y":0}}' style="left:20%;top:20%;width:25%;height:20%"><section data-widget-id="w"><img></section></div>
+  </section>`;
+  document.body.innerHTML = `<div data-wyrmetizer-responsive><div data-wyrmetizer-presentation="desktop">${markup}</div><div data-wyrmetizer-presentation="mobile">${markup}</div></div>`;
+  window.dispatchEvent(new Event("resize"));
+  width = 749;
+  window.dispatchEvent(new Event("resize"));
+  const mobileContext = sent.findLast(item => item.type === "PRESENTATION_CONTEXT").payload;
+  const send = (type, payload) => window.dispatchEvent(new MessageEvent("message", {
+    origin: window.location.origin, source: window.parent, data: { type, payload },
+  }));
+  send("UPDATE_SELECTION", { widgetId: "w", blockId: null });
+  const syncRevision = mobileContext.syncRevision + 1;
+  const resolvedPlacement = { frame: { x: 0.2, y: 0.2, pivot: { x: 0, y: 0 } }, rect: { left: 78, top: 100, width: 97.5, height: 100 } };
+  window.dispatchEvent(new MessageEvent("message", { origin: window.location.origin, source: window.parent,
+    data: {
+      type: "COMPOSITION_SYNC", responsive: true, presentation: "mobile", presentationEpoch: mobileContext.epoch,
+      syncRevision, context: "mobile", movementLocks: {}, sizes: {}, revisions: {}, payload: {},
+      resolvedPresentation: { presentation: "mobile", areas: { canvas: { mode: "composition", widthPx: 390, heightPx: 500,
+        stackOrder: ["w"], placements: { w: resolvedPlacement } } } },
+    },
+  }));
+  const mobileArea = document.querySelector('[data-wyrmetizer-presentation="mobile"] [data-composition-id]');
+  const mobileChild = mobileArea.querySelector("[data-composition-child]");
+  const desktopArea = document.querySelector('[data-wyrmetizer-presentation="desktop"] [data-composition-id]');
+  const desktopChild = desktopArea.querySelector("[data-composition-child]");
+  const mobileSize = [mobileChild.style.width, mobileChild.style.height];
+  const desktopStyle = desktopChild.getAttribute("style");
+  const preview = { areaId: "canvas", widgetId: "w", frame: { x: 0.3, y: 0.4, pivot: { x: 0, y: 0 } },
+    rect: { left: 117, top: 200, width: 97.5, height: 100 }, widthPx: 390, heightPx: 500,
+    presentation: "mobile", presentationEpoch: mobileContext.epoch, syncRevision };
+  send("COMPOSITION_MOBILE_PLACEMENT_PREVIEW", preview);
+  expect(mobileChild.style.left).toBe("30%");
+  expect(mobileChild.style.top).toBe("40%");
+  expect(JSON.parse(mobileChild.dataset.compositionFrame)).toEqual(preview.frame);
+  expect([mobileChild.style.width, mobileChild.style.height]).toEqual(mobileSize);
+  expect(desktopChild.getAttribute("style")).toBe(desktopStyle);
+
+  send("COMPOSITION_MOBILE_PLACEMENT_PREVIEW", { ...preview, presentationEpoch: mobileContext.epoch - 1, rect: { ...preview.rect, left: 195 } });
+  expect(mobileChild.style.left).toBe("30%");
+});
+
 it("applies a resolved v2 Composition height without changing saved page data", () => {
   width = 750;
   document.body.innerHTML = `<section data-composition-id="canvas" data-composition-mode="composition" data-composition-width="1200" data-composition-height="800"><div data-composition-child="w" data-composition-frame="{}"></div></section>`;
