@@ -1,0 +1,6 @@
+{% if header_settings.contactDetailsLine1 != blank or header_settings.contactDetailsLine2 != blank %}
+  <div class="header-contact header-contact--three-region">
+    {% if header_settings.contactDetailsLine1 != blank %}<span class="header-contact-line t-sm t-body-bold t-heading">{{ header_settings.contactDetailsLine1 }}</span>{% endif %}
+    {% if header_settings.contactDetailsLine2 != blank %}<span class="header-contact-line t-xs t-muted">{{ header_settings.contactDetailsLine2 }}</span>{% endif %}
+  </div>
+{% endif %}

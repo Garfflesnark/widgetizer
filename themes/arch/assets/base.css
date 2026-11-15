@@ -473,7 +473,7 @@ b {
 /* Eyebrow — small label above headlines */
 .w-eyebrow {
   display: block;
-  font-size: calc(var(--font-size-sm) * var(--body-scale));  
+  font-size: calc(var(--font-size-sm) * var(--body-scale));
   letter-spacing: 0.05em;
   line-height: var(--line-height-relaxed);
   color: var(--text-muted);
@@ -2847,6 +2847,44 @@ b {
       grid-row: 1;
       justify-self: end;
     }
+  }
+}
+
+/* The three-region Header keeps every assigned group visible on narrow screens;
+   regions stack with their configured alignment instead of switching to a menu. */
+@media (max-width: 989px) {
+  .widget-site-header.header-v1 .header-inner--three-region {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    gap: var(--space-sm);
+  }
+  .widget-site-header.header-v1 .header-region {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .widget-site-header.header-v1 .header-region--left { justify-content: flex-start; }
+  .widget-site-header.header-v1 .header-region--center { justify-content: center; }
+  .widget-site-header.header-v1 .header-region--right { justify-content: flex-end; }
+  .widget-site-header.header-v1 .header-nav {
+    position: static;
+    inset: auto;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    padding: 0;
+    overflow: visible;
+    transform: none;
+    box-shadow: none;
+    background: transparent;
+  }
+  .widget-site-header.header-v1 .header-three-region-nav .nav-list {
+    justify-content: inherit;
+  }
+  .widget-site-header.header-v1 .header-three-region-nav .nav-link {
+    white-space: normal;
+  }
+  .widget-site-header.header-v1 .header-contact--three-region {
+    display: flex;
   }
 }
 

@@ -1,0 +1,22 @@
+{% assign header_v1_has_logo = false %}
+{% if header_settings.show_logo_image %}
+  {% if header_settings.logoImage != blank %}{% assign header_v1_has_logo = true %}{% endif %}
+{% endif %}
+{% if header_settings.show_logo_text %}
+  {% if header_settings.logoText != blank %}{% assign header_v1_has_logo = true %}{% endif %}
+{% endif %}
+{% if header_v1_has_logo %}
+  <a href="{{ 'index' | page_url }}" class="header-logo header-v1-logo">
+    {% if header_settings.show_logo_image and header_settings.logoImage != blank %}
+      {% image src: header_settings.logoImage, size: 'medium', class: 'header-logo-image header-logo-default', lazy: false %}
+      {% if header_settings.transparent_logo != blank %}
+        {% image src: header_settings.transparent_logo, size: 'medium', class: 'header-logo-image header-logo-transparent', lazy: false %}
+      {% else %}
+        {% image src: header_settings.logoImage, size: 'medium', class: 'header-logo-image header-logo-transparent', lazy: false %}
+      {% endif %}
+    {% endif %}
+    {% if header_settings.show_logo_text and header_settings.logoText != blank %}
+      <span class="header-v1-logo-text">{{ header_settings.logoText }}</span>
+    {% endif %}
+  </a>
+{% endif %}

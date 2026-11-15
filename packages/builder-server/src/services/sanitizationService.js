@@ -186,8 +186,13 @@ function sanitizeGalleryValue(value) {
 /** Normalize one table cell by its column type. v1: `text` only (string-or-""). Future column
  *  types delegate to their existing sanitizer here; `text` needs explicit handling because
  *  `sanitizeSettingValue` does not coerce text (it's autoescape-safe and returned untouched). */
-function sanitizeTableCell(cell, type) {
-  switch (type) {
+function sanitizeTableCell(cell, column) {
+  switch (column?.type) {
+    case "select": {
+      const options = Array.isArray(column.options) ? column.options : [];
+      const validValues = options.map((option) => typeof option === "string" ? option : option?.value);
+      return typeof cell === "string" && validValues.includes(cell) ? cell : (validValues[0] || "");
+    }
     case "text":
     default:
       return typeof cell === "string" ? cell : "";
@@ -213,7 +218,7 @@ function sanitizeTableValue(value, columns) {
     const cleanRow = {};
     let hasContent = false;
     for (const col of columns) {
-      const cell = sanitizeTableCell(row[col.id], col.type);
+      const cell = sanitizeTableCell(row[col.id], col);
       cleanRow[col.id] = cell;
       if (String(cell).trim() !== "") hasContent = true;
     }
@@ -502,7 +507,9 @@ export function sanitizeWidgetData(resolvedWidgetData, schema) {
     for (const [key, value] of Object.entries(resolvedWidgetData.settings)) {
       const setting = settingsMap.get(key);
       if (setting) {
-        resolvedWidgetData.settings[key] = sanitizeSettingValue(value, setting);
+        resolvedWidgetData.settings[key] = setting.type === "table"
+          ? sanitizeTableValue(value, setting.columns)
+          : sanitizeSettingValue(value, setting);
       }
     }
   }
@@ -524,7 +531,9 @@ export function sanitizeWidgetData(resolvedWidgetData, schema) {
       for (const [key, value] of Object.entries(block.settings)) {
         const setting = settingMap.get(key);
         if (setting) {
-          block.settings[key] = sanitizeSettingValue(value, setting);
+          block.settings[key] = setting.type === "table"
+            ? sanitizeTableValue(value, setting.columns)
+            : sanitizeSettingValue(value, setting);
         }
       }
     }

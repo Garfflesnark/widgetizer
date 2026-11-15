@@ -27,6 +27,25 @@ import {
   sanitizeVideoPath,
 } from "../services/sanitizationService.js";
 
+describe("sanitizeWidgetData table settings", () => {
+  it("normalizes select cells to declared options and drops unknown table keys", () => {
+    const widget = { settings: { header_links: [
+      { label: "Home", destination: "index", destination_type: "page", presentation: "button", extra: "discard" },
+      { label: "Bad type", destination: "javascript:alert(1)", destination_type: "script", presentation: "unknown" },
+    ] } };
+    sanitizeWidgetData(widget, { settings: [{ id: "header_links", type: "table", columns: [
+      { id: "label", type: "text" }, { id: "destination", type: "text" },
+      { id: "destination_type", type: "select", options: [{ value: "page" }, { value: "url" }] },
+      { id: "presentation", type: "select", options: [{ value: "link" }, { value: "button" }] },
+    ] }] });
+
+    assert.deepEqual(widget.settings.header_links, [
+      { label: "Home", destination: "index", destination_type: "page", presentation: "button" },
+      { label: "Bad type", destination: "javascript:alert(1)", destination_type: "page", presentation: "link" },
+    ]);
+  });
+});
+
 // ============================================================================
 // sanitizeRichText
 // ============================================================================

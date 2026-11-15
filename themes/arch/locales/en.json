@@ -1514,6 +1514,45 @@
         "label": "Center Navigation",
         "description": "Centers the navigation menu in the header with the logo on the left and CTA on the right (desktop only)"
       },
+      "three_region_header": {
+        "label": "Three-region layout",
+        "description": "An optional shared Header layout with Left, Center, and Right regions. Existing Headers keep their current appearance until enabled."
+      },
+      "three_region_enabled": {
+        "label": "Use three-region Header",
+        "description": "When enabled, the Header uses the logo, navigation, and social settings below."
+      },
+      "show_logo_image": { "label": "Show logo image" },
+      "show_logo_text": { "label": "Show logo text" },
+      "logo_region": { "label": "Logo group region" },
+      "navigation_region": { "label": "Navigation region" },
+      "social_region": { "label": "Social links region" },
+      "regions": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right"
+      },
+      "header_links": {
+        "label": "Visible navigation items",
+        "description": "Add one row per item. Drag rows to change order. For an internal page, enter its page slug (for example, about); for a URL, enter the full address. Choose whether each item looks like a text link or button.",
+        "columns": {
+          "label": "Label",
+          "destination": "Destination",
+          "destination_type": "Destination type",
+          "presentation": "Presentation"
+        },
+        "destination_types": { "page": "Internal page", "url": "URL" },
+        "presentations": { "link": "Text link", "button": "Button" }
+      },
+      "header_social_links": {
+        "label": "Social links",
+        "description": "Choose a recognizable icon, add its destination URL, and provide an accessible label for assistive technology. Drag rows to change order.",
+        "columns": {
+          "icon": "Icon",
+          "url": "Destination URL",
+          "accessible_label": "Accessible label"
+        }
+      },
       "languages_header": {
         "label": "Languages"
       },

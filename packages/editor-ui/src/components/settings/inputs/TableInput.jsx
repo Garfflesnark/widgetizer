@@ -17,6 +17,7 @@ import {
 import { GripVertical, Plus, Trash2 } from "lucide-react";
 import Button, { IconButton } from "../../ui/Button";
 import TextInput from "./TextInput";
+import SelectInput from "./SelectInput";
 
 /**
  * TableInput — the `table` setting type: an ordered list of rows, each with a fixed set of
@@ -42,7 +43,10 @@ function toRows(value, columns) {
     .filter((row) => row && typeof row === "object" && !Array.isArray(row))
     .map((row) => ({
       uid: nextUid(),
-      values: Object.fromEntries(columns.map((c) => [c.id, cellOf(row, c.id)])),
+      values: Object.fromEntries(columns.map((c) => [
+        c.id,
+        cellOf(row, c.id) || (c.type === "select" ? c.options?.[0]?.value || "" : ""),
+      ])),
     }));
 }
 
@@ -96,7 +100,12 @@ function TableRow({ row, columns, onCellChange, onRemove }) {
         {columns.map((col) => (
           <label key={col.id} className="flex flex-col gap-1 min-w-0">
             <span className="text-xs font-medium text-slate-500">{col.label || col.id}</span>
-            <TextInput value={row.values[col.id] ?? ""} onChange={(v) => onCellChange(col.id, v)} />
+            {col.type === "select" ? (
+              <SelectInput id={`${row.uid}-${col.id}`} value={row.values[col.id] ?? col.options?.[0]?.value ?? ""}
+                options={col.options || []} onChange={(v) => onCellChange(col.id, v)} />
+            ) : (
+              <TextInput value={row.values[col.id] ?? ""} onChange={(v) => onCellChange(col.id, v)} />
+            )}
           </label>
         ))}
       </div>
@@ -143,7 +152,10 @@ export default function TableInput({ value, onChange, columns = [] }) {
     onChange(toValue(nextRows, cols));
   };
 
-  const emptyValues = () => Object.fromEntries(cols.map((c) => [c.id, ""]));
+  const emptyValues = () => Object.fromEntries(cols.map((c) => [
+    c.id,
+    c.type === "select" ? c.options?.[0]?.value || "" : "",
+  ]));
   const handleAdd = () => setRows((prev) => [...prev, { uid: nextUid(), values: emptyValues() }]);
   const setCell = (uid, colId, v) =>
     apply(rows.map((r) => (r.uid === uid ? { ...r, values: { ...r.values, [colId]: v } } : r)));

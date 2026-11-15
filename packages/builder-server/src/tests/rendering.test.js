@@ -92,6 +92,10 @@ before(async () => {
   await fs.ensureDir(path.join(projectDir, "widgets"));
   await fs.ensureDir(getProjectMenusDir(PROJECT_FOLDER));
 
+  const archThemeDir = path.resolve("themes/arch");
+  await fs.copy(path.join(archThemeDir, "widgets/global/header"), path.join(projectDir, "widgets/global/header"));
+  await fs.copy(path.join(archThemeDir, "snippets"), path.join(projectDir, "snippets"));
+
   // Create media data
   await writeMediaFile(
     PROJECT_ID,
@@ -345,6 +349,119 @@ describe("renderWidget — theme widgets & schema defaults", () => {
 
     assert.ok(!html.includes("<script>alert"));
     assert.ok(html.includes("&lt;script&gt;") || html.includes("&amp;"));
+  });
+});
+
+describe("Arch Header v1", () => {
+  it("keeps legacy Header rendering by default", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-legacy", {
+      type: "header",
+      settings: { logoText: "Existing Brand", headerNavigation: "main-nav", three_region_enabled: false },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.ok(html.includes("Existing Brand"));
+    assert.ok(html.includes("header-branding"));
+    assert.doesNotMatch(html, /<header[^>]*class="[^"]*\bheader-v1\b/);
+  });
+
+  it("renders visible links, button styling, independent logo visibility and social icons in assigned regions", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logoText: "Accessible Brand",
+        show_logo_image: false,
+        show_logo_text: true,
+        logo_region: "left",
+        navigation_region: "center",
+        social_region: "right",
+        nav_label: "Primary site links",
+        header_links: [
+          { label: "About", destination: "about-us", destination_type: "page", presentation: "link" },
+          { label: "Contact", destination: "https://example.com/contact", destination_type: "url", presentation: "button" },
+          { label: "Unsafe", destination: "javascript:alert(1)", destination_type: "url", presentation: "link" },
+        ],
+        header_social_links: [
+          { icon: "instagram", url: "https://example.com/social", accessible_label: "Photo updates" },
+        ],
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.ok(html.includes("header-region--left"));
+    assert.ok(html.includes("header-region--center"));
+    assert.ok(html.includes("header-region--right"));
+    assert.ok(html.includes("Accessible Brand"));
+    assert.doesNotMatch(html, /<img[^>]*header-logo-image/);
+    assert.ok(html.includes('aria-label="Primary site links"'));
+    assert.ok(html.includes('href="about-us.html"'));
+    assert.ok(html.includes('href="https://example.com/contact"'));
+    assert.ok(html.indexOf("About") < html.indexOf("Contact"));
+    assert.ok(html.includes("nav-link--button"));
+    assert.ok(html.includes('aria-label="Photo updates"'));
+    assert.ok(html.includes('target="_blank" rel="noopener noreferrer"'));
+    assert.ok(!html.includes("javascript:alert"));
+  });
+
+  it("shows a logo image without its retained text when text visibility is off", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-image-only", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logoImage: "/uploads/images/hero.jpg",
+        logoText: "Retained but hidden",
+        show_logo_image: true,
+        show_logo_text: false,
+        logo_region: "left",
+        navigation_region: "center",
+        social_region: "right",
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.match(html, /<img[^>]*src="[^"]*hero-medium\.jpg"[^>]*header-logo-image/);
+    assert.ok(!html.includes("Retained but hidden"));
+  });
+
+  it("retains both logo values while rendering neither when both visibility controls are off", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-no-logo", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logoImage: "/uploads/images/hero.jpg",
+        logoText: "Stored Brand Text",
+        show_logo_image: false,
+        show_logo_text: false,
+        logo_region: "left",
+        navigation_region: "center",
+        social_region: "right",
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.doesNotMatch(html, /<a[^>]*class="header-logo header-v1-logo"/);
+    assert.ok(!html.includes("Stored Brand Text"));
+    assert.doesNotMatch(html, /<img[^>]*header-logo-image/);
+  });
+
+  it("keeps multiple assigned groups together in a predictable logo-navigation-social order", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-stacked-groups", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logoText: "Brand",
+        show_logo_image: false,
+        show_logo_text: true,
+        logo_region: "center",
+        navigation_region: "center",
+        social_region: "center",
+        header_links: [{ label: "Home", destination: "home", destination_type: "page", presentation: "link" }],
+        header_social_links: [{ icon: "instagram", url: "https://example.com", accessible_label: "Instagram" }],
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    const logoIndex = html.indexOf('class="header-logo header-v1-logo"');
+    const navigationIndex = html.indexOf('class="header-nav header-three-region-nav"');
+    const socialIndex = html.indexOf('class="header-three-region-social"');
+    assert.ok(logoIndex >= 0 && logoIndex < navigationIndex && navigationIndex < socialIndex);
+    assert.match(html, /header-region--center[\s\S]*header-v1-logo[\s\S]*header-three-region-nav[\s\S]*header-three-region-social/);
   });
 });
 

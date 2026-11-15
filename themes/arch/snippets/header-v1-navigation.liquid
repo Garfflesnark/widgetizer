@@ -1,0 +1,20 @@
+{% if header_settings.header_links.size > 0 %}
+  <nav class="header-nav header-three-region-nav" aria-label="{{ header_settings.nav_label | default: 'Primary' }}">
+    <ul class="nav-list">
+      {% for header_link in header_settings.header_links %}
+        {% if header_link.label != blank and header_link.destination != blank %}
+          {% if header_link.destination_type == 'page' %}
+            {% assign header_href = header_link.destination | page_url %}
+          {% else %}
+            {% assign header_href = header_link.destination | safe_url %}
+          {% endif %}
+          {% if header_href != blank %}
+            <li class="nav-item">
+              <a href="{{ header_href }}" class="nav-link{% if header_link.presentation == 'button' %} nav-link--button widget-button widget-button-{{ header_settings.ctaButtonStyle | default: 'secondary' }}{% endif %}">{{ header_link.label }}</a>
+            </li>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </nav>
+{% endif %}

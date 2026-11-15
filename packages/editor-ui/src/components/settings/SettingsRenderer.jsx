@@ -49,6 +49,15 @@ export default function SettingsRenderer({
       typeof opt === "object" && opt.label ? { ...opt, label: tTheme(opt.label) } : opt,
     );
   }, [options, tTheme]);
+  const translatedColumns = useMemo(() => {
+    if (!Array.isArray(setting?.columns)) return setting?.columns;
+    return setting.columns.map((column) => ({
+      ...column,
+      label: column.label ? tTheme(column.label) : column.label,
+      options: Array.isArray(column.options) ? column.options.map((option) =>
+        typeof option === "object" && option.label ? { ...option, label: tTheme(option.label) } : option) : column.options,
+    }));
+  }, [setting, tTheme]);
 
   if (!setting || !setting.type) {
     return <div>Error: Invalid setting configuration.</div>;
@@ -137,7 +146,7 @@ export default function SettingsRenderer({
       case "gallery":
         return <GalleryInput {...inputProps} />;
       case "table":
-        return <TableInput {...inputProps} columns={setting.columns} />;
+        return <TableInput {...inputProps} columns={translatedColumns} />;
       case "file":
         return <FileInput {...inputProps} />;
       case "video":

@@ -1,0 +1,12 @@
+{% if header_settings.header_social_links.size > 0 %}
+  <div class="header-three-region-social" role="group" aria-label="Social links">
+    {% for social_link in header_settings.header_social_links %}
+      {% assign social_href = social_link.url | safe_url %}
+      {% if social_href != blank and social_link.icon != blank %}
+        <a href="{{ social_href }}" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="{{ social_link.accessible_label | default: social_link.icon }}">
+          {% render 'icon', icon: social_link.icon %}
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}
