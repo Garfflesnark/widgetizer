@@ -17,6 +17,8 @@ import path from "path";
 import os from "node:os";
 import { fileURLToPath } from "url";
 import { applyThemeUpdateToDir } from "../services/themeUpdateService.js";
+import { getProjectWidgets } from "../controllers/projectController.js";
+import { LocalStorageAdapter } from "@widgetizer/adapters-local";
 import { supportsImageUnits } from "@widgetizer/core/imageTransform";
 import { createWyrmetizerCopy } from "@widgetizer/core/wyrmetizerLayouts";
 import { compositionAdapters } from "@widgetizer/core/compositionImage";
@@ -49,7 +51,8 @@ describe("Arch newest theme update", () => {
   it("exposes Header v1 in new projects and after updating an existing project without changing its Header data", async (t) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "arch-header-update-"));
     t.after(() => fs.remove(root));
-    const project = path.join(root, "project");
+    const dataRoot = path.join(root, "data");
+    const project = path.join(dataRoot, "projects", "arch-updated");
     const updateDir = path.join(THEME_DIR, "updates", "0.9.11");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
@@ -57,7 +60,9 @@ describe("Arch newest theme update", () => {
     assert.equal(enabled(newProjectSchema), true, "new Arch projects include the Header v1 controls");
     assert.equal(enabled(updateSchema), true, "the existing-project update includes the Header v1 controls");
 
-    await fs.outputJson(path.join(project, "theme.json"), await fs.readJson(path.join(THEME_DIR, "theme.json")));
+    const previousTheme = await fs.readJson(path.join(THEME_DIR, "theme.json"));
+    previousTheme.useCoreWidgets = false;
+    await fs.outputJson(path.join(project, "theme.json"), previousTheme);
     const authoredHeader = { type: "header", settings: { logoText: "My brand", menu: "main-menu" } };
     await fs.outputJson(path.join(project, "pages/global/header.json"), authoredHeader);
     await fs.outputJson(path.join(project, "widgets/global/header/schema.json"), { type: "header", settings: [] });
@@ -74,6 +79,18 @@ describe("Arch newest theme update", () => {
       await fs.readFile(path.join(project, "widgets/global/header/widget.liquid")),
       await fs.readFile(path.join(THEME_DIR, "widgets/global/header/widget.liquid")),
     );
+
+    const response = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };
+    const scope = { actor: { id: "fixture", kind: "local" }, projectId: "arch-updated", folderName: "arch-updated" };
+    await getProjectWidgets({
+      query: {},
+      scope,
+      activeProject: { id: scope.projectId, defaultLanguage: "en", languages: [] },
+      adapters: { storage: new LocalStorageAdapter({ dataRoot }) },
+    }, response);
+    const editorHeaderSchema = response.body.find((schema) => schema.type === "header");
+    assert.ok(editorHeaderSchema, "the editor schema endpoint returns the global Header schema");
+    assert.equal(enabled(editorHeaderSchema), true, "the editor receives the Header v1 controls from the updated project");
   });
 
   it("delivers the Image schema and template while preserving authored content and customized theme settings", async (t) => {
