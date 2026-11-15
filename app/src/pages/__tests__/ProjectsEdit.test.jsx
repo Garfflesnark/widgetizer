@@ -9,6 +9,7 @@ const getActiveProject = vi.fn();
 const checkThemeUpdates = vi.fn();
 const applyThemeUpdate = vi.fn();
 const invalidateTheme = vi.fn();
+const loadSchemas = vi.fn();
 let storeState;
 
 vi.mock("@widgetizer/editor-ui/queries/projectManager", () => ({
@@ -20,6 +21,9 @@ vi.mock("@widgetizer/editor-ui/queries/projectManager", () => ({
 }));
 vi.mock("@widgetizer/editor-ui/stores/themeStore", () => ({
   default: { getState: () => ({ invalidate: invalidateTheme }) },
+}));
+vi.mock("@widgetizer/editor-ui/stores/widgetStore", () => ({
+  default: { getState: () => ({ loadSchemas, loadedLanguage: "fr" }) },
 }));
 vi.mock("@widgetizer/editor-ui/stores/projectStore", () => {
   const hook = (selector) => (selector ? selector(storeState) : storeState);
@@ -69,6 +73,7 @@ beforeEach(() => {
   checkThemeUpdates.mockReset().mockResolvedValue({ hasUpdate: false });
   applyThemeUpdate.mockReset();
   invalidateTheme.mockReset();
+  loadSchemas.mockReset().mockResolvedValue();
   getAllProjects.mockResolvedValue([
     { id: "p1", name: "Bakery" },
     { id: "p2", name: "Café" },
@@ -108,7 +113,10 @@ describe("ProjectsEdit — applying a theme update", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /apply update/i }));
 
-    await waitFor(() => expect(invalidateTheme).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(invalidateTheme).toHaveBeenCalledTimes(1);
+      expect(loadSchemas).toHaveBeenCalledWith("fr");
+    });
   });
 
   it("leaves the loaded theme settings alone when nothing was applied", async () => {

@@ -46,6 +46,36 @@ async function filesUnder(dir) {
 }
 
 describe("Arch newest theme update", () => {
+  it("exposes Header v1 in new projects and after updating an existing project without changing its Header data", async (t) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "arch-header-update-"));
+    t.after(() => fs.remove(root));
+    const project = path.join(root, "project");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.11");
+    const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
+    const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
+    const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
+    assert.equal(enabled(newProjectSchema), true, "new Arch projects include the Header v1 controls");
+    assert.equal(enabled(updateSchema), true, "the existing-project update includes the Header v1 controls");
+
+    await fs.outputJson(path.join(project, "theme.json"), await fs.readJson(path.join(THEME_DIR, "theme.json")));
+    const authoredHeader = { type: "header", settings: { logoText: "My brand", menu: "main-menu" } };
+    await fs.outputJson(path.join(project, "pages/global/header.json"), authoredHeader);
+    await fs.outputJson(path.join(project, "widgets/global/header/schema.json"), { type: "header", settings: [] });
+    await fs.outputFile(path.join(project, "widgets/global/header/widget.liquid"), "legacy header template");
+
+    const result = await applyThemeUpdateToDir({ themeSourceDir: updateDir, projectDir: project });
+    const installedSchema = await fs.readJson(path.join(project, "widgets/global/header/schema.json"));
+    const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
+    assert.equal(result.newVersion, "0.9.11");
+    assert.equal(enabled(installedSchema), true);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
+    assert.deepEqual(installedHeader, authoredHeader, "the saved Header settings remain untouched");
+    assert.deepEqual(
+      await fs.readFile(path.join(project, "widgets/global/header/widget.liquid")),
+      await fs.readFile(path.join(THEME_DIR, "widgets/global/header/widget.liquid")),
+    );
+  });
+
   it("delivers the Image schema and template while preserving authored content and customized theme settings", async (t) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "arch-image-update-"));
     t.after(() => fs.remove(root));
@@ -102,7 +132,13 @@ describe("Arch newest theme update", () => {
       const base = path.join(THEME_DIR, relative);
       if (!(await fs.pathExists(base))) continue;
       const [updateBytes, baseBytes] = await Promise.all([fs.readFile(file), fs.readFile(base)]);
-      if (!updateBytes.equals(baseBytes)) mismatched.push(relative.split(path.sep).join("/"));
+      if (relative === "theme.json") {
+        const [updateTheme, baseTheme] = [updateBytes, baseBytes].map((bytes) => JSON.parse(bytes.toString("utf8")));
+        updateTheme.version = baseTheme.version;
+        if (JSON.stringify(updateTheme) !== JSON.stringify(baseTheme)) mismatched.push(relative);
+      } else if (!updateBytes.equals(baseBytes)) {
+        mismatched.push(relative.split(path.sep).join("/"));
+      }
     }
 
     assert.deepEqual(mismatched, [], `updates/${newest} differs from the base theme in: ${mismatched.join(", ")}`);

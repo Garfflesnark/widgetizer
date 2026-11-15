@@ -19,6 +19,7 @@ import {
 } from "@widgetizer/editor-ui/queries/projectManager";
 import useProjectStore from "@widgetizer/editor-ui/stores/projectStore";
 import useThemeStore from "@widgetizer/editor-ui/stores/themeStore";
+import useWidgetStore from "@widgetizer/editor-ui/stores/widgetStore";
 import useGuardedFormPage from "@widgetizer/editor-ui/hooks/useGuardedFormPage";
 
 // One page per project: moving to another project's details starts a fresh
@@ -97,7 +98,11 @@ function ProjectDetails() {
         // The update rewrote theme.json. Site settings and the editor keep the
         // copy they loaded until the project changes, so drop it: they load the
         // updated settings next time instead of showing (and saving) the old ones.
-        if (useProjectStore.getState().activeProject?.id === id) useThemeStore.getState().invalidate();
+        if (useProjectStore.getState().activeProject?.id === id) {
+          useThemeStore.getState().invalidate();
+          const { loadSchemas, loadedLanguage } = useWidgetStore.getState();
+          await loadSchemas(loadedLanguage);
+        }
         showToast(
           t("projectsEdit.toasts.updateApplied", {
             from: result.previousVersion,
