@@ -1,6 +1,6 @@
 {% if header_settings.header_links.size > 0 %}
   <nav class="header-nav header-three-region-nav" aria-label="{{ header_settings.nav_label | default: 'Primary' }}">
-    <ul class="nav-list">
+    <ul class="nav-list" style="--header-nav-item-spacing: {{ header_settings.navigation_item_spacing | default: 8 }}px;">
       {% for header_link in header_settings.header_links %}
         {% if header_link.label != blank %}
           {% if header_link.destination != blank and header_link.destination_type == 'page' %}

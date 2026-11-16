@@ -157,12 +157,32 @@
     },
     {
       "type": "range",
+      "id": "navigation_item_spacing",
+      "label": "tTheme:header.settings.navigation_item_spacing.label",
+      "default": 8,
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px"
+    },
+    {
+      "type": "range",
       "id": "social_icon_size",
       "label": "tTheme:header.settings.social_icon_size.label",
       "description": "tTheme:header.settings.social_icon_size.description",
       "default": 32,
       "min": 16,
       "max": 64,
+      "step": 2,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "social_icon_spacing",
+      "label": "tTheme:header.settings.social_icon_spacing.label",
+      "default": 8,
+      "min": 0,
+      "max": 48,
       "step": 2,
       "unit": "px"
     },
@@ -176,15 +196,15 @@
       "pageOptions": true,
       "columns": [
         { "id": "label", "label": "tTheme:header.settings.header_links.columns.label", "type": "text" },
-        { "id": "destination", "label": "tTheme:header.settings.header_links.columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url" },
+        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_links.columns.open_in_new_tab", "type": "checkbox", "default": "false" },
+        { "id": "destination", "label": "tTheme:header.settings.header_links.columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url", "layout": "full" },
         { "id": "destination_page_uuid", "type": "hidden" },
         { "id": "destination_url", "type": "hidden" },
-        { "id": "destination_type", "label": "tTheme:header.settings.header_links.columns.destination_type", "type": "select", "options": [
+        { "id": "destination_type", "label": "tTheme:header.settings.header_links.columns.destination_type", "type": "select", "layout": "full", "options": [
           { "value": "page", "label": "tTheme:header.settings.header_links.destination_types.page" },
           { "value": "url", "label": "tTheme:header.settings.header_links.destination_types.url" }
         ] },
-        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_links.columns.open_in_new_tab", "type": "checkbox", "default": "false" },
-        { "id": "presentation", "label": "tTheme:header.settings.header_links.columns.presentation", "type": "select", "options": [
+        { "id": "presentation", "label": "tTheme:header.settings.header_links.columns.presentation", "type": "select", "layout": "full", "options": [
           { "value": "link", "label": "tTheme:header.settings.header_links.presentations.link" },
           { "value": "button", "label": "tTheme:header.settings.header_links.presentations.button" }
         ] }
@@ -208,9 +228,9 @@
           { "value": "telegram", "label": "Telegram" }, { "value": "threads", "label": "Threads" },
           { "value": "whatsapp", "label": "WhatsApp" }, { "value": "mail", "label": "Email" }
         ] },
-        { "id": "url", "label": "tTheme:header.settings.header_social_links.columns.url", "type": "text" },
-        { "id": "accessible_label", "label": "tTheme:header.settings.header_social_links.columns.accessible_label", "type": "text" },
-        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_social_links.columns.open_in_new_tab", "type": "checkbox", "default": "true" }
+        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_social_links.columns.open_in_new_tab", "type": "checkbox", "default": "true" },
+        { "id": "accessible_label", "label": "tTheme:header.settings.header_social_links.columns.accessible_label", "type": "text", "layout": "full" },
+        { "id": "url", "label": "tTheme:header.settings.header_social_links.columns.url", "type": "text", "layout": "full" }
       ]
     },
     {

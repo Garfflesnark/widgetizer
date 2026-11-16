@@ -63,6 +63,26 @@ it("allows a row name to be cleared while typing and applies its default only on
   expect(onChange).toHaveBeenLastCalledWith([{ label: "About", row_name: "Row 1" }]);
 });
 
+it("supports full-width table fields while retaining the configured field order", () => {
+  render(<TableInput rowNames value={[{ icon: "instagram", open_in_new_tab: "true", accessible_label: "Updates", url: "https://example.com" }]}
+    columns={[
+      { id: "icon", label: "Icon", type: "select", options: [{ value: "instagram", label: "Instagram" }] },
+      { id: "open_in_new_tab", label: "Open in New Tab", type: "checkbox", default: "false" },
+      { id: "accessible_label", label: "Accessible Label", type: "text", layout: "full" },
+      { id: "url", label: "Destination URL", type: "text", layout: "full" },
+    ]} onChange={() => {}} />);
+
+  const icon = screen.getByLabelText("Icon");
+  const newTab = screen.getByLabelText("Open in New Tab");
+  const accessibleLabel = screen.getByLabelText("Accessible Label");
+  const url = screen.getByLabelText("Destination URL");
+  expect(icon.compareDocumentPosition(newTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(newTab.compareDocumentPosition(accessibleLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(accessibleLabel.compareDocumentPosition(url) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(accessibleLabel.closest("label").className).toContain("sm:col-span-2");
+  expect(url.closest("label").className).toContain("sm:col-span-2");
+});
+
 it("shows the page selector for internal rows and retains the URL when destination type changes", () => {
   const onChange = vi.fn();
   const columns = [

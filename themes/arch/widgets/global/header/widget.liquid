@@ -49,10 +49,17 @@
       align-items: center;
       justify-content: inherit;
       flex-wrap: wrap;
-      gap: var(--space-xs);
       list-style: none;
       padding: 0;
       margin: 0;
+    }
+    .widget-site-header.header-v1 .header-three-region-nav .nav-list {
+      column-gap: var(--header-nav-item-spacing, var(--space-xs));
+      row-gap: var(--space-xs);
+    }
+    .widget-site-header.header-v1 .header-three-region-social {
+      column-gap: var(--header-social-icon-spacing, var(--space-xs));
+      row-gap: var(--space-xs);
     }
     .widget-site-header.header-v1 .header-three-region-nav .nav-item { position: relative; }
     .widget-site-header.header-v1 .header-three-region-nav .nav-link {
@@ -177,14 +184,14 @@
   <div class="header-inner{% if widget.settings.center_nav %} header-center-nav{% endif %}">
     <div class="header-branding">
       <a href="{{ 'index' | page_url }}" class="header-logo">
-        {% if widget.settings.logoImage != blank %}
+        {% if widget.settings.logoImage != blank and widget.settings.show_logo_image %}
           {% image src: widget.settings.logoImage, size: 'medium', class: 'header-logo-image header-logo-default', lazy: false %}
           {% if widget.settings.transparent_logo != blank %}
             {% image src: widget.settings.transparent_logo, size: 'medium', class: 'header-logo-image header-logo-transparent', lazy: false %}
           {% else %}
             {% image src: widget.settings.logoImage, size: 'medium', class: 'header-logo-image header-logo-transparent', lazy: false %}
           {% endif %}
-        {% else %}
+        {% elsif widget.settings.show_logo_text %}
           <span data-setting="logoText">{{ widget.settings.logoText | default: 'Widgetizer' }}</span>
         {% endif %}
       </a>

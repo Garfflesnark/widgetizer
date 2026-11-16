@@ -1,5 +1,5 @@
 {% if header_settings.header_social_links.size > 0 %}
-  <div class="header-three-region-social" role="group" aria-label="Social links" style="--header-social-icon-size: {{ header_settings.social_icon_size | default: 32 }}px;">
+  <div class="header-three-region-social" role="group" aria-label="Social links" style="--header-social-icon-size: {{ header_settings.social_icon_size | default: 32 }}px; --header-social-icon-spacing: {{ header_settings.social_icon_spacing | default: 8 }}px;">
     {% for social_link in header_settings.header_social_links %}
       {% assign social_href = social_link.url | safe_url %}
       {% if social_link.icon != blank %}

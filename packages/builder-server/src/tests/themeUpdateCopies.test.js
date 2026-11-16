@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.13");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.14");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
@@ -63,7 +63,12 @@ describe("Arch newest theme update", () => {
     const previousTheme = await fs.readJson(path.join(THEME_DIR, "theme.json"));
     previousTheme.useCoreWidgets = false;
     await fs.outputJson(path.join(project, "theme.json"), previousTheme);
-    const authoredHeader = { type: "header", settings: { logoText: "My brand", menu: "main-menu" } };
+    const authoredHeader = { type: "header", settings: {
+      logoText: "My brand", menu: "main-menu", show_logo_image: false, show_contact_details: false,
+      navigation_item_spacing: 20, social_icon_spacing: 16,
+      header_links: [{ label: "About", destination: "about", destination_type: "page", open_in_new_tab: "true" }],
+      header_social_links: [{ icon: "instagram", url: "https://example.com/social", accessible_label: "Updates", open_in_new_tab: "false" }],
+    } };
     await fs.outputJson(path.join(project, "pages/global/header.json"), authoredHeader);
     await fs.outputJson(path.join(project, "widgets/global/header/schema.json"), { type: "header", settings: [] });
     await fs.outputFile(path.join(project, "widgets/global/header/widget.liquid"), "legacy header template");
@@ -71,7 +76,7 @@ describe("Arch newest theme update", () => {
     const result = await applyThemeUpdateToDir({ themeSourceDir: updateDir, projectDir: project });
     const installedSchema = await fs.readJson(path.join(project, "widgets/global/header/schema.json"));
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
-    assert.equal(result.newVersion, "0.9.13");
+    assert.equal(result.newVersion, "0.9.14");
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -80,6 +85,12 @@ describe("Arch newest theme update", () => {
     assert.equal(installedSchema.settings.find((setting) => setting.id === "show_contact_details").default, true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "show_bottom_border").default, true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.find((column) => column.id === "open_in_new_tab").default, "false");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_item_spacing").default, 8);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_spacing").default, 8);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.filter((column) => column.type !== "hidden").map((column) => column.id).join(","), "label,open_in_new_tab,destination,destination_type,presentation");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.find((column) => column.id === "destination").layout, "full");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns.map((column) => column.id).join(","), "icon,open_in_new_tab,accessible_label,url");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns.find((column) => column.id === "accessible_label").layout, "full");
     assert.ok(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns.some((column) => column.id === "open_in_new_tab"));
     assert.deepEqual(installedHeader, authoredHeader, "the saved Header settings remain untouched");
     assert.deepEqual(

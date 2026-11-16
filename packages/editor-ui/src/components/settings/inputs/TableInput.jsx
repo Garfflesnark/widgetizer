@@ -71,7 +71,7 @@ function TableRow({ row, rowIndex, columns, onCellChange, onRowNameChange, onRow
 
       <div className={`${cellLayout} gap-3 min-w-0`}>
         {visibleColumns.map((column) => (
-          <label key={column.id} className="flex flex-col gap-1 min-w-0">
+          <label key={column.id} className={`flex flex-col gap-1 min-w-0 ${rowNames && column.layout === "full" ? "sm:col-span-2" : ""}`}>
             <span className="text-xs font-medium text-slate-500">{column.label || column.id}</span>
             {column.type === "destination" ? (
               row.values[destinationTypeColumn] === "page" ? (

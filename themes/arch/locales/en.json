@@ -1537,6 +1537,12 @@
         "label": "Social Icon Size",
         "description": "Set one size for all social icons. The default matches the current Header scale."
       },
+      "navigation_item_spacing": {
+        "label": "Navigation Item Spacing"
+      },
+      "social_icon_spacing": {
+        "label": "Social Icon Spacing"
+      },
       "regions": {
         "left": "Left",
         "center": "Center",
@@ -1557,7 +1563,7 @@
       },
       "header_social_links": {
         "label": "Social links",
-        "description": "Choose an icon, optional URL, accessible label and whether it opens in a new tab. Icons remain visible without a URL. Rename rows for your own organization and drag to change order.",
+        "description": "Choose an icon, accessible label, destination URL and whether it opens in a new tab. Icons remain visible without a URL. Rename rows for your own organization and drag to change order.",
         "columns": {
           "icon": "Icon",
           "url": "Destination URL",

@@ -8,13 +8,23 @@ export function handlePreviewLinkClick(event, { mode, baseUrl, standaloneSite, n
   if (mode === "standalone") {
     const href = linkElement.getAttribute("href");
     const internalTarget = getStandalonePreviewTarget(href, standaloneSite);
-    event.preventDefault();
-    event.stopPropagation();
     if (internalTarget) {
+      event.preventDefault();
+      event.stopPropagation();
       navigateInternal?.(internalTarget);
     } else {
       const externalTarget = getPreviewExternalTarget(href, baseUrl);
-      if (externalTarget) openExternal?.(externalTarget);
+      if (externalTarget) {
+        // Keep the browser's trusted click activation for sandboxed Preview
+        // popups, including SVG social links, instead of relying on window.open.
+        linkElement.href = externalTarget;
+        linkElement.target = "_blank";
+        linkElement.rel = "noopener noreferrer";
+        event.stopPropagation();
+      } else {
+        event.preventDefault();
+        event.stopPropagation();
+      }
     }
     return true;
   }

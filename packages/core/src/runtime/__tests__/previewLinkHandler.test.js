@@ -36,13 +36,14 @@ describe("preview link click behavior", () => {
     expect(result.openExternal).not.toHaveBeenCalled();
   });
 
-  it("opens standalone navigation and social destinations in a separate tab", () => {
+  it("uses trusted standalone anchors for navigation and social destinations", () => {
     for (const href of ["https://example.com/nav", "https://social.example/profile"]) {
       const result = clickThroughPreview(href, "standalone");
-      expect(result.event.defaultPrevented).toBe(true);
-      expect(result.openExternal).toHaveBeenCalledWith(href);
-      expect(result.openWindow).toHaveBeenCalledWith(href, "_blank", "noopener,noreferrer");
+      expect(result.event.defaultPrevented).toBe(false);
+      expect(result.openExternal).not.toHaveBeenCalled();
       expect(result.navigation).not.toHaveBeenCalled();
+      expect(document.querySelector("a").target).toBe("_blank");
+      expect(document.querySelector("a").rel).toBe("noopener noreferrer");
     }
   });
 

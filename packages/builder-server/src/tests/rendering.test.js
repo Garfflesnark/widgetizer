@@ -495,6 +495,29 @@ describe("Arch Header v1", () => {
     assert.ok(!html.includes("Retained but hidden"));
   });
 
+  it("honours legacy logo image visibility without discarding image or text settings", async () => {
+    const settings = {
+      three_region_enabled: false,
+      logoImage: "/uploads/images/hero.jpg",
+      logoText: "Retained legacy brand",
+      show_logo_image: false,
+      show_logo_text: true,
+    };
+    const hidden = await renderWidget(PROJECT_ID, "header-legacy-logo-hidden", {
+      type: "header", settings,
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+    assert.doesNotMatch(hidden, /<img[^>]*header-logo-image/);
+    assert.match(hidden, /Retained legacy brand/);
+
+    const shown = await renderWidget(PROJECT_ID, "header-legacy-logo-restored", {
+      type: "header", settings: { ...settings, show_logo_image: true },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+    assert.match(shown, /<img[^>]*src="[^"]*hero-medium\.jpg"[^>]*header-logo-image/);
+    assert.doesNotMatch(shown, /Retained legacy brand/);
+    assert.equal(settings.logoImage, "/uploads/images/hero.jpg");
+    assert.equal(settings.show_logo_image, false);
+  });
+
   it("retains both logo values while rendering neither when both visibility controls are off", async () => {
     const html = await renderWidget(PROJECT_ID, "header-v1-no-logo", {
       type: "header",
@@ -536,6 +559,26 @@ describe("Arch Header v1", () => {
     const socialIndex = html.indexOf('class="header-three-region-social"');
     assert.ok(logoIndex >= 0 && logoIndex < navigationIndex && navigationIndex < socialIndex);
     assert.match(html, /header-region--center[\s\S]*header-v1-logo[\s\S]*header-three-region-nav[\s\S]*header-three-region-social/);
+  });
+
+  it("applies independent group spacing without changing social icon size", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-group-spacing", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        navigation_item_spacing: 22,
+        social_icon_size: 48,
+        social_icon_spacing: 14,
+        header_links: [{ label: "Home", destination: "home", destination_type: "page" }],
+        header_social_links: [{ icon: "instagram", url: "https://example.com/social", accessible_label: "Instagram" }],
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.match(html, /--header-nav-item-spacing: 22px/);
+    assert.match(html, /--header-social-icon-spacing: 14px/);
+    assert.match(html, /--header-social-icon-size: 48px/);
+    assert.match(html, /column-gap: var\(--header-nav-item-spacing, var\(--space-xs\)\)/);
+    assert.match(html, /column-gap: var\(--header-social-icon-spacing, var\(--space-xs\)\)/);
   });
 });
 
