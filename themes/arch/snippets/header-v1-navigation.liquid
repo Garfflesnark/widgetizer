@@ -10,7 +10,7 @@
           {% endif %}
           {% if header_href and header_href.size > 0 %}
             <li class="nav-item">
-              <a href="{{ header_href }}" class="nav-link{% if header_link.presentation == 'button' %} nav-link--button widget-button widget-button-{{ header_settings.ctaButtonStyle | default: 'secondary' }}{% endif %}">{{ header_link.label }}</a>
+              <a href="{{ header_href }}" class="nav-link{% if header_link.presentation == 'button' %} nav-link--button widget-button widget-button-{{ header_settings.ctaButtonStyle | default: 'secondary' }}{% endif %}"{% if header_link.open_in_new_tab == true or header_link.open_in_new_tab == 'true' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ header_link.label }}</a>
             </li>
           {% else %}
             <li class="nav-item">

@@ -1,6 +1,6 @@
 <a href="#main-content" class="visually-hidden skip-link">{{ widget.settings.skip_link_text | default: 'Skip to main content' }}</a>
 
-<header id="{{ widget.id }}" class="widget widget-site-header color-scheme-{{ widget.settings.color_scheme }}{% if widget.settings.sticky %} header-sticky{% endif %}{% if widget.settings.three_region_enabled %} header-v1{% endif %}" data-widget-id="{{ widget.id }}" data-widget-type="header"{% unless widget.settings.color_scheme == 'standard-primary' %}style="--widget-bg-color: var(--bg-primary);"{% endunless %}>
+<header id="{{ widget.id }}" class="widget widget-site-header color-scheme-{{ widget.settings.color_scheme }}{% if widget.settings.sticky %} header-sticky{% endif %}{% if widget.settings.three_region_enabled %} header-v1{% endif %}{% if widget.settings.show_bottom_border == false or widget.settings.show_bottom_border == 'false' %} header-no-bottom-border{% endif %}" data-widget-id="{{ widget.id }}" data-widget-type="header"{% unless widget.settings.color_scheme == 'standard-primary' %}style="--widget-bg-color: var(--bg-primary);"{% endunless %}>
 
   <style>
     .widget-site-header .header-logo-image {
@@ -59,6 +59,11 @@
       display: inline-flex;
       align-items: center;
       padding: var(--space-sm) var(--space-md);
+      font-family: inherit;
+      font-size: calc(var(--font-size-base) * var(--body-scale));
+      font-weight: var(--typography-body_font-weight, 400);
+      line-height: var(--line-height-normal);
+      letter-spacing: inherit;
       color: var(--header-nav-top-link-color);
       text-decoration: none;
       border-radius: var(--radius-button);
@@ -70,9 +75,15 @@
       background: var(--header-nav-top-link-hover-bg);
     }
     .widget-site-header.header-v1 .header-three-region-nav .nav-link--button {
+      font-family: inherit;
+      font-size: calc(var(--font-size-sm) * var(--body-scale));
+      font-weight: var(--typography-body_font-weight, 400);
+      line-height: var(--line-height-normal);
+      letter-spacing: inherit;
       color: var(--accent-text);
       background: var(--accent);
     }
+    .widget-site-header.header-no-bottom-border { border-block-end: 0; }
     .widget-site-header.header-v1 .header-three-region-nav .nav-link--button:hover,
     .widget-site-header.header-v1 .header-three-region-nav .nav-link--button:focus-visible {
       color: var(--accent-text);
@@ -137,7 +148,7 @@
     <div class="header-region header-region--left">
       {% if widget.settings.logo_region == 'left' %}
         {% render 'header-v1-logo', header_settings: widget.settings %}
-        {% render 'header-v1-contact', header_settings: widget.settings %}
+        {% unless widget.settings.show_contact_details == false or widget.settings.show_contact_details == 'false' %}{% render 'header-v1-contact', header_settings: widget.settings %}{% endunless %}
       {% endif %}
       {% if widget.settings.navigation_region == 'left' %}{% render 'header-v1-navigation', header_settings: widget.settings %}{% endif %}
       {% if widget.settings.social_region == 'left' %}{% render 'header-v1-social', header_settings: widget.settings %}{% endif %}
@@ -145,7 +156,7 @@
     <div class="header-region header-region--center">
       {% if widget.settings.logo_region == 'center' %}
         {% render 'header-v1-logo', header_settings: widget.settings %}
-        {% render 'header-v1-contact', header_settings: widget.settings %}
+        {% unless widget.settings.show_contact_details == false or widget.settings.show_contact_details == 'false' %}{% render 'header-v1-contact', header_settings: widget.settings %}{% endunless %}
       {% endif %}
       {% if widget.settings.navigation_region == 'center' %}{% render 'header-v1-navigation', header_settings: widget.settings %}{% endif %}
       {% if widget.settings.social_region == 'center' %}{% render 'header-v1-social', header_settings: widget.settings %}{% endif %}
@@ -153,7 +164,7 @@
     <div class="header-region header-region--right">
       {% if widget.settings.logo_region == 'right' %}
         {% render 'header-v1-logo', header_settings: widget.settings %}
-        {% render 'header-v1-contact', header_settings: widget.settings %}
+        {% unless widget.settings.show_contact_details == false or widget.settings.show_contact_details == 'false' %}{% render 'header-v1-contact', header_settings: widget.settings %}{% endunless %}
       {% endif %}
       {% if widget.settings.navigation_region == 'right' %}{% render 'header-v1-navigation', header_settings: widget.settings %}{% endif %}
       {% if widget.settings.social_region == 'right' %}{% render 'header-v1-social', header_settings: widget.settings %}{% endif %}
@@ -178,6 +189,7 @@
         {% endif %}
       </a>
 
+      {% unless widget.settings.show_contact_details == false or widget.settings.show_contact_details == 'false' %}
       {% if widget.settings.contact_position != 'menu' %}
         {% if widget.settings.contactDetailsLine1 != blank or widget.settings.contactDetailsLine2 != blank %}
           <div class="header-contact">
@@ -194,6 +206,7 @@
           </div>
         {% endif %}
       {% endif %}
+      {% endunless %}
     </div>
 
     <div class="header-actions">
@@ -234,6 +247,7 @@
             {{ widget.settings.ctaButtonLink.text }}
           </a>
         {% endif %}
+        {% unless widget.settings.show_contact_details == false or widget.settings.show_contact_details == 'false' %}
         {% if widget.settings.contactDetailsLine1 != blank or widget.settings.contactDetailsLine2 != blank %}
           <div class="header-contact header-contact-mobile">
             {% if widget.settings.contactDetailsLine1 != blank %}
@@ -248,12 +262,14 @@
             {% endif %}
           </div>
         {% endif %}
+        {% endunless %}
         {% if widget.settings.show_language_switcher %}
           {% render 'language-switcher', translations: page.translations, landmark: false %}
         {% endif %}
       </nav>
 
       <div class="header-end">
+        {% unless widget.settings.show_contact_details == false or widget.settings.show_contact_details == 'false' %}
         {% if widget.settings.contact_position == 'menu' %}
           {% if widget.settings.contactDetailsLine1 != blank or widget.settings.contactDetailsLine2 != blank %}
             <div class="header-contact header-contact-right">
@@ -270,6 +286,7 @@
             </div>
           {% endif %}
         {% endif %}
+        {% endunless %}
 
         {% if widget.settings.ctaButtonLink.text != blank %}
         <a href="{{ widget.settings.ctaButtonLink.href | default: '#' }}" class="widget-button desktop-cta {% if widget.settings.ctaButtonStyle == 'primary' %}widget-button-primary{% else %}widget-button-secondary{% endif %}" {% if widget.settings.ctaButtonLink.target == '_blank' %}target="_blank" rel="noopener noreferrer"{% endif %}>

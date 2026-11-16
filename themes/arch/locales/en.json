@@ -1469,6 +1469,9 @@
         "label": "Contact Details 2",
         "description": "Second line of contact info (e.g., address)"
       },
+      "show_contact_details": {
+        "label": "Show Contact Details"
+      },
       "contact_position": {
         "label": "Contact details position",
         "options": {
@@ -1522,6 +1525,9 @@
         "label": "Use three-region Header",
         "description": "When enabled, the Header uses the logo, navigation, and social settings below."
       },
+      "show_bottom_border": {
+        "label": "Show Header Bottom Border"
+      },
       "show_logo_image": { "label": "Show logo image" },
       "show_logo_text": { "label": "Show logo text" },
       "logo_region": { "label": "Logo group region" },
@@ -1543,7 +1549,8 @@
           "label": "Label",
           "destination": "Destination",
           "destination_type": "Destination type",
-          "presentation": "Presentation"
+          "presentation": "Presentation",
+          "open_in_new_tab": "Open in new tab"
         },
         "destination_types": { "page": "Internal page", "url": "URL" },
         "presentations": { "link": "Text link", "button": "Button" }

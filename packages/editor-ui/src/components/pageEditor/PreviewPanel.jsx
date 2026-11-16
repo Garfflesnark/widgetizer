@@ -593,6 +593,11 @@ const PreviewPanel = forwardRef(function PreviewPanel(
         previewMode === "desktop" ? "bg-white" : "bg-slate-200"
       }`}
     >
+      {runtimeMode === "editor" && (
+        <div className="absolute bottom-2 left-2 z-10 rounded bg-slate-900/80 px-2 py-1 text-xs text-white pointer-events-none">
+          Click to select. Ctrl/Cmd-click an external link to open it in a new tab.
+        </div>
+      )}
       {import.meta.env.DEV && runtimeMode === "editor" && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname) &&
         <GeometryRecorderPanel iframeRef={iframeRef} />}
       {loading && (

@@ -404,6 +404,40 @@ describe("Arch Header v1", () => {
     assert.ok(!html.includes("javascript:alert"));
   });
 
+  it("keeps contact and border visibility independent and renders navigation tab preferences", async () => {
+    const hiddenHtml = await renderWidget(PROJECT_ID, "header-v1-visibility-off", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        show_contact_details: false,
+        show_bottom_border: false,
+        contactDetailsLine1: "Stored phone detail",
+        contactDetailsLine2: "Stored address detail",
+        logo_region: "left", navigation_region: "center", social_region: "right",
+        header_links: [
+          { label: "Same tab", destination: "https://example.com/same", destination_type: "url", presentation: "link", open_in_new_tab: "false" },
+          { label: "New tab", destination: "https://example.com/new", destination_type: "url", presentation: "button", open_in_new_tab: "true" },
+          { label: "Internal new tab", destination: "old-about", destination_type: "page", destination_page_uuid: "page-uuid-about", presentation: "link", open_in_new_tab: "true" },
+        ],
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.match(hiddenHtml, /header-no-bottom-border/);
+    assert.doesNotMatch(hiddenHtml, /Stored phone detail|Stored address detail/);
+    assert.match(hiddenHtml, /href="https:\/\/example\.com\/same" class="nav-link"/);
+    assert.doesNotMatch(hiddenHtml, /href="https:\/\/example\.com\/same"[^>]*target=/);
+    assert.match(hiddenHtml, /href="https:\/\/example\.com\/new"[^>]*target="_blank" rel="noopener noreferrer"/);
+    assert.match(hiddenHtml, /href="about-us\.html"[^>]*target="_blank" rel="noopener noreferrer"/);
+    assert.match(hiddenHtml, /font-size: calc\(var\(--font-size-base\) \* var\(--body-scale\)\)/);
+    assert.match(hiddenHtml, /font-size: calc\(var\(--font-size-sm\) \* var\(--body-scale\)\)/);
+
+    const legacyDefaultHtml = await renderWidget(PROJECT_ID, "header-legacy-contact-default", {
+      type: "header",
+      settings: { three_region_enabled: false, contactDetailsLine1: "Legacy phone" },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+    assert.ok(legacyDefaultHtml.includes("Legacy phone"), "missing visibility setting retains the legacy default");
+  });
+
   it("keeps navigation labels and social icons visible without creating empty links", async () => {
     const html = await renderWidget(PROJECT_ID, "header-v1-empty-destinations", {
       type: "header",

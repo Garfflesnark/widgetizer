@@ -26,6 +26,19 @@
  */
 const LANGUAGE_SEGMENT = /^[a-z]{2}(-[a-z0-9]{2,8})?$/;
 
+/** Return an absolute HTTP(S) destination for Preview popups, or null. */
+export function getPreviewExternalTarget(href, baseUrl) {
+  if (typeof href !== "string") return null;
+  const trimmed = href.trim();
+  if (!trimmed || !(/^[a-z][a-z0-9+.-]*:/i.test(trimmed) || trimmed.startsWith("//"))) return null;
+  try {
+    const url = new URL(trimmed, baseUrl);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve `href` against the directory of `outputPath`, as a browser would. */
 function resolveAgainst(outputPath, href) {
   const base = String(outputPath || "").split("/").slice(0, -1);

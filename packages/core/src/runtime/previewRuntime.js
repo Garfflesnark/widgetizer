@@ -20,7 +20,7 @@ and cross-origin contentDocument access issues.
 // /runtime/standalonePreviewTarget.js (same dir). Single source of truth for the
 // in-preview href → preview-route mapping (unit-tested separately).
 import { createImageResizeController } from "./imageResize.js";
-import { getStandalonePreviewTarget } from "./standalonePreviewTarget.js";
+import { handlePreviewLinkClick } from "./previewLinkHandler.js";
 import { activeArea, activePresentation, activeWidget, isActivePresentation, scopeInstanceIds } from "./responsiveDOM.js";
 
 let responsivePresentationEpoch = 0;
@@ -669,30 +669,22 @@ function setupInteractionHandler() {
       if (PREVIEW_MODE === "editor" && widgetEl) updateSelection(widgetEl.dataset.widgetId, blockEl?.dataset.blockId || null);
       const linkElement = event.target.closest("a");
       if (linkElement) {
-        if (PREVIEW_MODE === "standalone") {
-          const href = linkElement.getAttribute("href");
-          const targetUrl = getStandalonePreviewTarget(href, { collectionPrefixes: COLLECTION_PREFIXES, ...PREVIEW_SITE });
-          event.preventDefault();
-          event.stopPropagation();
-
-          if (targetUrl) {
-            postToParent({ type: "NAVIGATE_PREVIEW", payload: { url: targetUrl } });
-          }
-          return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (widgetEl) {
-          postToParent({
-            type: "WIDGET_SELECTED",
-            payload: withResponsiveMetadata({
-              widgetId: widgetEl.getAttribute("data-widget-id"),
-              blockId: blockEl ? blockEl.getAttribute("data-block-id") : null,
-            }),
-          });
-        }
+        handlePreviewLinkClick(event, {
+          mode: PREVIEW_MODE,
+          baseUrl: document.location.href,
+          standaloneSite: { collectionPrefixes: COLLECTION_PREFIXES, ...PREVIEW_SITE },
+          navigateInternal: (url) => postToParent({ type: "NAVIGATE_PREVIEW", payload: { url } }),
+          openExternal: (url) => window.open(url, "_blank", "noopener,noreferrer"),
+          onEditorLink: () => {
+            if (widgetEl) postToParent({
+              type: "WIDGET_SELECTED",
+              payload: withResponsiveMetadata({
+                widgetId: widgetEl.getAttribute("data-widget-id"),
+                blockId: blockEl ? blockEl.getAttribute("data-block-id") : null,
+              }),
+            });
+          },
+        });
         return;
       }
 

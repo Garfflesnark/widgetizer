@@ -25,15 +25,15 @@ function toRows(value, columns, rowNames) {
 }
 
 function toValue(rows, columns, rowNames) {
-  return rows.filter((row) => rowHasContent(row.values, columns)).map((row, index) => ({
+  return rows.filter((row) => rowHasContent(row.values, columns)).map((row) => ({
     ...Object.fromEntries(columns.map((column) => [column.id, row.values[column.id] ?? ""])),
-    ...(rowNames ? { row_name: row.rowName?.trim() || `Row ${index + 1}` } : {}),
+    ...(rowNames ? { row_name: row.rowName?.trim() || "" } : {}),
   }));
 }
 
 const signature = (entries) => JSON.stringify(Array.isArray(entries) ? entries : []);
 
-function TableRow({ row, rowIndex, columns, onCellChange, onRowNameChange, onRemove, rowNames, pageOptions }) {
+function TableRow({ row, rowIndex, columns, onCellChange, onRowNameChange, onRowNameBlur, onRemove, rowNames, pageOptions }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.uid });
   const style = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
@@ -62,7 +62,7 @@ function TableRow({ row, rowIndex, columns, onCellChange, onRowNameChange, onRem
           <button type="button" {...attributes} {...listeners} className="cursor-grab p-1 shrink-0 flex items-center text-slate-400 hover:text-slate-600" aria-label={`Reorder ${row.rowName || `Row ${rowIndex + 1}`}`}>
             <Grip size={18} />
           </button>
-          <TextInput value={row.rowName || `Row ${rowIndex + 1}`} ariaLabel={`Row ${rowIndex + 1} name`} onChange={onRowNameChange} />
+          <TextInput value={row.rowName} placeholder={`Row ${rowIndex + 1}`} ariaLabel={`Row ${rowIndex + 1} name`} onChange={onRowNameChange} onBlur={onRowNameBlur} />
           <IconButton type="button" variant="danger" size="sm" onClick={onRemove} title="Remove row"><Trash2 size={18} /></IconButton>
         </div>
       ) : (
@@ -159,6 +159,9 @@ export default function TableInput({ value, onChange, columns = [], rowNames = f
               else setCell(row.uid, colId, value);
             }}
             onRowNameChange={(name) => apply(rows.map((item) => item.uid === row.uid ? { ...item, rowName: name } : item))}
+            onRowNameBlur={() => {
+              if (!row.rowName.trim()) apply(rows.map((item, index) => item.uid === row.uid ? { ...item, rowName: `Row ${index + 1}` } : item));
+            }}
             onRemove={() => removeRow(row.uid)} />)}</div>
         </SortableContext>
       </DndContext>}

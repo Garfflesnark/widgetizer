@@ -51,6 +51,12 @@
       "default": "1450 Market St, Suite 200"
     },
     {
+      "type": "checkbox",
+      "id": "show_contact_details",
+      "label": "tTheme:header.settings.show_contact_details.label",
+      "default": true
+    },
+    {
       "type": "select",
       "id": "contact_position",
       "label": "tTheme:header.settings.contact_position.label",
@@ -97,6 +103,12 @@
       "label": "tTheme:header.settings.three_region_enabled.label",
       "description": "tTheme:header.settings.three_region_enabled.description",
       "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_bottom_border",
+      "label": "tTheme:header.settings.show_bottom_border.label",
+      "default": true
     },
     {
       "type": "checkbox",
@@ -171,6 +183,7 @@
           { "value": "page", "label": "tTheme:header.settings.header_links.destination_types.page" },
           { "value": "url", "label": "tTheme:header.settings.header_links.destination_types.url" }
         ] },
+        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_links.columns.open_in_new_tab", "type": "checkbox", "default": "false" },
         { "id": "presentation", "label": "tTheme:header.settings.header_links.columns.presentation", "type": "select", "options": [
           { "value": "link", "label": "tTheme:header.settings.header_links.presentations.link" },
           { "value": "button", "label": "tTheme:header.settings.header_links.presentations.button" }

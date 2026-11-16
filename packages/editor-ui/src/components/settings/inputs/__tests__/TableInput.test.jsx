@@ -43,6 +43,26 @@ it("renames administrative rows without changing their published label and retai
   expect(screen.getByRole("button", { name: "Reorder Main navigation" })).toBeInTheDocument();
 });
 
+it("allows a row name to be cleared while typing and applies its default only on blur", async () => {
+  const user = userEvent.setup();
+  const onChange = vi.fn();
+  render(<TableInput rowNames value={[{ label: "About", row_name: "Top row" }]}
+    columns={[{ id: "label", label: "Label", type: "text" }]} onChange={onChange} />);
+
+  const input = screen.getByLabelText("Row 1 name");
+  await user.clear(input);
+  expect(input).toHaveValue("");
+  expect(onChange).toHaveBeenLastCalledWith([{ label: "About", row_name: "" }]);
+  await user.type(input, "Main navigation");
+  expect(input).toHaveValue("Main navigation");
+  expect(onChange).toHaveBeenLastCalledWith([{ label: "About", row_name: "Main navigation" }]);
+
+  await user.clear(input);
+  expect(input).toHaveValue("");
+  await user.tab();
+  expect(onChange).toHaveBeenLastCalledWith([{ label: "About", row_name: "Row 1" }]);
+});
+
 it("shows the page selector for internal rows and retains the URL when destination type changes", () => {
   const onChange = vi.fn();
   const columns = [
@@ -50,13 +70,14 @@ it("shows the page selector for internal rows and retains the URL when destinati
     { id: "destination", type: "destination", destinationTypeColumn: "destination_type", pageUuidColumn: "destination_page_uuid", urlColumn: "destination_url" },
     { id: "destination_page_uuid", type: "hidden" }, { id: "destination_url", type: "hidden" },
     { id: "destination_type", type: "select", options: [{ value: "page", label: "Page" }, { value: "url", label: "URL" }] },
+    { id: "open_in_new_tab", type: "checkbox", default: "false" },
   ];
-  render(<TableInput value={[{ label: "About", destination: "about", destination_type: "page", destination_url: "https://example.com", destination_page_uuid: "page-about" }]}
+  render(<TableInput value={[{ label: "About", destination: "about", destination_type: "page", destination_url: "https://example.com", destination_page_uuid: "page-about", open_in_new_tab: "true" }]}
     columns={columns} pageOptions={[{ value: "page-about", slug: "about", label: "About" }]} onChange={onChange} />);
 
   expect(screen.getByRole("combobox", { name: "destination" })).toHaveValue("page-about");
   fireEvent.change(screen.getByRole("combobox", { name: "destination_type" }), { target: { value: "url" } });
-  expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ destination: "https://example.com", destination_url: "https://example.com", destination_page_uuid: "page-about" })]);
+  expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ destination: "https://example.com", destination_url: "https://example.com", destination_page_uuid: "page-about", open_in_new_tab: "true" })]);
   expect(screen.getByRole("textbox", { name: "destination" })).toHaveValue("https://example.com");
 });
 

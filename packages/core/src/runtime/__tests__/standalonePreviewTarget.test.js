@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getStandalonePreviewTarget } from "../standalonePreviewTarget.js";
+import { getPreviewExternalTarget, getStandalonePreviewTarget } from "../standalonePreviewTarget.js";
 import { previewRoute } from "../../utils/contentAddress.js";
 
 // This is the single source of truth used at runtime by previewRuntime.js (the
@@ -109,6 +109,18 @@ describe("getStandalonePreviewTarget", () => {
     expect(getStandalonePreviewTarget("a/b/c")).toBeNull();
     expect(getStandalonePreviewTarget("mailto:x@y.z")).toBeNull();
     expect(getStandalonePreviewTarget("//cdn/x")).toBeNull();
+  });
+});
+
+describe("getPreviewExternalTarget", () => {
+  it("opens only valid HTTP(S) external links in Preview", () => {
+    expect(getPreviewExternalTarget("https://example.com/path?q=1")).toBe("https://example.com/path?q=1");
+    expect(getPreviewExternalTarget("http://example.com")).toBe("http://example.com/");
+    expect(getPreviewExternalTarget("//example.com/path", "https://preview.local/page")).toBe("https://example.com/path");
+    expect(getPreviewExternalTarget("mailto:test@example.com")).toBeNull();
+    expect(getPreviewExternalTarget("javascript:alert(1)")).toBeNull();
+    expect(getPreviewExternalTarget("relative/page.html", "https://preview.local/page")).toBeNull();
+    expect(getPreviewExternalTarget("https://[invalid")).toBeNull();
   });
 });
 
