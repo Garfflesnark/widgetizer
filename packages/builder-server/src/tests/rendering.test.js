@@ -580,6 +580,71 @@ describe("Arch Header v1", () => {
     assert.match(html, /column-gap: var\(--header-nav-item-spacing, var\(--space-xs\)\)/);
     assert.match(html, /column-gap: var\(--header-social-icon-spacing, var\(--space-xs\)\)/);
   });
+
+  it("emits all six published navigation and social target preferences", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-published-targets", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        header_links: [
+          { label: "Internal same", destination: "old-about", destination_type: "page", destination_page_uuid: "page-uuid-about", open_in_new_tab: "false" },
+          { label: "Internal new", destination: "old-about", destination_type: "page", destination_page_uuid: "page-uuid-about", open_in_new_tab: "true" },
+          { label: "External same", destination: "https://example.com/same", destination_type: "url", open_in_new_tab: "false" },
+          { label: "External new", destination: "https://example.com/new", destination_type: "url", open_in_new_tab: "true" },
+        ],
+        header_social_links: [
+          { icon: "instagram", accessible_label: "Social same", url: "https://social.example/same", open_in_new_tab: "false" },
+          { icon: "facebook", accessible_label: "Social new", url: "https://social.example/new", open_in_new_tab: "true" },
+        ],
+      },
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+    const openingAnchorFor = (label) => {
+      const labelIndex = html.indexOf(label);
+      assert.notEqual(labelIndex, -1, `${label} should render`);
+      return html.slice(html.lastIndexOf("<a ", labelIndex), html.indexOf(">", labelIndex) + 1);
+    };
+    for (const label of ["Internal same", "External same", "Social same"]) {
+      assert.doesNotMatch(openingAnchorFor(label), /\starget=/, `${label} should open in the same tab`);
+    }
+    for (const label of ["Internal new", "External new", "Social new"]) {
+      assert.match(openingAnchorFor(label), /target="_blank" rel="noopener noreferrer"/, `${label} should open safely in a new tab`);
+    }
+    assert.ok(!html.includes("previewRuntime.js"), "published rendering does not load Preview link interception");
+  });
+
+  it("keeps navigation spacing effective on desktop and shares Header padding across render modes", async () => {
+    const headerLinks = Array.from({ length: 5 }, (_, index) => ({
+      label: `Section ${index + 1} with a long label`, destination: `section-${index + 1}`, destination_type: "url",
+    }));
+    for (const spacing of [0, 8, 34, 48]) {
+      const html = await renderWidget(PROJECT_ID, `header-v1-nav-gap-${spacing}`, {
+        type: "header", settings: {
+          three_region_enabled: true, navigation_item_spacing: spacing, header_links: headerLinks,
+          logoText: "Brand", logo_region: "left", navigation_region: "center", social_region: "right",
+          header_social_links: [
+            { icon: "instagram", url: "https://example.com/instagram", accessible_label: "Instagram" },
+            { icon: "facebook", url: "https://example.com/facebook", accessible_label: "Facebook" },
+          ],
+        },
+      }, RAW_THEME_SETTINGS, "preview", null, null);
+      assert.ok(html.includes(`--header-nav-item-spacing: ${spacing}px`));
+      assert.match(html, /grid-template-columns: repeat\(3, minmax\(max-content, 1fr\)\)/);
+      assert.match(html, /header-three-region-nav \.nav-list \{ flex-wrap: nowrap; \}/);
+      assert.match(html, /@media \(max-width: 989px\)[\s\S]*header-three-region-nav \.nav-list \{ flex-wrap: wrap; \}/);
+      assert.match(html, /header-inner--three-region \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+    }
+
+    for (const padding of [0, 16, 96]) {
+      const preview = await renderWidget(PROJECT_ID, `header-padding-preview-${padding}`, {
+        type: "header", settings: { horizontal_header_padding: padding },
+      }, RAW_THEME_SETTINGS, "preview", null, null);
+      const published = await renderWidget(PROJECT_ID, `header-padding-publish-${padding}`, {
+        type: "header", settings: { horizontal_header_padding: padding },
+      }, RAW_THEME_SETTINGS, "publish", null, null);
+      assert.ok(preview.includes(`padding-inline: ${padding}px`));
+      assert.ok(published.includes(`padding-inline: ${padding}px`));
+    }
+  });
 });
 
 // ============================================================================

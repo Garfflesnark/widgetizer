@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.14");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.15");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
@@ -65,7 +65,7 @@ describe("Arch newest theme update", () => {
     await fs.outputJson(path.join(project, "theme.json"), previousTheme);
     const authoredHeader = { type: "header", settings: {
       logoText: "My brand", menu: "main-menu", show_logo_image: false, show_contact_details: false,
-      navigation_item_spacing: 20, social_icon_spacing: 16,
+      navigation_item_spacing: 20, social_icon_spacing: 16, horizontal_header_padding: 32,
       header_links: [{ label: "About", destination: "about", destination_type: "page", open_in_new_tab: "true" }],
       header_social_links: [{ icon: "instagram", url: "https://example.com/social", accessible_label: "Updates", open_in_new_tab: "false" }],
     } };
@@ -76,7 +76,7 @@ describe("Arch newest theme update", () => {
     const result = await applyThemeUpdateToDir({ themeSourceDir: updateDir, projectDir: project });
     const installedSchema = await fs.readJson(path.join(project, "widgets/global/header/schema.json"));
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
-    assert.equal(result.newVersion, "0.9.14");
+    assert.equal(result.newVersion, "0.9.15");
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -84,6 +84,9 @@ describe("Arch newest theme update", () => {
     assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_size").default, 32);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "show_contact_details").default, true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "show_bottom_border").default, true);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "horizontal_header_padding").default, 16);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "horizontal_header_padding").min, 0);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "horizontal_header_padding").max, 96);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.find((column) => column.id === "open_in_new_tab").default, "false");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_item_spacing").default, 8);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_spacing").default, 8);

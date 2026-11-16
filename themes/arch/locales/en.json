@@ -1528,6 +1528,9 @@
       "show_bottom_border": {
         "label": "Show Header Bottom Border"
       },
+      "horizontal_header_padding": {
+        "label": "Horizontal Header Padding"
+      },
       "show_logo_image": { "label": "Show logo image" },
       "show_logo_text": { "label": "Show logo text" },
       "logo_region": { "label": "Logo group region" },

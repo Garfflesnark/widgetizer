@@ -1,6 +1,12 @@
 import { getPreviewExternalTarget, getStandalonePreviewTarget } from "./standalonePreviewTarget.js";
 
-/** Apply the editor/standalone preview's click-only link behavior. */
+/**
+ * Apply preview-only link behavior. Standalone Preview always opens validated
+ * external HTTP(S) links in a separate tab to keep Wyrmetizer open, regardless
+ * of the saved target preference; internal links are routed by the Preview
+ * shell. Published pages do not inject this runtime and use their rendered
+ * target/rel attributes unchanged.
+ */
 export function handlePreviewLinkClick(event, { mode, baseUrl, standaloneSite, navigateInternal, openExternal, onEditorLink } = {}) {
   const linkElement = event.target?.closest?.("a");
   if (!linkElement) return false;
