@@ -144,14 +144,29 @@
       ]
     },
     {
+      "type": "range",
+      "id": "social_icon_size",
+      "label": "tTheme:header.settings.social_icon_size.label",
+      "description": "tTheme:header.settings.social_icon_size.description",
+      "default": 32,
+      "min": 16,
+      "max": 64,
+      "step": 2,
+      "unit": "px"
+    },
+    {
       "type": "table",
       "id": "header_links",
       "label": "tTheme:header.settings.header_links.label",
       "description": "tTheme:header.settings.header_links.description",
       "default": [],
+      "rowNames": true,
+      "pageOptions": true,
       "columns": [
         { "id": "label", "label": "tTheme:header.settings.header_links.columns.label", "type": "text" },
-        { "id": "destination", "label": "tTheme:header.settings.header_links.columns.destination", "type": "text" },
+        { "id": "destination", "label": "tTheme:header.settings.header_links.columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url" },
+        { "id": "destination_page_uuid", "type": "hidden" },
+        { "id": "destination_url", "type": "hidden" },
         { "id": "destination_type", "label": "tTheme:header.settings.header_links.columns.destination_type", "type": "select", "options": [
           { "value": "page", "label": "tTheme:header.settings.header_links.destination_types.page" },
           { "value": "url", "label": "tTheme:header.settings.header_links.destination_types.url" }
@@ -168,6 +183,7 @@
       "label": "tTheme:header.settings.header_social_links.label",
       "description": "tTheme:header.settings.header_social_links.description",
       "default": [],
+      "rowNames": true,
       "columns": [
         { "id": "icon", "label": "tTheme:header.settings.header_social_links.columns.icon", "type": "select", "options": [
           { "value": "facebook", "label": "Facebook" }, { "value": "instagram", "label": "Instagram" },
@@ -180,7 +196,8 @@
           { "value": "whatsapp", "label": "WhatsApp" }, { "value": "mail", "label": "Email" }
         ] },
         { "id": "url", "label": "tTheme:header.settings.header_social_links.columns.url", "type": "text" },
-        { "id": "accessible_label", "label": "tTheme:header.settings.header_social_links.columns.accessible_label", "type": "text" }
+        { "id": "accessible_label", "label": "tTheme:header.settings.header_social_links.columns.accessible_label", "type": "text" },
+        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_social_links.columns.open_in_new_tab", "type": "checkbox", "default": "true" }
       ]
     },
     {

@@ -44,6 +44,30 @@ describe("sanitizeWidgetData table settings", () => {
       { label: "Bad type", destination: "javascript:alert(1)", destination_type: "page", presentation: "link" },
     ]);
   });
+
+  it("preserves opted-in row names and destination metadata while keeping checkbox values safe", () => {
+    const widget = { settings: { links: [{
+      label: "About", destination: "about", destination_page_uuid: "page-about", destination_url: "https://example.com",
+      destination_type: "page", open_in_new_tab: true, row_name: "Top row", ignored: "drop",
+    }] } };
+    sanitizeWidgetData(widget, { settings: [{ id: "links", type: "table", rowNames: true, columns: [
+      { id: "label", type: "text" }, { id: "destination", type: "destination" },
+      { id: "destination_page_uuid", type: "hidden" }, { id: "destination_url", type: "hidden" },
+      { id: "destination_type", type: "select", options: [{ value: "page" }, { value: "url" }] },
+      { id: "open_in_new_tab", type: "checkbox", default: "true" },
+    ] }] });
+
+    assert.deepEqual(widget.settings.links, [{
+      label: "About", destination: "about", destination_page_uuid: "page-about", destination_url: "https://example.com",
+      destination_type: "page", open_in_new_tab: "true", row_name: "Top row",
+    }]);
+  });
+
+  it("drops row-name metadata for tables that have not opted in", () => {
+    const widget = { settings: { rows: [{ label: "Value", row_name: "private editor name" }] } };
+    sanitizeWidgetData(widget, { settings: [{ id: "rows", type: "table", columns: [{ id: "label", type: "text" }] }] });
+    assert.deepEqual(widget.settings.rows, [{ label: "Value" }]);
+  });
 });
 
 // ============================================================================

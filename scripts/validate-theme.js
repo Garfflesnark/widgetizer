@@ -156,6 +156,8 @@ export function validateTheme(dir) {
     "hide_text",
     "embedOptions",
     "columns",
+    "rowNames",
+    "pageOptions",
     "allow_patterns",
   ]);
   const WIDGET_SCHEMA_PROPERTIES = new Set([
@@ -439,7 +441,7 @@ export function validateTheme(dir) {
               problems.push("every row must be an object keyed by column id");
               break;
             }
-            const unknown = Object.keys(row).find((key) => !columnIds.has(key));
+            const unknown = Object.keys(row).find((key) => !columnIds.has(key) && !(setting.rowNames === true && key === "row_name"));
             if (unknown) {
               problems.push(`row key "${unknown}" is not a declared column`);
               break;
@@ -566,8 +568,15 @@ export function validateTheme(dir) {
       }
       if (seen.has(column.id)) error(file, "table-columns", `${label}: column id "${column.id}" is used twice.`);
       seen.add(column.id);
-      if (column.type !== "text")
-        error(file, "table-columns", `${label}: column "${column.id}" must have type "text".`);
+      if (!['text', 'select', 'checkbox', 'hidden', 'destination'].includes(column.type)) {
+        error(file, "table-columns", `${label}: column "${column.id}" has unsupported type "${column.type}".`);
+      }
+      if (column.type === "select" && (!Array.isArray(column.options) || column.options.length === 0)) {
+        error(file, "table-columns", `${label}: select column "${column.id}" needs options.`);
+      }
+      if (column.type === "destination" && (!column.destinationTypeColumn || !column.pageUuidColumn || !column.urlColumn)) {
+        error(file, "table-columns", `${label}: destination column "${column.id}" needs destinationTypeColumn, pageUuidColumn and urlColumn.`);
+      }
     }
   }
 

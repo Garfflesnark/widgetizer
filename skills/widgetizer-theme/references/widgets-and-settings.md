@@ -121,7 +121,7 @@ This table is the complete list. There is no `toggle`, `boolean`, `url`, `html`,
 | `date` | `YYYY-MM-DD` string, or empty | Calendar date, not datetime/timezone. Render with `format_date`. |
 | `menu` | Menu ID/UUID string | Renderer resolves this to a menu object with `items`; do not treat its rendered value as the stored ID. |
 | `link` | `{ "href": "...", "text": "...", "target": "_self" }` | Runtime can add stable `pageUuid` or `collectionType`/`collectionItemUuid`; use the resolved href. `hide_text: true` hides label editing. |
-| `table` | Ordered array of row objects, empty `[]` | Define nonempty `columns`; v1 column type is `text`. Unique column IDs match `^[a-zA-Z][a-zA-Z0-9_]*$`, excluding `__proto__`, `constructor`, `prototype`. Primarily intended for collections; the editor input is shared. |
+| `table` | Ordered array of row objects, empty `[]` | Define nonempty `columns`; supported column types are `text`, `select`, `checkbox`, `hidden`, and the editor's configured `destination` type. Unique column IDs match `^[a-zA-Z][a-zA-Z0-9_]*$`, excluding `__proto__`, `constructor`, `prototype`. `rowNames: true` opts in to administrative `row_name` metadata. `pageOptions: true` enables project page targets for configured destination columns. Primarily intended for collections; the editor input is shared. |
 
 Example table field and value:
 

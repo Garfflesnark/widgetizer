@@ -78,7 +78,7 @@ Collections are optional. Put schemas in `collection-types/<type>/schema.json`; 
 - Schema-level blocks and setting keys `multiple`, `repeater`, and `blocks` are unsupported. Items are flat records; use `gallery` or `table` fields for supported repeated content.
 - `defaultSort`, if supplied, is `manual`, `created_desc`, `created_asc`, `title_asc`, `title_desc`, `date_desc`, or `date_asc`. Date sorting requires the date field.
 - Item-page `slugPrefix` matches the slug pattern and is not `assets`; omitted prefix defaults to `type`. Effective prefixes must be unique across collections on theme import, including after applying updates.
-- Tables have nonempty columns with unique safe IDs and supported `text` column types.
+- Tables have nonempty columns with unique safe IDs and supported column types (`text`, `select`, `checkbox`, `hidden`, and configured `destination`).
 - A supplied `structuredData` mapping must match the supported type/field rules below.
 - Presets must not contain `collection-types/`.
 

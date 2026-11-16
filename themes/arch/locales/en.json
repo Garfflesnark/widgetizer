@@ -1527,6 +1527,10 @@
       "logo_region": { "label": "Logo group region" },
       "navigation_region": { "label": "Navigation region" },
       "social_region": { "label": "Social links region" },
+      "social_icon_size": {
+        "label": "Social Icon Size",
+        "description": "Set one size for all social icons. The default matches the current Header scale."
+      },
       "regions": {
         "left": "Left",
         "center": "Center",
@@ -1534,7 +1538,7 @@
       },
       "header_links": {
         "label": "Visible navigation items",
-        "description": "Add one row per item. Drag rows to change order. For an internal page, enter its page slug (for example, about); for a URL, enter the full address. Choose whether each item looks like a text link or button.",
+        "description": "Add one row per item. Rename rows for your own organization, then drag to change order. Choose an internal page or enter a URL. Choose whether each item looks like a text link or button.",
         "columns": {
           "label": "Label",
           "destination": "Destination",
@@ -1546,11 +1550,12 @@
       },
       "header_social_links": {
         "label": "Social links",
-        "description": "Choose a recognizable icon, add its destination URL, and provide an accessible label for assistive technology. Drag rows to change order.",
+        "description": "Choose an icon, optional URL, accessible label and whether it opens in a new tab. Icons remain visible without a URL. Rename rows for your own organization and drag to change order.",
         "columns": {
           "icon": "Icon",
           "url": "Destination URL",
-          "accessible_label": "Accessible label"
+          "accessible_label": "Accessible label",
+          "open_in_new_tab": "Open in new tab"
         }
       },
       "languages_header": {

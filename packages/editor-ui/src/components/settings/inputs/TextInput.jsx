@@ -2,7 +2,7 @@
  * TextInput component
  * Renders a standard text input with support for different input types
  */
-export default function TextInput({ id, value = "", onChange, placeholder = "", type = "text", min, max, step }) {
+export default function TextInput({ id, value = "", onChange, placeholder = "", type = "text", min, max, step, ariaLabel }) {
   // Clamped on blur rather than per keystroke, so typing "12" toward a max of 20 isn't cut short at "1".
   const clampOnBlur = (e) => {
     if (e.target.value === "") return;
@@ -23,6 +23,7 @@ export default function TextInput({ id, value = "", onChange, placeholder = "", 
         onChange(newValue);
       }}
       placeholder={placeholder}
+      aria-label={ariaLabel}
       className="form-input"
       {...(type === "number" && {
         min: min,

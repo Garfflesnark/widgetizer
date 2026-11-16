@@ -183,8 +183,7 @@ function sanitizeGalleryValue(value) {
   return value.map((entry) => sanitizeImagePath(entry)).filter((src) => src !== "");
 }
 
-/** Normalize one table cell by its column type. v1: `text` only (string-or-""). Future column
- *  types delegate to their existing sanitizer here; `text` needs explicit handling because
+/** Normalize one table cell by its column type. `text` needs explicit handling because
  *  `sanitizeSettingValue` does not coerce text (it's autoescape-safe and returned untouched). */
 function sanitizeTableCell(cell, column) {
   switch (column?.type) {
@@ -193,7 +192,11 @@ function sanitizeTableCell(cell, column) {
       const validValues = options.map((option) => typeof option === "string" ? option : option?.value);
       return typeof cell === "string" && validValues.includes(cell) ? cell : (validValues[0] || "");
     }
+    case "checkbox":
+      return cell === undefined ? (column.default === true || column.default === "true" ? "true" : "false") : (cell === true || cell === "true" ? "true" : "false");
     case "text":
+    case "hidden":
+    case "destination":
     default:
       return typeof cell === "string" ? cell : "";
   }
@@ -210,7 +213,7 @@ function sanitizeTableCell(cell, column) {
  * @param {Array<{id: string, type: string}>} columns
  * @returns {Array<object>}
  */
-function sanitizeTableValue(value, columns) {
+function sanitizeTableValue(value, columns, rowNames = false) {
   if (!Array.isArray(value) || !Array.isArray(columns)) return [];
   const rows = [];
   for (const row of value) {
@@ -222,6 +225,7 @@ function sanitizeTableValue(value, columns) {
       cleanRow[col.id] = cell;
       if (String(cell).trim() !== "") hasContent = true;
     }
+    if (rowNames) cleanRow.row_name = typeof row.row_name === "string" ? row.row_name : "";
     if (hasContent) rows.push(cleanRow);
   }
   return rows;
@@ -508,7 +512,7 @@ export function sanitizeWidgetData(resolvedWidgetData, schema) {
       const setting = settingsMap.get(key);
       if (setting) {
         resolvedWidgetData.settings[key] = setting.type === "table"
-          ? sanitizeTableValue(value, setting.columns)
+          ? sanitizeTableValue(value, setting.columns, setting.rowNames === true)
           : sanitizeSettingValue(value, setting);
       }
     }
@@ -532,7 +536,7 @@ export function sanitizeWidgetData(resolvedWidgetData, schema) {
         const setting = settingMap.get(key);
         if (setting) {
           block.settings[key] = setting.type === "table"
-            ? sanitizeTableValue(value, setting.columns)
+            ? sanitizeTableValue(value, setting.columns, setting.rowNames === true)
             : sanitizeSettingValue(value, setting);
         }
       }
@@ -578,7 +582,7 @@ export function sanitizeCollectionItemData(item, schema) {
     const setting = settingMap.get(key);
     if (!setting) continue;
     if (setting.type === "table") {
-      item.settings[key] = sanitizeTableValue(value, setting.columns);
+      item.settings[key] = sanitizeTableValue(value, setting.columns, setting.rowNames === true);
     } else {
       item.settings[key] = sanitizeSettingValue(value, setting);
     }

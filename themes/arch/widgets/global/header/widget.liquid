@@ -82,17 +82,32 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 3.6rem;
-      height: 3.6rem;
+      min-width: 3.6rem;
+      min-height: 3.6rem;
       color: var(--text-content);
       border-radius: var(--radius-sm);
+      border: 0;
+      outline: none;
+      box-shadow: none;
+      background: transparent;
+      text-decoration: none;
+    }
+    .widget-site-header.header-v1 .header-three-region-social .social-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
     .widget-site-header.header-v1 .header-three-region-social .social-link:hover,
     .widget-site-header.header-v1 .header-three-region-social .social-link:focus-visible {
       color: var(--accent);
-      background: var(--bg-secondary);
+      background: transparent;
+      border: 0;
     }
-    .widget-site-header.header-v1 .header-three-region-social svg { width: 2rem; height: 2rem; }
+    .widget-site-header.header-v1 .header-three-region-social svg {
+      width: var(--header-social-icon-size, 32px);
+      height: auto;
+      max-height: var(--header-social-icon-size, 32px);
+      flex: none;
+    }
     .widget-site-header.header-v1 .header-contact--three-region {
       display: flex;
       flex-direction: column;

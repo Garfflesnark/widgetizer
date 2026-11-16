@@ -375,6 +375,7 @@ describe("Arch Header v1", () => {
         logo_region: "left",
         navigation_region: "center",
         social_region: "right",
+        social_icon_size: 48,
         nav_label: "Primary site links",
         header_links: [
           { label: "About", destination: "about-us", destination_type: "page", presentation: "link" },
@@ -399,7 +400,46 @@ describe("Arch Header v1", () => {
     assert.ok(html.includes("nav-link--button"));
     assert.ok(html.includes('aria-label="Photo updates"'));
     assert.ok(html.includes('target="_blank" rel="noopener noreferrer"'));
+    assert.ok(html.includes("--header-social-icon-size: 48px"));
     assert.ok(!html.includes("javascript:alert"));
+  });
+
+  it("keeps navigation labels and social icons visible without creating empty links", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-empty-destinations", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logo_region: "left", navigation_region: "center", social_region: "right",
+        header_links: [
+          { label: "Visible label", destination: "", destination_type: "page", presentation: "button" },
+          { label: "Missing page", destination: "gone", destination_type: "page", presentation: "link", destination_page_uuid: "deleted-page" },
+        ],
+        header_social_links: [
+          { icon: "instagram", url: "", accessible_label: "Photo feed" },
+          { icon: "github", url: "https://example.com/code", accessible_label: "Code", open_in_new_tab: "false" },
+        ],
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.match(html, /<span class="nav-link nav-link--button[^>]*>Visible label<\/span>/);
+    assert.match(html, /<span class="nav-link[^>]*>Missing page<\/span>/);
+    assert.doesNotMatch(html, /href="(?:"|gone)/);
+    assert.match(html, /<span class="social-link social-link--static" role="img" aria-label="Photo feed">/);
+    assert.match(html, /<a href="https:\/\/example\.com\/code" class="social-link" aria-label="Code">/);
+    assert.doesNotMatch(html, /href="https:\/\/example\.com\/code"[^>]*target=/);
+    assert.match(html, /--header-social-icon-size: 32px/);
+  });
+
+  it("resolves a stored Header page UUID to the current page slug", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-page-reference", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logo_region: "left", navigation_region: "center", social_region: "right",
+        header_links: [{ label: "About", destination: "old-about", destination_type: "page", destination_page_uuid: "page-uuid-about", presentation: "link" }],
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+    assert.ok(html.includes('href="about-us.html"'));
   });
 
   it("shows a logo image without its retained text when text visibility is off", async () => {

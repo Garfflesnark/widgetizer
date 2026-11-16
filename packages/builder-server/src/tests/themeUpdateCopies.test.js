@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.11");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.12");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
@@ -71,9 +71,13 @@ describe("Arch newest theme update", () => {
     const result = await applyThemeUpdateToDir({ themeSourceDir: updateDir, projectDir: project });
     const installedSchema = await fs.readJson(path.join(project, "widgets/global/header/schema.json"));
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
-    assert.equal(result.newVersion, "0.9.11");
+    assert.equal(result.newVersion, "0.9.12");
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "header_social_links").rowNames, true);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_size").default, 32);
+    assert.ok(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns.some((column) => column.id === "open_in_new_tab"));
     assert.deepEqual(installedHeader, authoredHeader, "the saved Header settings remain untouched");
     assert.deepEqual(
       await fs.readFile(path.join(project, "widgets/global/header/widget.liquid")),

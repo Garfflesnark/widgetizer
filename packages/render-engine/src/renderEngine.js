@@ -366,6 +366,29 @@ function resolveWidgetPageLinks(
   return resolved;
 }
 
+/** Resolve Arch-style page destination rows on the render clone. UUID references survive
+ * renames; legacy slug rows are retained only while that slug still identifies a page. */
+function resolvePageDestinationTables(settings, schemaSettings, pagesByUuid, language) {
+  if (!settings || !Array.isArray(schemaSettings)) return;
+  const pages = [...(pagesByUuid?.values() || [])];
+  for (const definition of schemaSettings) {
+    if (definition.type !== "table" || !definition.pageOptions || !Array.isArray(settings[definition.id])) continue;
+    const destination = definition.columns?.find((column) => column.type === "destination");
+    if (!destination) continue;
+    settings[definition.id] = settings[definition.id].map((row) => {
+      if (row?.[destination.destinationTypeColumn] !== "page") {
+        return row?.[destination.pageUuidColumn] && !row?.[destination.urlColumn]
+          ? { ...row, [destination.id]: "" }
+          : row;
+      }
+      const pageUuid = row?.[destination.pageUuidColumn];
+      const page = pageUuid ? pagesByUuid?.get(pageUuid) : pages.find((candidate) =>
+        candidate.slug === row?.[destination.id] && (!language || candidate.language === language));
+      return { ...row, [destination.id]: page ? page.slug : "" };
+    });
+  }
+}
+
 // Widget `menu`-type setting resolution is delegated to the shared ./menuResolver
 // (resolveMenuSettings) — the single source of truth shared with collection-item
 // rendering. This keeps page UUID, collection-item target, and depth-prefix
@@ -1330,6 +1353,7 @@ async function renderWidget(
       // A menu setting holding a bare slug means THIS language's menu.
       language: sharedGlobals?.currentPageData?.language || "",
     };
+    resolvePageDestinationTables(enhancedSettings, schema.settings, pagesByUuid, sharedGlobals?.currentPageData?.language || defaultLanguage);
     resolveMenuSettings(enhancedSettings, schema.settings, menuDeps);
     for (const block of Object.values(enhancedBlocks)) {
       if (block && block.type && block.settings && Array.isArray(blockSchemas[block.type])) {

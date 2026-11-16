@@ -18,6 +18,7 @@ import {
   MenuSelectInput,
   ImageInput,
   TableInput,
+  HeaderTableInput,
   LinkInput,
   YouTubeInput,
   IconInput,
@@ -146,7 +147,9 @@ export default function SettingsRenderer({
       case "gallery":
         return <GalleryInput {...inputProps} />;
       case "table":
-        return <TableInput {...inputProps} columns={translatedColumns} />;
+        return setting.pageOptions
+          ? <HeaderTableInput {...inputProps} columns={translatedColumns} rowNames={setting.rowNames === true} />
+          : <TableInput {...inputProps} columns={translatedColumns} rowNames={setting.rowNames === true} />;
       case "file":
         return <FileInput {...inputProps} />;
       case "video":
