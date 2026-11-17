@@ -4,7 +4,7 @@
 
   <style>
     .widget-site-header {
-      padding-inline: {{ widget.settings.horizontal_header_padding | default: 16 }}px;
+      padding-inline: min({{ widget.settings.horizontal_header_padding | default: 16 }}px, max(0px, calc(50% - 120px)));
     }
     .widget-site-header .header-logo-image {
       max-width: {{ widget.settings.logoMaxWidth | default: 150 }}px;

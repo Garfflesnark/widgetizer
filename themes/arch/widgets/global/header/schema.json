@@ -116,7 +116,7 @@
       "label": "tTheme:header.settings.horizontal_header_padding.label",
       "default": 16,
       "min": 0,
-      "max": 96,
+      "max": 200,
       "step": 2,
       "unit": "px"
     },

@@ -634,15 +634,16 @@ describe("Arch Header v1", () => {
       assert.match(html, /header-inner--three-region \{ grid-template-columns: minmax\(0, 1fr\); \}/);
     }
 
-    for (const padding of [0, 16, 96]) {
+    for (const padding of [0, 16, 96, 200]) {
       const preview = await renderWidget(PROJECT_ID, `header-padding-preview-${padding}`, {
         type: "header", settings: { horizontal_header_padding: padding },
       }, RAW_THEME_SETTINGS, "preview", null, null);
       const published = await renderWidget(PROJECT_ID, `header-padding-publish-${padding}`, {
         type: "header", settings: { horizontal_header_padding: padding },
       }, RAW_THEME_SETTINGS, "publish", null, null);
-      assert.ok(preview.includes(`padding-inline: ${padding}px`));
-      assert.ok(published.includes(`padding-inline: ${padding}px`));
+      const responsivePadding = `padding-inline: min(${padding}px, max(0px, calc(50% - 120px)))`;
+      assert.ok(preview.includes(responsivePadding));
+      assert.ok(published.includes(responsivePadding));
     }
   });
 });

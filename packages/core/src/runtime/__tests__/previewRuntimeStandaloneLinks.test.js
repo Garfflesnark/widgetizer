@@ -52,13 +52,26 @@ describe("standalone preview navigation", () => {
     expect(sent.findLast((entry) => entry.type === "NAVIGATE_PREVIEW")?.payload.url).toBe("/preview/page/en/about");
   });
 
-  it("keeps external navigation buttons inside the Preview window", () => {
-    document.body.insertAdjacentHTML("beforeend", '<a data-external-nav href="https://example.com/page">Visit</a>');
-    const event = click(document.querySelector("[data-external-nav]"));
-    const link = document.querySelector("[data-external-nav]");
-    expect(event.defaultPrevented).toBe(false);
-    expect(link.target).toBe("_blank");
-    expect(link.rel).toBe("noopener noreferrer");
+  it("keeps internal new-tab preferences inside the Preview shell", () => {
+    document.body.insertAdjacentHTML("beforeend", '<a data-internal-new href="about.html" target="_blank" rel="noopener noreferrer">About</a>');
+    const event = click(document.querySelector("[data-internal-new]"));
+    expect(event.defaultPrevented).toBe(true);
+    expect(sent.findLast((entry) => entry.type === "NAVIGATE_PREVIEW")?.payload.url).toBe("/preview/page/en/about");
+  });
+
+  it("forces external navigation and social links into safe new tabs in Preview", () => {
+    document.body.insertAdjacentHTML("beforeend", `
+      <a data-external-nav-same href="https://example.com/page">Visit same-tab preference</a>
+      <a data-external-nav-new href="https://example.com/new" target="_blank" rel="noopener noreferrer">Visit new-tab preference</a>
+      <a data-external-social-same href="https://social.example/profile" aria-label="Social same-tab preference"><svg><path></path></svg></a>
+      <a data-external-social-new href="https://social.example/other" target="_blank" rel="noopener noreferrer" aria-label="Social new-tab preference"><svg><path></path></svg></a>`);
+    for (const selector of ["[data-external-nav-same]", "[data-external-nav-new]", "[data-external-social-same]", "[data-external-social-new]"]) {
+      const event = click(document.querySelector(selector));
+      const link = document.querySelector(selector);
+      expect(event.defaultPrevented).toBe(false);
+      expect(link.target).toBe("_blank");
+      expect(link.rel).toBe("noopener noreferrer");
+    }
     expect(openWindow).not.toHaveBeenCalled();
   });
 });
