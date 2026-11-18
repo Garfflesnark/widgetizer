@@ -101,13 +101,24 @@ it("shows shared typography before the navigation table and applies edits to Hea
 
   const fontSize = document.getElementById("navigation_font_size");
   expect(fontSize).toBeTruthy();
+  expect(screen.getByText("Social Icon Colour")).toBeTruthy();
+  expect(screen.getByText("Social Icon Hover Colour")).toBeTruthy();
   const headerBeforeEdit = structuredClone(pageStore.getState().globalWidgets.header);
   pageStore.setState({ originalPage: { id: "index", widgets: {} }, originalGlobalWidgets: { header: headerBeforeEdit, footer: null } });
   fireEvent.change(fontSize, { target: { value: "23" } });
+  fireEvent.change(document.getElementById("social_icon_color"), { target: { value: "225577" } });
+  fireEvent.change(document.getElementById("social_icon_hover_color"), { target: { value: "cc4488" } });
   expect(pageStore.getState().globalWidgets.header.settings.navigation_font_size).toBe(23);
+  expect(pageStore.getState().globalWidgets.header.settings.social_icon_color).toBe("#225577");
+  expect(pageStore.getState().globalWidgets.header.settings.social_icon_hover_color).toBe("#cc4488");
   expect(pageStore.getState().globalWidgets.header.settings.logoText).toBe("Existing Brand");
   await saveStore.getState().save();
   expect(saveGlobalWidget).toHaveBeenCalledWith("header", expect.objectContaining({
-    settings: expect.objectContaining({ navigation_font_size: 23, logoText: "Existing Brand" }),
+    settings: expect.objectContaining({
+      navigation_font_size: 23,
+      social_icon_color: "#225577",
+      social_icon_hover_color: "#cc4488",
+      logoText: "Existing Brand",
+    }),
   }), undefined);
 });

@@ -469,6 +469,37 @@ describe("Arch Header v1", () => {
     assert.match(html, /<a href="https:\/\/example\.com\/code" class="social-link" aria-label="Code">/);
     assert.doesNotMatch(html, /href="https:\/\/example\.com\/code"[^>]*target=/);
     assert.match(html, /--header-social-icon-size: 32px/);
+    assert.match(html, /--header-social-icon-color: var\(--text-content\)/);
+    assert.match(html, /--header-social-icon-hover-color: var\(--accent\)/);
+    assert.match(html, /\.header-three-region-social a\.social-link:hover \{\s*color: var\(--header-social-icon-hover-color, var\(--accent\)\);/);
+    assert.match(html, /\.header-three-region-social \.social-link:focus-visible \{\s*outline: 2px solid var\(--accent\);/);
+    assert.doesNotMatch(html, /\.social-link--static:hover/);
+  });
+
+  it("applies shared social icon colours to linked and unlinked SVGs without changing sizing or targets", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-social-colours", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        social_icon_size: 44,
+        social_icon_spacing: 14,
+        social_icon_color: "#225577",
+        social_icon_hover_color: "#cc4488",
+        header_social_links: [
+          { icon: "instagram", url: "https://example.com/social", accessible_label: "Social profile", open_in_new_tab: "true" },
+          { icon: "github", url: "javascript:alert(1)", accessible_label: "Offline icon" },
+        ],
+      },
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+
+    assert.match(html, /--header-social-icon-size: 44px; --header-social-icon-spacing: 14px; --header-social-icon-color: #225577; --header-social-icon-hover-color: #cc4488;/);
+    assert.match(html, /<a href="https:\/\/example\.com\/social" class="social-link" aria-label="Social profile" target="_blank" rel="noopener noreferrer">/);
+    assert.match(html, /<span class="social-link social-link--static" role="img" aria-label="Offline icon">/);
+    assert.match(html, /\.header-three-region-social \.social-link \{[\s\S]*?color: var\(--header-social-icon-color, var\(--text-content\)\)/);
+    assert.match(html, /\.header-three-region-social svg \{[\s\S]*?width: var\(--header-social-icon-size, 32px\)[\s\S]*?color: inherit/);
+    assert.match(html, /\.header-three-region-social a\.social-link:hover \{\s*color: var\(--header-social-icon-hover-color, var\(--accent\)\);/);
+    assert.match(html, /\.header-three-region-social \.social-link:focus-visible \{\s*outline: 2px solid var\(--accent\);/);
+    assert.doesNotMatch(html, /\.header-three-region-social \.social-link--static:hover/);
   });
 
   it("applies shared navigation typography and independent Logo Text typography", async () => {

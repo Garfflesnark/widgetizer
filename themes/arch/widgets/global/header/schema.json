@@ -266,6 +266,20 @@
       "unit": "px"
     },
     {
+      "type": "color",
+      "id": "social_icon_color",
+      "label": "tTheme:header.settings.social_icon_color.label",
+      "description": "tTheme:header.settings.social_icon_color.description",
+      "default": "#334155"
+    },
+    {
+      "type": "color",
+      "id": "social_icon_hover_color",
+      "label": "tTheme:header.settings.social_icon_hover_color.label",
+      "description": "tTheme:header.settings.social_icon_hover_color.description",
+      "default": "#0f172a"
+    },
+    {
       "type": "header",
       "id": "navigation_typography_header",
       "label": "tTheme:header.settings.navigation_typography_header.label",

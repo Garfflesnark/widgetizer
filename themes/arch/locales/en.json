@@ -1595,6 +1595,14 @@
       "social_icon_spacing": {
         "label": "Social Icon Spacing"
       },
+      "social_icon_color": {
+        "label": "Social Icon Colour",
+        "description": "Set one colour for every social icon. The default follows the theme's text colour."
+      },
+      "social_icon_hover_color": {
+        "label": "Social Icon Hover Colour",
+        "description": "Set the hover colour for linked social icons. The default follows the theme's accent colour."
+      },
       "regions": {
         "left": "Left",
         "center": "Center",

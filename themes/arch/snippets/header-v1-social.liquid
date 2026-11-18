@@ -1,5 +1,5 @@
 {% if header_settings.header_social_links.size > 0 %}
-  <div class="header-three-region-social" role="group" aria-label="Social links" style="--header-social-icon-size: {{ header_settings.social_icon_size | default: 32 }}px; --header-social-icon-spacing: {{ header_settings.social_icon_spacing | default: 8 }}px;">
+  <div class="header-three-region-social" role="group" aria-label="Social links" style="--header-social-icon-size: {{ header_settings.social_icon_size | default: 32 }}px; --header-social-icon-spacing: {{ header_settings.social_icon_spacing | default: 8 }}px; --header-social-icon-color: {% if header_settings.social_icon_color == blank or header_settings.social_icon_color == '#334155' %}var(--text-content){% else %}{{ header_settings.social_icon_color }}{% endif %}; --header-social-icon-hover-color: {% if header_settings.social_icon_hover_color == blank or header_settings.social_icon_hover_color == '#0f172a' %}var(--accent){% else %}{{ header_settings.social_icon_hover_color }}{% endif %};">
     {% for social_link in header_settings.header_social_links %}
       {% assign social_href = social_link.url | safe_url %}
       {% if social_link.icon != blank %}
