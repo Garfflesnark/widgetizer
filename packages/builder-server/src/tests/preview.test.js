@@ -312,7 +312,7 @@ describe("saveGlobalWidget", () => {
         structured_footer_enabled: true,
         footer_logo_text: "Keep stored value",
         show_footer_horizontal_rule: false,
-        copyright_line_height: 2.1,
+        copyright_line_height: 0.1,
       },
       blocks: {
         social: {

@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.22");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.23");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
@@ -93,7 +93,7 @@ describe("Arch newest theme update", () => {
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
     const installedFooter = await fs.readJson(path.join(project, "pages/global/footer.json"));
     const installedFooterSchema = await fs.readJson(path.join(project, "widgets/global/footer/schema.json"));
-    assert.equal(result.newVersion, "0.9.22");
+    assert.equal(result.newVersion, "0.9.23");
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -143,7 +143,7 @@ describe("Arch newest theme update", () => {
       "new editor schema no longer exposes the structured Footer UI");
     assert.equal(installedFooterSchema.settings.find((setting) => setting.id === "show_footer_horizontal_rule").default, true);
     assert.equal(installedFooterSchema.settings.find((setting) => setting.id === "copyright_line_height").default, 1.5);
-    assert.equal(installedFooterSchema.settings.find((setting) => setting.id === "copyright_line_height").min, 1.0);
+    assert.equal(installedFooterSchema.settings.find((setting) => setting.id === "copyright_line_height").min, 0.0);
     assert.equal(installedFooterSchema.settings.find((setting) => setting.id === "copyright_line_height").max, 2.5);
     assert.equal(installedFooterSchema.settings.find((setting) => setting.id === "copyright_line_height").step, 0.1);
     const socialBlock = installedFooterSchema.blocks.find((block) => block.type === "social_block");

@@ -829,12 +829,13 @@ describe("Arch legacy Footer restoration", () => {
 
   it("applies copyright line height only to the unchanged copyright content", async () => {
     const multilineCopyright = "<p>© Existing studio</p><p>Second line<br>Third line</p>";
-    const adjusted = await renderWidget(PROJECT_ID, "footer-copyright-line-height", {
+    const values = [0, 0.1, 0.5, 1.0, 1.5, 2.5];
+    const rendered = await Promise.all(values.map((lineHeight, index) => renderWidget(PROJECT_ID, `footer-copyright-line-height-${index}`, {
       type: "footer",
-      settings: { copyright: multilineCopyright, copyright_line_height: 2.1 },
-      blocks: {},
-      blocksOrder: [],
-    }, RAW_THEME_SETTINGS, "publish", null, null);
+      settings: { copyright: multilineCopyright, copyright_line_height: lineHeight },
+      blocks: { brand: { type: "logo_text", settings: { logo_text: "Unaffected Footer block" } } },
+      blocksOrder: ["brand"],
+    }, RAW_THEME_SETTINGS, "publish", null, null)));
     const defaulted = await renderWidget(PROJECT_ID, "footer-copyright-line-height-default", {
       type: "footer",
       settings: { copyright: "Single line" },
@@ -842,11 +843,15 @@ describe("Arch legacy Footer restoration", () => {
       blocksOrder: [],
     }, RAW_THEME_SETTINGS, "publish", null, null);
 
-    assert.ok(adjusted.includes('data-setting="copyright" style="line-height: 2.1;"'), adjusted);
-    assert.ok(adjusted.includes(multilineCopyright), adjusted);
+    for (let index = 0; index < values.length; index += 1) {
+      const html = rendered[index];
+      assert.ok(html.includes(`data-setting="copyright" style="line-height: ${values[index]};"`), html);
+      assert.ok(html.includes(multilineCopyright), html);
+      assert.ok(html.includes("Unaffected Footer block"), html);
+      assert.equal((html.match(/style="line-height:/g) || []).length, 1);
+    }
     assert.ok(defaulted.includes('data-setting="copyright" style="line-height: 1.5;"'), defaulted);
     assert.ok(defaulted.includes("Single line"), defaulted);
-    assert.equal((adjusted.match(/line-height:/g) || []).length, 1);
   });
 });
 

@@ -143,22 +143,25 @@ it("exposes the Footer rule and copyright line-height controls and saves them in
   expect(screen.getByText("Copyright Line Height")).toBeTruthy();
   const lineHeight = document.getElementById("copyright_line_height");
   expect(lineHeight.value).toBe("1.5");
+  expect(lineHeight.min).toBe("0");
+  expect(lineHeight.max).toBe("2.5");
+  expect(lineHeight.step).toBe("0.1");
 
   pageStore.setState({
     originalPage: { id: "index", widgets: {} },
     originalGlobalWidgets: { header: structuredClone(legacyHeader), footer: structuredClone(footer) },
   });
   fireEvent.click(horizontalRule);
-  fireEvent.change(lineHeight, { target: { value: "2.1" } });
+  fireEvent.change(lineHeight, { target: { value: "0.1" } });
   expect(pageStore.getState().globalWidgets.footer.settings).toMatchObject({
     copyright,
     show_footer_horizontal_rule: false,
-    copyright_line_height: 2.1,
+    copyright_line_height: 0.1,
   });
 
   await saveStore.getState().save();
   expect(saveGlobalWidget).toHaveBeenCalledWith("footer", expect.objectContaining({
-    settings: expect.objectContaining({ copyright, show_footer_horizontal_rule: false, copyright_line_height: 2.1 }),
+    settings: expect.objectContaining({ copyright, show_footer_horizontal_rule: false, copyright_line_height: 0.1 }),
   }), undefined);
 });
 
