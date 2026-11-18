@@ -5,7 +5,7 @@
   <style>
     .widget-site-header {
       padding-inline: min({{ widget.settings.horizontal_header_padding | default: 16 }}px, max(0px, calc(50% - 120px)));
-      --arch-header-navigation-font-family: {% if widget.settings.navigation_font_family == 'heading' %}var(--typography-heading_font-family, inherit){% else %}var(--typography-body_font-family, inherit){% endif %};
+      --arch-header-navigation-font-family: {% case widget.settings.navigation_font_family %}{% when 'heading' %}var(--typography-heading_font-family, inherit){% when 'extra_font_1' %}var(--typography-extra_font_1-family, inherit){% when 'extra_font_2' %}var(--typography-extra_font_2-family, inherit){% else %}var(--typography-body_font-family, inherit){% endcase %};
       --arch-header-navigation-font-size: {{ widget.settings.navigation_font_size | default: 16 }}px;
       --arch-header-navigation-font-weight: {{ widget.settings.navigation_font_weight | default: '400' }};
       --arch-header-navigation-text-color: {% if widget.settings.navigation_text_color == '#334155' %}var(--header-nav-top-link-color){% else %}{{ widget.settings.navigation_text_color }}{% endif %};
@@ -15,7 +15,7 @@
       --arch-header-navigation-letter-spacing: {{ widget.settings.navigation_letter_spacing | default: 0 }}px;
       --arch-header-navigation-text-transform: {{ widget.settings.navigation_text_transform | default: 'none' }};
       --arch-header-navigation-hover-decoration: {% if widget.settings.navigation_hover_underline %}underline{% else %}none{% endif %};
-      --arch-header-logo-font-family: {% if widget.settings.logo_font_family == 'heading' %}var(--typography-heading_font-family, inherit){% else %}var(--typography-body_font-family, inherit){% endif %};
+      --arch-header-logo-font-family: {% case widget.settings.logo_font_family %}{% when 'heading' %}var(--typography-heading_font-family, inherit){% when 'extra_font_1' %}var(--typography-extra_font_1-family, inherit){% when 'extra_font_2' %}var(--typography-extra_font_2-family, inherit){% else %}var(--typography-body_font-family, inherit){% endcase %};
       --arch-header-logo-font-size: {{ widget.settings.logo_font_size | default: 24 }}px;
       --arch-header-logo-font-weight: {{ widget.settings.logo_font_weight | default: '700' }};
       --arch-header-logo-text-color: {% if widget.settings.logo_text_color == '#0f172a' %}inherit{% else %}{{ widget.settings.logo_text_color }}{% endif %};

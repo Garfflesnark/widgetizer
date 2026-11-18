@@ -558,6 +558,31 @@ describe("Arch Header v1", () => {
     assert.match(html, /<span class="header-v1-logo-text">My Brand<\/span>/, "text transform is presentation-only");
   });
 
+  it("uses Extra Font #1 and Extra Font #2 in Header typography selectors", async () => {
+    const themeSettings = {
+      settings: {
+        global: {
+          typography: [
+            { id: "extra_font_1", type: "font_picker", value: { stack: "\"Merriweather\", serif", weight: 500 } },
+            { id: "extra_font_2", type: "font_picker", value: { stack: "\"Lato\", sans-serif", weight: 600 } },
+          ],
+        },
+      },
+    };
+    const html = await renderWidget(PROJECT_ID, "header-v1-extra-fonts", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logo_font_family: "extra_font_1",
+        navigation_font_family: "extra_font_2",
+        header_links: [{ label: "Typography", destination: "", destination_type: "url", presentation: "link" }],
+      },
+    }, themeSettings, "publish", null, null);
+
+    assert.match(html, /--arch-header-logo-font-family: var\(--typography-extra_font_1-family, inherit\)/);
+    assert.match(html, /--arch-header-navigation-font-family: var\(--typography-extra_font_2-family, inherit\)/);
+  });
+
   it("vertically centers Logo Text beside the logo image in the three-region Header", async () => {
     const html = await renderWidget(PROJECT_ID, "header-v1-aligned-logo-pair", {
       type: "header",

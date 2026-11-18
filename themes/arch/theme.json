@@ -1,6 +1,6 @@
 {
   "name": "Arch",
-  "version": "0.9.25",
+  "version": "0.9.26",
   "description": "The default Widgetizer theme",
   "author": "Widgetizer",
   "settings": {
@@ -249,6 +249,24 @@
           "type": "font_picker",
           "id": "body_font",
           "label": "tTheme:global.typography.settings.body_font.label",
+          "default": {
+            "stack": "\"Inter\", sans-serif",
+            "weight": 400
+          }
+        },
+        {
+          "type": "font_picker",
+          "id": "extra_font_1",
+          "label": "tTheme:global.typography.settings.extra_font_1.label",
+          "default": {
+            "stack": "\"Inter\", sans-serif",
+            "weight": 400
+          }
+        },
+        {
+          "type": "font_picker",
+          "id": "extra_font_2",
+          "label": "tTheme:global.typography.settings.extra_font_2.label",
           "default": {
             "stack": "\"Inter\", sans-serif",
             "weight": 400

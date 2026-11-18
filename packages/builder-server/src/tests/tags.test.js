@@ -886,6 +886,24 @@ describe("ThemeSettingsTag", () => {
     assert.match(result, /--typography-heading_font-family:/);
   });
 
+  it("generates CSS variables for additional typography font pickers", async () => {
+    const extraFonts = {
+      settings: {
+        global: {
+          typography: [
+            { id: "extra_font_1", type: "font_picker", value: { stack: "\"Merriweather\", serif", weight: 500 } },
+            { id: "extra_font_2", type: "font_picker", value: { stack: "\"Lato\", sans-serif", weight: 600 } },
+          ],
+        },
+      },
+    };
+    const result = await render("{% theme_settings %}", {}, { themeSettingsRaw: extraFonts });
+    assert.match(result, /--typography-extra_font_1-family: "Merriweather", serif/);
+    assert.match(result, /--typography-extra_font_1-weight: 500/);
+    assert.match(result, /--typography-extra_font_2-family: "Lato", sans-serif/);
+    assert.match(result, /--typography-extra_font_2-weight: 600/);
+  });
+
   it("returns empty when no theme settings raw data", async () => {
     const result = await render("{% theme_settings %}", {}, {});
     assert.equal(result, "");

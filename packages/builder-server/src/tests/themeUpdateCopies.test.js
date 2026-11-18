@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.25");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.26");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const newBannerSchema = await fs.readJson(path.join(THEME_DIR, "widgets/banner/schema.json"));
@@ -100,8 +100,8 @@ describe("Arch newest theme update", () => {
     const installedBannerSchema = await fs.readJson(path.join(project, "widgets/banner/schema.json"));
     const installedTheme = await fs.readJson(path.join(project, "theme.json"));
     const installedIcons = await fs.readJson(path.join(project, "assets/icons.json"));
-    assert.equal(result.newVersion, "0.9.25");
-    assert.equal(installedTheme.version, "0.9.25");
+    assert.equal(result.newVersion, "0.9.26");
+    assert.equal(installedTheme.version, "0.9.26");
     assert.equal(installedBannerSchema.blocks.find((block) => block.type === "button").settings.find((setting) => setting.id === "button_count").default, "2");
     assert.equal(await fs.pathExists(path.join(project, "widgets/banner/widget.liquid")), true);
     assert.ok(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns[0].options.some((option) => option.value === "twitch"));
@@ -162,7 +162,11 @@ describe("Arch newest theme update", () => {
     assert.equal(installedSchema.settings.find((setting) => setting.id === "logo_text_color").default, "#0f172a");
     assert.deepEqual(
       installedSchema.settings.find((setting) => setting.id === "navigation_font_family").options.map((option) => option.value),
-      ["body", "heading"],
+      ["body", "heading", "extra_font_1", "extra_font_2"],
+    );
+    assert.deepEqual(
+      installedTheme.settings.global.typography.filter((setting) => setting.type === "font_picker").map((setting) => setting.id),
+      ["heading_font", "body_font", "extra_font_1", "extra_font_2"],
     );
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.filter((column) => column.type !== "hidden").map((column) => column.id).join(","), "label,open_in_new_tab,destination,destination_type,presentation");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.find((column) => column.id === "destination").layout, "full");

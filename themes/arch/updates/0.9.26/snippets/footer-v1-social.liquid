@@ -1,0 +1,18 @@
+{% if footer_settings.footer_social_links.size > 0 %}
+  <div class="arch-footer-social" role="group" aria-label="Social links">
+    {% for footer_social in footer_settings.footer_social_links %}
+      {% assign footer_social_href = footer_social.url | safe_url %}
+      {% if footer_social.icon != blank %}
+        {% if footer_social_href and footer_social_href.size > 0 %}
+          <a class="arch-footer-social-link" href="{{ footer_social_href }}" aria-label="{{ footer_social.accessible_label | default: footer_social.icon }}"{% if footer_social.open_in_new_tab == true or footer_social.open_in_new_tab == 'true' %} target="_blank" rel="noopener noreferrer"{% endif %}>
+            {% render 'icon', icon: footer_social.icon %}
+          </a>
+        {% else %}
+          <span class="arch-footer-social-link arch-footer-social-link--static" role="img" aria-label="{{ footer_social.accessible_label | default: footer_social.icon }}">
+            {% render 'icon', icon: footer_social.icon %}
+          </span>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

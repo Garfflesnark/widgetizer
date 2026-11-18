@@ -219,6 +219,12 @@
         "body_font": {
           "label": "Body Font"
         },
+        "extra_font_1": {
+          "label": "Extra Font #1"
+        },
+        "extra_font_2": {
+          "label": "Extra Font #2"
+        },
         "heading_scale": {
           "label": "Heading Text Size",
           "description": "Adjust all heading sizes relatively across the site"
@@ -1619,7 +1625,7 @@
       },
       "logo_font_family": {
         "label": "Font Family",
-        "description": "Use the project's Body or Heading font."
+        "description": "Choose one of the project's shared Typography fonts."
       },
       "logo_font_size": { "label": "Font Size" },
       "logo_font_weight": { "label": "Font Weight" },
@@ -1632,7 +1638,7 @@
       },
       "navigation_font_family": {
         "label": "Font Family",
-        "description": "Use the project's Body or Heading font."
+        "description": "Choose one of the project's shared Typography fonts."
       },
       "navigation_font_size": { "label": "Font Size" },
       "navigation_font_weight": { "label": "Font Weight" },
@@ -1642,7 +1648,12 @@
       "navigation_hover_color": { "label": "Hover Colour" },
       "navigation_hover_underline": { "label": "Underline on Hover" },
       "typography_font_family": {
-        "options": { "body": "Body font", "heading": "Heading font" }
+        "options": {
+          "body": "Body font",
+          "heading": "Heading font",
+          "extra_font_1": "Extra Font #1",
+          "extra_font_2": "Extra Font #2"
+        }
       },
       "typography_font_weight": {
         "options": {

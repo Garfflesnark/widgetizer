@@ -146,7 +146,9 @@
       "default": "body",
       "options": [
         { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
-        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" },
+        { "value": "extra_font_1", "label": "tTheme:header.settings.typography_font_family.options.extra_font_1" },
+        { "value": "extra_font_2", "label": "tTheme:header.settings.typography_font_family.options.extra_font_2" }
       ]
     },
     {
@@ -293,7 +295,9 @@
       "default": "body",
       "options": [
         { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
-        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" },
+        { "value": "extra_font_1", "label": "tTheme:header.settings.typography_font_family.options.extra_font_1" },
+        { "value": "extra_font_2", "label": "tTheme:header.settings.typography_font_family.options.extra_font_2" }
       ]
     },
     {
