@@ -1370,7 +1370,75 @@
     "settings": {
       "copyright": {
         "label": "Copyright text"
-      }
+      },
+      "structured_footer_header": {
+        "label": "Structured Footer",
+        "description": "An optional three-region Footer. Your existing Footer remains unchanged until enabled."
+      },
+      "structured_footer_enabled": {
+        "label": "Use structured Footer",
+        "description": "Enable the configurable Left, Center and Right Footer regions."
+      },
+      "identity_header": { "label": "Identity" },
+      "show_footer_identity": { "label": "Show identity group" },
+      "footer_logo_image": { "label": "Footer logo image" },
+      "footer_logo_max_width": { "label": "Logo maximum width" },
+      "footer_logo_text": { "label": "Logo text" },
+      "footer_description": { "label": "Short description" },
+      "identity_region": { "label": "Identity region" },
+      "footer_navigation_header": { "label": "Navigation" },
+      "show_footer_navigation": { "label": "Show navigation" },
+      "footer_navigation_region": { "label": "Navigation region" },
+      "footer_navigation_links": {
+        "label": "Footer navigation items",
+        "description": "Add and reorder items. Choose an internal page or URL, and optionally open it in a new tab. Labels remain visible when a destination is empty or invalid."
+      },
+      "footer_social_header": { "label": "Social links" },
+      "show_footer_social": { "label": "Show social links" },
+      "footer_social_region": { "label": "Social links region" },
+      "footer_social_links": {
+        "label": "Footer social links",
+        "description": "Choose an icon, accessible label and optional safe URL. Icons remain visible without a URL."
+      },
+      "footer_bottom_header": { "label": "Bottom section" },
+      "show_footer_bottom_divider": { "label": "Show divider above bottom section" },
+      "footer_bottom_links": {
+        "label": "Secondary links",
+        "description": "Optional links beside the existing Copyright text."
+      },
+      "footer_style_header": { "label": "Footer Style" },
+      "footer_background_color": { "label": "Footer background colour" },
+      "footer_text_color": { "label": "Footer text colour" },
+      "footer_link_color": { "label": "Link colour" },
+      "footer_link_hover_color": { "label": "Link hover colour" },
+      "footer_navigation_font_family": { "label": "Navigation font family" },
+      "footer_navigation_font_size": { "label": "Navigation font size" },
+      "footer_navigation_font_weight": { "label": "Navigation font weight" },
+      "footer_logo_font_family": { "label": "Logo Text font family" },
+      "footer_logo_font_size": { "label": "Logo Text font size" },
+      "footer_logo_font_weight": { "label": "Logo Text font weight" },
+      "footer_logo_text_color": { "label": "Logo Text colour" },
+      "footer_horizontal_padding": { "label": "Horizontal padding" },
+      "footer_vertical_padding": { "label": "Vertical padding" },
+      "footer_group_spacing": { "label": "Content group spacing" },
+      "footer_social_icon_size": { "label": "Social icon size" },
+      "footer_social_icon_spacing": { "label": "Social icon spacing" },
+      "footer_social_icon_color": { "label": "Social icon colour" },
+      "footer_social_icon_hover_color": { "label": "Social icon hover colour" },
+      "regions": { "left": "Left", "center": "Center", "right": "Right" },
+      "navigation_columns": {
+        "label": "Label",
+        "destination": "Destination",
+        "destination_type": "Destination type",
+        "open_in_new_tab": "Open in new tab"
+      },
+      "social_columns": {
+        "icon": "Icon",
+        "open_in_new_tab": "Open in new tab",
+        "accessible_label": "Accessible label",
+        "url": "Destination URL"
+      },
+      "destination_types": { "page": "Internal page", "url": "URL" }
     },
     "blocks": {
       "logo_text": {

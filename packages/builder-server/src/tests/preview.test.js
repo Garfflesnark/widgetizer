@@ -280,6 +280,30 @@ describe("saveGlobalWidget", () => {
     assert.equal(saved.type, "theme-footer");
   });
 
+  it("round-trips opt-in structured Footer settings through the global Footer save and reload path", async () => {
+    const footer = {
+      type: "footer",
+      settings: {
+        structured_footer_enabled: true,
+        footer_logo_text: "Studio",
+        footer_navigation_links: [{ label: "About", destination: "about", destination_type: "page", open_in_new_tab: "true" }],
+        footer_social_links: [{ icon: "instagram", url: "https://example.com", accessible_label: "Instagram" }],
+        footer_background_color: "#112233",
+        copyright: "<p>© Studio</p>",
+      },
+      blocks: [],
+      blocksOrder: [],
+    };
+
+    const saved = await callController(saveGlobalWidget, { params: { type: "footer" }, body: footer });
+    assert.equal(saved._status, 200);
+    assert.equal(saved._json.success, true);
+
+    const reloaded = await callController(getGlobalWidgets);
+    assert.equal(reloaded._status, 200);
+    assert.deepEqual(reloaded._json.footer, footer);
+  });
+
   it("rejects invalid widget type", async () => {
     const res = await callController(saveGlobalWidget, {
       params: { type: "sidebar" },

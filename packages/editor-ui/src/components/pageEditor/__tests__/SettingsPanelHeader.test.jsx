@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import headerSchema from "../../../../../../themes/arch/updates/0.9.11/widgets/global/header/schema.json";
 import currentHeaderSchema from "../../../../../../themes/arch/widgets/global/header/schema.json";
+import currentFooterSchema from "../../../../../../themes/arch/widgets/global/footer/schema.json";
 import headerLocale from "../../../../../../themes/arch/locales/en.json";
 
 vi.mock("../../../hooks/useThemeLocale", () => ({
@@ -52,6 +53,11 @@ afterEach(() => {
 function HeaderPanel() {
   const schemas = widgetStore((state) => state.schemas);
   return <SettingsPanel selectedGlobalWidgetId="header" widgetSchemas={schemas} />;
+}
+
+function FooterPanel() {
+  const schemas = widgetStore((state) => state.schemas);
+  return <SettingsPanel selectedGlobalWidgetId="footer" widgetSchemas={schemas} />;
 }
 
 it("loads and renders updated Header settings for the selected global Header and preserves legacy settings", async () => {
@@ -120,5 +126,34 @@ it("shows shared typography before the navigation table and applies edits to Hea
       social_icon_hover_color: "#cc4488",
       logoText: "Existing Brand",
     }),
+  }), undefined);
+});
+
+it("exposes the opt-in Footer controls and saves structured Footer settings", async () => {
+  const footer = { type: "footer", settings: { copyright: "<p>Existing copy</p>" } };
+  pageStore.setState({ globalWidgets: { header: structuredClone(legacyHeader), footer: structuredClone(footer) } });
+  widgetStore.setState({ schemas: {}, selectedGlobalWidgetId: "footer", selectedBlockId: null, activeLoadId: 0 });
+  getProjectWidgets.mockResolvedValue([currentFooterSchema]);
+  await widgetStore.getState().loadSchemas("");
+  render(<FooterPanel />);
+
+  expect(screen.getByText("Structured Footer")).toBeTruthy();
+  expect(screen.getByText("Footer Style")).toBeTruthy();
+  const enable = screen.getByRole("switch", { name: "Use structured Footer" });
+  expect(enable.getAttribute("aria-checked")).toBe("false");
+  const savedFooter = structuredClone(pageStore.getState().globalWidgets.footer);
+  pageStore.setState({
+    originalPage: { id: "index", widgets: {} },
+    originalGlobalWidgets: { header: structuredClone(legacyHeader), footer: savedFooter },
+  });
+  fireEvent.click(enable);
+  fireEvent.change(document.getElementById("footer_background_color"), { target: { value: "102030" } });
+  expect(pageStore.getState().globalWidgets.footer.settings.structured_footer_enabled).toBe(true);
+  expect(pageStore.getState().globalWidgets.footer.settings.footer_background_color).toBe("#102030");
+  expect(pageStore.getState().globalWidgets.footer.settings.copyright).toBe("<p>Existing copy</p>");
+
+  await saveStore.getState().save();
+  expect(saveGlobalWidget).toHaveBeenCalledWith("footer", expect.objectContaining({
+    settings: expect.objectContaining({ structured_footer_enabled: true, footer_background_color: "#102030", copyright: "<p>Existing copy</p>" }),
   }), undefined);
 });

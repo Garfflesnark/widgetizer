@@ -5,6 +5,142 @@
   "settings": [
     {
       "type": "header",
+      "id": "structured_footer_header",
+      "label": "tTheme:footer.settings.structured_footer_header.label",
+      "description": "tTheme:footer.settings.structured_footer_header.description"
+    },
+    {
+      "type": "checkbox",
+      "id": "structured_footer_enabled",
+      "label": "tTheme:footer.settings.structured_footer_enabled.label",
+      "description": "tTheme:footer.settings.structured_footer_enabled.description",
+      "default": false
+    },
+    {
+      "type": "header",
+      "id": "identity_header",
+      "label": "tTheme:footer.settings.identity_header.label"
+    },
+    { "type": "checkbox", "id": "show_footer_identity", "label": "tTheme:footer.settings.show_footer_identity.label", "default": true },
+    { "type": "image", "id": "footer_logo_image", "label": "tTheme:footer.settings.footer_logo_image.label" },
+    { "type": "range", "id": "footer_logo_max_width", "label": "tTheme:footer.settings.footer_logo_max_width.label", "default": 140, "min": 40, "max": 300, "step": 10, "unit": "px" },
+    { "type": "text", "id": "footer_logo_text", "label": "tTheme:footer.settings.footer_logo_text.label" },
+    { "type": "richtext", "id": "footer_description", "label": "tTheme:footer.settings.footer_description.label" },
+    { "type": "select", "id": "identity_region", "label": "tTheme:footer.settings.identity_region.label", "default": "left", "options": [
+      { "value": "left", "label": "tTheme:footer.settings.regions.left" },
+      { "value": "center", "label": "tTheme:footer.settings.regions.center" },
+      { "value": "right", "label": "tTheme:footer.settings.regions.right" }
+    ] },
+    {
+      "type": "header",
+      "id": "footer_navigation_header",
+      "label": "tTheme:footer.settings.footer_navigation_header.label"
+    },
+    { "type": "checkbox", "id": "show_footer_navigation", "label": "tTheme:footer.settings.show_footer_navigation.label", "default": true },
+    { "type": "select", "id": "footer_navigation_region", "label": "tTheme:footer.settings.footer_navigation_region.label", "default": "center", "options": [
+      { "value": "left", "label": "tTheme:footer.settings.regions.left" },
+      { "value": "center", "label": "tTheme:footer.settings.regions.center" },
+      { "value": "right", "label": "tTheme:footer.settings.regions.right" }
+    ] },
+    { "type": "table", "id": "footer_navigation_links", "label": "tTheme:footer.settings.footer_navigation_links.label", "description": "tTheme:footer.settings.footer_navigation_links.description", "default": [], "rowNames": true, "pageOptions": true, "columns": [
+      { "id": "label", "label": "tTheme:footer.settings.navigation_columns.label", "type": "text" },
+      { "id": "open_in_new_tab", "label": "tTheme:footer.settings.navigation_columns.open_in_new_tab", "type": "checkbox", "default": "false" },
+      { "id": "destination", "label": "tTheme:footer.settings.navigation_columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url", "layout": "full" },
+      { "id": "destination_page_uuid", "type": "hidden" },
+      { "id": "destination_url", "type": "hidden" },
+      { "id": "destination_type", "label": "tTheme:footer.settings.navigation_columns.destination_type", "type": "select", "layout": "full", "options": [
+        { "value": "page", "label": "tTheme:footer.settings.destination_types.page" },
+        { "value": "url", "label": "tTheme:footer.settings.destination_types.url" }
+      ] }
+    ] },
+    {
+      "type": "header",
+      "id": "footer_social_header",
+      "label": "tTheme:footer.settings.footer_social_header.label"
+    },
+    { "type": "checkbox", "id": "show_footer_social", "label": "tTheme:footer.settings.show_footer_social.label", "default": true },
+    { "type": "select", "id": "footer_social_region", "label": "tTheme:footer.settings.footer_social_region.label", "default": "right", "options": [
+      { "value": "left", "label": "tTheme:footer.settings.regions.left" },
+      { "value": "center", "label": "tTheme:footer.settings.regions.center" },
+      { "value": "right", "label": "tTheme:footer.settings.regions.right" }
+    ] },
+    { "type": "table", "id": "footer_social_links", "label": "tTheme:footer.settings.footer_social_links.label", "description": "tTheme:footer.settings.footer_social_links.description", "default": [], "rowNames": true, "columns": [
+      { "id": "icon", "label": "tTheme:footer.settings.social_columns.icon", "type": "select", "options": [
+        { "value": "facebook", "label": "Facebook" }, { "value": "instagram", "label": "Instagram" },
+        { "value": "twitter", "label": "X / Twitter" }, { "value": "linkedin", "label": "LinkedIn" },
+        { "value": "youtube", "label": "YouTube" }, { "value": "tiktok", "label": "TikTok" },
+        { "value": "pinterest", "label": "Pinterest" }, { "value": "github", "label": "GitHub" },
+        { "value": "mastodon", "label": "Mastodon" }, { "value": "bluesky", "label": "Bluesky" },
+        { "value": "discord", "label": "Discord" }, { "value": "reddit", "label": "Reddit" },
+        { "value": "telegram", "label": "Telegram" }, { "value": "threads", "label": "Threads" },
+        { "value": "whatsapp", "label": "WhatsApp" }, { "value": "mail", "label": "Email" }
+      ] },
+      { "id": "open_in_new_tab", "label": "tTheme:footer.settings.social_columns.open_in_new_tab", "type": "checkbox", "default": "true" },
+      { "id": "accessible_label", "label": "tTheme:footer.settings.social_columns.accessible_label", "type": "text", "layout": "full" },
+      { "id": "url", "label": "tTheme:footer.settings.social_columns.url", "type": "text", "layout": "full" }
+    ] },
+    {
+      "type": "header",
+      "id": "footer_bottom_header",
+      "label": "tTheme:footer.settings.footer_bottom_header.label"
+    },
+    { "type": "checkbox", "id": "show_footer_bottom_divider", "label": "tTheme:footer.settings.show_footer_bottom_divider.label", "default": true },
+    { "type": "table", "id": "footer_bottom_links", "label": "tTheme:footer.settings.footer_bottom_links.label", "description": "tTheme:footer.settings.footer_bottom_links.description", "default": [], "rowNames": true, "pageOptions": true, "columns": [
+      { "id": "label", "label": "tTheme:footer.settings.navigation_columns.label", "type": "text" },
+      { "id": "open_in_new_tab", "label": "tTheme:footer.settings.navigation_columns.open_in_new_tab", "type": "checkbox", "default": "false" },
+      { "id": "destination", "label": "tTheme:footer.settings.navigation_columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url", "layout": "full" },
+      { "id": "destination_page_uuid", "type": "hidden" },
+      { "id": "destination_url", "type": "hidden" },
+      { "id": "destination_type", "label": "tTheme:footer.settings.navigation_columns.destination_type", "type": "select", "layout": "full", "options": [
+        { "value": "page", "label": "tTheme:footer.settings.destination_types.page" },
+        { "value": "url", "label": "tTheme:footer.settings.destination_types.url" }
+      ] }
+    ] },
+    {
+      "type": "header",
+      "id": "footer_style_header",
+      "label": "tTheme:footer.settings.footer_style_header.label"
+    },
+    { "type": "color", "id": "footer_background_color", "label": "tTheme:footer.settings.footer_background_color.label", "default": "#233c54" },
+    { "type": "color", "id": "footer_text_color", "label": "tTheme:footer.settings.footer_text_color.label", "default": "#eaf3fc" },
+    { "type": "color", "id": "footer_link_color", "label": "tTheme:footer.settings.footer_link_color.label", "default": "#eaf3fc" },
+    { "type": "color", "id": "footer_link_hover_color", "label": "tTheme:footer.settings.footer_link_hover_color.label", "default": "#de1877" },
+    { "type": "select", "id": "footer_navigation_font_family", "label": "tTheme:footer.settings.footer_navigation_font_family.label", "default": "body", "options": [
+      { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
+      { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+    ] },
+    { "type": "range", "id": "footer_navigation_font_size", "label": "tTheme:footer.settings.footer_navigation_font_size.label", "default": 16, "min": 12, "max": 32, "step": 1, "unit": "px" },
+    { "type": "select", "id": "footer_navigation_font_weight", "label": "tTheme:footer.settings.footer_navigation_font_weight.label", "default": "400", "options": [
+      { "value": "400", "label": "tTheme:header.settings.typography_font_weight.options.regular" },
+      { "value": "500", "label": "tTheme:header.settings.typography_font_weight.options.medium" },
+      { "value": "600", "label": "tTheme:header.settings.typography_font_weight.options.semibold" },
+      { "value": "700", "label": "tTheme:header.settings.typography_font_weight.options.bold" },
+      { "value": "800", "label": "tTheme:header.settings.typography_font_weight.options.extrabold" },
+      { "value": "900", "label": "tTheme:header.settings.typography_font_weight.options.black" }
+    ] },
+    { "type": "select", "id": "footer_logo_font_family", "label": "tTheme:footer.settings.footer_logo_font_family.label", "default": "heading", "options": [
+      { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
+      { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+    ] },
+    { "type": "range", "id": "footer_logo_font_size", "label": "tTheme:footer.settings.footer_logo_font_size.label", "default": 24, "min": 12, "max": 48, "step": 1, "unit": "px" },
+    { "type": "select", "id": "footer_logo_font_weight", "label": "tTheme:footer.settings.footer_logo_font_weight.label", "default": "700", "options": [
+      { "value": "400", "label": "tTheme:header.settings.typography_font_weight.options.regular" },
+      { "value": "500", "label": "tTheme:header.settings.typography_font_weight.options.medium" },
+      { "value": "600", "label": "tTheme:header.settings.typography_font_weight.options.semibold" },
+      { "value": "700", "label": "tTheme:header.settings.typography_font_weight.options.bold" },
+      { "value": "800", "label": "tTheme:header.settings.typography_font_weight.options.extrabold" },
+      { "value": "900", "label": "tTheme:header.settings.typography_font_weight.options.black" }
+    ] },
+    { "type": "color", "id": "footer_logo_text_color", "label": "tTheme:footer.settings.footer_logo_text_color.label", "default": "#ffffff" },
+    { "type": "range", "id": "footer_horizontal_padding", "label": "tTheme:footer.settings.footer_horizontal_padding.label", "default": 32, "min": 0, "max": 200, "step": 2, "unit": "px" },
+    { "type": "range", "id": "footer_vertical_padding", "label": "tTheme:footer.settings.footer_vertical_padding.label", "default": 56, "min": 16, "max": 120, "step": 4, "unit": "px" },
+    { "type": "range", "id": "footer_group_spacing", "label": "tTheme:footer.settings.footer_group_spacing.label", "default": 24, "min": 8, "max": 80, "step": 4, "unit": "px" },
+    { "type": "range", "id": "footer_social_icon_size", "label": "tTheme:footer.settings.footer_social_icon_size.label", "default": 28, "min": 16, "max": 64, "step": 2, "unit": "px" },
+    { "type": "range", "id": "footer_social_icon_spacing", "label": "tTheme:footer.settings.footer_social_icon_spacing.label", "default": 12, "min": 0, "max": 48, "step": 2, "unit": "px" },
+    { "type": "color", "id": "footer_social_icon_color", "label": "tTheme:footer.settings.footer_social_icon_color.label", "default": "#eaf3fc" },
+    { "type": "color", "id": "footer_social_icon_hover_color", "label": "tTheme:footer.settings.footer_social_icon_hover_color.label", "default": "#de1877" },
+    {
+      "type": "header",
       "id": "content_header",
       "label": "tTheme:global.widgets.settings.content_header.label"
     },

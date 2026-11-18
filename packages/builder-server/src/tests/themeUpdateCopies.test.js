@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.19");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.20");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
@@ -62,6 +62,7 @@ describe("Arch newest theme update", () => {
 
     const previousTheme = await fs.readJson(path.join(THEME_DIR, "theme.json"));
     previousTheme.useCoreWidgets = false;
+    previousTheme.version = "0.9.19";
     await fs.outputJson(path.join(project, "theme.json"), previousTheme);
     const authoredHeader = { type: "header", settings: {
       logoText: "My brand", menu: "main-menu", show_logo_image: false, show_contact_details: false,
@@ -72,13 +73,19 @@ describe("Arch newest theme update", () => {
       header_social_links: [{ icon: "instagram", url: "https://example.com/social", accessible_label: "Updates", open_in_new_tab: "false" }],
     } };
     await fs.outputJson(path.join(project, "pages/global/header.json"), authoredHeader);
+    const authoredFooter = { type: "footer", settings: { copyright: "<p>Legacy footer stays</p>", layout: "equal" }, blocks: { legacy: { type: "logo_text", settings: { logo_text: "Old brand" } } }, blocksOrder: ["legacy"] };
+    await fs.outputJson(path.join(project, "pages/global/footer.json"), authoredFooter);
+    await fs.outputJson(path.join(project, "widgets/global/footer/schema.json"), { type: "footer", settings: [] });
+    await fs.outputFile(path.join(project, "widgets/global/footer/widget.liquid"), "legacy footer template");
     await fs.outputJson(path.join(project, "widgets/global/header/schema.json"), { type: "header", settings: [] });
     await fs.outputFile(path.join(project, "widgets/global/header/widget.liquid"), "legacy header template");
 
     const result = await applyThemeUpdateToDir({ themeSourceDir: updateDir, projectDir: project });
     const installedSchema = await fs.readJson(path.join(project, "widgets/global/header/schema.json"));
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
-    assert.equal(result.newVersion, "0.9.19");
+    const installedFooter = await fs.readJson(path.join(project, "pages/global/footer.json"));
+    const installedFooterSchema = await fs.readJson(path.join(project, "widgets/global/footer/schema.json"));
+    assert.equal(result.newVersion, "0.9.20");
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -123,6 +130,13 @@ describe("Arch newest theme update", () => {
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns.find((column) => column.id === "accessible_label").layout, "full");
     assert.ok(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns.some((column) => column.id === "open_in_new_tab"));
     assert.deepEqual(installedHeader, authoredHeader, "the saved Header settings remain untouched");
+    assert.deepEqual(installedFooter, authoredFooter, "the saved Footer settings and blocks remain untouched");
+    assert.equal(installedFooterSchema.settings.find((setting) => setting.id === "structured_footer_enabled").default, false);
+    assert.ok(installedFooterSchema.settings.some((setting) => setting.id === "footer_navigation_links"));
+    assert.deepEqual(
+      await fs.readFile(path.join(project, "widgets/global/footer/widget.liquid")),
+      await fs.readFile(path.join(THEME_DIR, "widgets/global/footer/widget.liquid")),
+    );
     assert.deepEqual(
       await fs.readFile(path.join(project, "widgets/global/header/widget.liquid")),
       await fs.readFile(path.join(THEME_DIR, "widgets/global/header/widget.liquid")),
@@ -139,6 +153,9 @@ describe("Arch newest theme update", () => {
     const editorHeaderSchema = response.body.find((schema) => schema.type === "header");
     assert.ok(editorHeaderSchema, "the editor schema endpoint returns the global Header schema");
     assert.equal(enabled(editorHeaderSchema), true, "the editor receives the Header v1 controls from the updated project");
+    const editorFooterSchema = response.body.find((schema) => schema.type === "footer");
+    assert.ok(editorFooterSchema, "the editor receives the global Footer schema from the updated project");
+    assert.equal(editorFooterSchema.settings.find((setting) => setting.id === "structured_footer_enabled").default, false);
   });
 
   it("delivers the Image schema and template while preserving authored content and customized theme settings", async (t) => {
