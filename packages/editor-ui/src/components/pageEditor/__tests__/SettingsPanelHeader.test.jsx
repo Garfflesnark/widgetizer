@@ -55,9 +55,9 @@ function HeaderPanel() {
   return <SettingsPanel selectedGlobalWidgetId="header" widgetSchemas={schemas} />;
 }
 
-function FooterPanel() {
+function FooterPanel({ selectedBlockId = null }) {
   const schemas = widgetStore((state) => state.schemas);
-  return <SettingsPanel selectedGlobalWidgetId="footer" widgetSchemas={schemas} />;
+  return <SettingsPanel selectedGlobalWidgetId="footer" selectedBlockId={selectedBlockId} widgetSchemas={schemas} />;
 }
 
 it("loads and renders updated Header settings for the selected global Header and preserves legacy settings", async () => {
@@ -129,31 +129,38 @@ it("shows shared typography before the navigation table and applies edits to Hea
   }), undefined);
 });
 
-it("exposes the opt-in Footer controls and saves structured Footer settings", async () => {
-  const footer = { type: "footer", settings: { copyright: "<p>Existing copy</p>" } };
+it("exposes social settings in the legacy Footer block and preserves saved Footer data", async () => {
+  const footer = {
+    type: "footer",
+    settings: { copyright: "<p>Existing copy</p>", structured_footer_enabled: true },
+    blocks: { social: { type: "social_block", settings: { title: "Follow us", footer_social_links: [] } } },
+    blocksOrder: ["social"],
+  };
   pageStore.setState({ globalWidgets: { header: structuredClone(legacyHeader), footer: structuredClone(footer) } });
-  widgetStore.setState({ schemas: {}, selectedGlobalWidgetId: "footer", selectedBlockId: null, activeLoadId: 0 });
+  widgetStore.setState({ schemas: {}, selectedGlobalWidgetId: "footer", selectedBlockId: "social", activeLoadId: 0 });
   getProjectWidgets.mockResolvedValue([currentFooterSchema]);
   await widgetStore.getState().loadSchemas("");
-  render(<FooterPanel />);
+  render(<FooterPanel selectedBlockId="social" />);
 
-  expect(screen.getByText("Structured Footer")).toBeTruthy();
-  expect(screen.getByText("Footer Style")).toBeTruthy();
-  const enable = screen.getByRole("switch", { name: "Use structured Footer" });
-  expect(enable.getAttribute("aria-checked")).toBe("false");
+  expect(screen.queryByText("Structured Footer")).toBeNull();
+  expect(screen.getByText("Social links")).toBeTruthy();
+  expect(screen.getByText("Social icon size")).toBeTruthy();
+  expect(screen.getByText("Social icon spacing")).toBeTruthy();
+  const enable = screen.getByRole("switch", { name: "Show social links" });
+  expect(enable.getAttribute("aria-checked")).toBe("true");
   const savedFooter = structuredClone(pageStore.getState().globalWidgets.footer);
   pageStore.setState({
     originalPage: { id: "index", widgets: {} },
     originalGlobalWidgets: { header: structuredClone(legacyHeader), footer: savedFooter },
   });
   fireEvent.click(enable);
-  fireEvent.change(document.getElementById("footer_background_color"), { target: { value: "102030" } });
+  expect(pageStore.getState().globalWidgets.footer.blocks.social.settings.show_social_links).toBe(false);
   expect(pageStore.getState().globalWidgets.footer.settings.structured_footer_enabled).toBe(true);
-  expect(pageStore.getState().globalWidgets.footer.settings.footer_background_color).toBe("#102030");
   expect(pageStore.getState().globalWidgets.footer.settings.copyright).toBe("<p>Existing copy</p>");
 
   await saveStore.getState().save();
   expect(saveGlobalWidget).toHaveBeenCalledWith("footer", expect.objectContaining({
-    settings: expect.objectContaining({ structured_footer_enabled: true, footer_background_color: "#102030", copyright: "<p>Existing copy</p>" }),
+    settings: expect.objectContaining({ structured_footer_enabled: true, copyright: "<p>Existing copy</p>" }),
+    blocks: expect.objectContaining({ social: expect.objectContaining({ settings: expect.objectContaining({ show_social_links: false }) }) }),
   }), undefined);
 });

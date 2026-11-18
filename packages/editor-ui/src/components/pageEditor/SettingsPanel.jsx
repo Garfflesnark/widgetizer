@@ -21,6 +21,7 @@ import useCollections from "../../hooks/useCollections";
 import useToastStore from "../../stores/toastStore";
 
 const DEFAULT_ITEMS_PER_PAGE = 12;
+const SETTINGS_PANEL_STYLE = { width: "clamp(17rem, 24vw, 22rem)", flex: "0 0 clamp(17rem, 24vw, 22rem)" };
 
 export default function SettingsPanel({
   selectedWidget,
@@ -78,16 +79,16 @@ export default function SettingsPanel({
       ? selectedBlock?.settings
       : currentWidget?.settings;
 
-  if (selectedComposition) return <div className="w-58 bg-white border-l border-slate-200 flex flex-col h-full overflow-hidden">
+  if (selectedComposition) return <div style={SETTINGS_PANEL_STYLE} className="min-w-0 max-w-full bg-white border-l border-slate-200 flex flex-col h-full overflow-hidden">
     <div className="px-3 pt-4 pb-2 border-b border-slate-100 font-bold">Composition Area</div>
-    <div className="px-3 pb-4 flex-1 min-w-0 overflow-y-auto">
+      <div className="px-3 pb-4 flex-1 min-w-0 overflow-x-hidden overflow-y-auto">
       <CompositionControls key={selectedCompositionId} compositionId={selectedCompositionId} blockSelected widgetId={selectedComposition.childrenOrder[0]} />
     </div>
   </div>;
 
   if (!isThemeSettings && (!currentWidget || (!selectedWidgetId && !selectedGlobalWidgetId))) {
     return (
-      <div className="w-58 bg-white border-l border-slate-200">
+      <div style={SETTINGS_PANEL_STYLE} className="min-w-0 max-w-full bg-white border-l border-slate-200 overflow-x-hidden">
         <div className="p-4">
           <p className="text-slate-500 text-center mt-8">{t("pageEditor.settingsPanel.emptyState")}</p>
         </div>
@@ -239,7 +240,7 @@ export default function SettingsPanel({
       : settings;
 
   return (
-    <div className="w-58 bg-white border-l border-slate-200 flex flex-col h-full">
+    <div style={SETTINGS_PANEL_STYLE} className="min-w-0 max-w-full bg-white border-l border-slate-200 flex flex-col h-full overflow-hidden">
       <div className="px-3 pt-4 pb-2 border-b border-slate-100 font-bold">
         {selectedBlockId ? (
           <div className="flex items-center gap-2">
@@ -252,7 +253,7 @@ export default function SettingsPanel({
           <span>{displayName}</span>
         )}
       </div>
-      <div className="px-3 pb-4 flex-1 overflow-y-auto">
+      <div className="px-3 pb-4 flex-1 min-w-0 overflow-x-hidden overflow-y-auto">
         {!isGlobalWidget && !isThemeSettings && !selectedBlockId && <CompositionControls key={selectedWidgetId} widgetId={selectedWidgetId} />}
         {mobile && <div className="text-xs space-y-2 py-3" aria-label="Mobile presentation">
           <p>Mobile · {mobile.mode}. Image presentation is independent; content settings are shared across viewports.</p>
@@ -271,7 +272,7 @@ export default function SettingsPanel({
                   ? `global-${selectedGlobalWidgetId}`
                   : `widget-${selectedWidgetId}`
           }
-          className="page-editor-settings space-y-4"
+          className="page-editor-settings min-w-0 space-y-4"
         >
           {allSettings?.map((setting, index) => {
             const renderSetting = () => {

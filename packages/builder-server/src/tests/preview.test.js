@@ -304,6 +304,32 @@ describe("saveGlobalWidget", () => {
     assert.deepEqual(reloaded._json.footer, footer);
   });
 
+  it("round-trips legacy Footer blocks and new social settings without dropping prior saved values", async () => {
+    const footer = {
+      type: "footer",
+      settings: { copyright: "<p>Existing copyright</p>", structured_footer_enabled: true, footer_logo_text: "Keep stored value" },
+      blocks: {
+        social: {
+          type: "social_block",
+          settings: {
+            title: "Follow us",
+            show_social_links: true,
+            footer_social_links: [{ icon: "instagram", accessible_label: "Instagram", url: "https://example.com", open_in_new_tab: "false" }],
+            footer_social_icon_size: 40,
+            footer_social_icon_spacing: 10,
+            footer_social_icon_color: "#123456",
+          },
+        },
+      },
+      blocksOrder: ["social"],
+    };
+    const saved = await callController(saveGlobalWidget, { params: { type: "footer" }, body: footer });
+    assert.equal(saved._status, 200);
+    const reloaded = await callController(getGlobalWidgets);
+    assert.equal(reloaded._status, 200);
+    assert.deepEqual(reloaded._json.footer, footer);
+  });
+
   it("rejects invalid widget type", async () => {
     const res = await callController(saveGlobalWidget, {
       params: { type: "sidebar" },

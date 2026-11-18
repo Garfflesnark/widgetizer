@@ -1,141 +1,3 @@
-{%- if widget.settings.structured_footer_enabled -%}
-{%- assign footer_copyright_html = widget.settings.copyright | default: '' -%}
-{%- assign footer_copyright_text = footer_copyright_html | rte_text -%}
-{%- assign footer_has_identity = false -%}
-{%- if widget.settings.show_footer_identity != false and widget.settings.show_footer_identity != 'false' -%}{%- if widget.settings.footer_logo_image != blank or widget.settings.footer_logo_text != blank or widget.settings.footer_description != blank -%}{%- assign footer_has_identity = true -%}{%- endif -%}{%- endif -%}
-{%- assign footer_has_navigation = false -%}
-{%- if widget.settings.show_footer_navigation != false and widget.settings.show_footer_navigation != 'false' and widget.settings.footer_navigation_links.size > 0 -%}{%- assign footer_has_navigation = true -%}{%- endif -%}
-{%- assign footer_has_social = false -%}
-{%- if widget.settings.show_footer_social != false and widget.settings.show_footer_social != 'false' and widget.settings.footer_social_links.size > 0 -%}{%- assign footer_has_social = true -%}{%- endif -%}
-{%- assign footer_has_main = false -%}
-{%- if footer_has_identity or footer_has_navigation or footer_has_social -%}{%- assign footer_has_main = true -%}{%- endif -%}
-{%- assign footer_identity_region = widget.settings.identity_region | default: 'left' -%}
-{%- assign footer_navigation_region = widget.settings.footer_navigation_region | default: 'center' -%}
-{%- assign footer_social_region = widget.settings.footer_social_region | default: 'right' -%}
-{%- assign footer_has_bottom = false -%}
-{%- if footer_copyright_text != blank or widget.settings.footer_bottom_links.size > 0 -%}{%- assign footer_has_bottom = true -%}{%- endif -%}
-<footer id="{{ widget.id }}" class="widget widget-footer widget-{{ widget.id }} color-scheme-{{ widget.settings.color_scheme | default: 'highlight-primary' }} arch-footer-v1" data-widget-id="{{ widget.id }}" data-widget-type="footer" style="--arch-footer-background: {% if widget.settings.footer_background_color == blank or widget.settings.footer_background_color == '#233c54' %}var(--bg-primary){% else %}{{ widget.settings.footer_background_color }}{% endif %}; --arch-footer-text: {% if widget.settings.footer_text_color == blank or widget.settings.footer_text_color == '#eaf3fc' %}var(--text-content){% else %}{{ widget.settings.footer_text_color }}{% endif %}; --arch-footer-link: {% if widget.settings.footer_link_color == blank or widget.settings.footer_link_color == '#eaf3fc' %}var(--text-content){% else %}{{ widget.settings.footer_link_color }}{% endif %}; --arch-footer-link-hover: {% if widget.settings.footer_link_hover_color == blank or widget.settings.footer_link_hover_color == '#de1877' %}var(--accent){% else %}{{ widget.settings.footer_link_hover_color }}{% endif %}; --arch-footer-logo-color: {% if widget.settings.footer_logo_text_color == blank or widget.settings.footer_logo_text_color == '#ffffff' %}var(--text-heading){% else %}{{ widget.settings.footer_logo_text_color }}{% endif %}; --arch-footer-nav-font-family: {% if widget.settings.footer_navigation_font_family == 'heading' %}var(--typography-heading_font-family, inherit){% else %}var(--typography-body_font-family, inherit){% endif %}; --arch-footer-nav-font-size: {{ widget.settings.footer_navigation_font_size | default: 16 }}px; --arch-footer-nav-font-weight: {{ widget.settings.footer_navigation_font_weight | default: '400' }}; --arch-footer-logo-font-family: {% if widget.settings.footer_logo_font_family == 'body' %}var(--typography-body_font-family, inherit){% else %}var(--typography-heading_font-family, inherit){% endif %}; --arch-footer-logo-font-size: {{ widget.settings.footer_logo_font_size | default: 24 }}px; --arch-footer-logo-font-weight: {{ widget.settings.footer_logo_font_weight | default: '700' }}; --arch-footer-padding-inline: min({{ widget.settings.footer_horizontal_padding | default: 32 }}px, max(0px, calc(50% - 120px))); --arch-footer-padding-block: {{ widget.settings.footer_vertical_padding | default: 56 }}px; --arch-footer-group-gap: {{ widget.settings.footer_group_spacing | default: 24 }}px; --arch-footer-social-size: {{ widget.settings.footer_social_icon_size | default: 28 }}px; --arch-footer-social-gap: {{ widget.settings.footer_social_icon_spacing | default: 12 }}px; --arch-footer-social-color: {% if widget.settings.footer_social_icon_color == blank or widget.settings.footer_social_icon_color == '#eaf3fc' %}var(--text-content){% else %}{{ widget.settings.footer_social_icon_color }}{% endif %}; --arch-footer-social-hover: {% if widget.settings.footer_social_icon_hover_color == blank or widget.settings.footer_social_icon_hover_color == '#de1877' %}var(--accent){% else %}{{ widget.settings.footer_social_icon_hover_color }}{% endif %};">
-  <style>
-    .widget-{{ widget.id }}.arch-footer-v1 {
-      box-sizing: border-box;
-      background: var(--arch-footer-background);
-      color: var(--arch-footer-text);
-      border-block-start: 0;
-      padding: var(--arch-footer-padding-block) var(--arch-footer-padding-inline);
-    }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-main,
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-inner {
-      width: 100%;
-      max-width: var(--content-max-width, 1200px);
-      margin-inline: auto;
-    }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-main {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--arch-footer-group-gap);
-      align-items: start;
-    }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-region {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: var(--arch-footer-group-gap);
-      min-width: 0;
-    }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-region--left { justify-content: flex-start; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-region--center { justify-content: center; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-region--right { justify-content: flex-end; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-group { min-width: 0; max-width: 100%; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-identity { display: flex; flex-direction: column; gap: var(--space-sm); }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-logo-image { display: block; width: auto; max-width: min({{ widget.settings.footer_logo_max_width | default: 140 }}px, 100%); height: auto; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-logo-text { display: block; color: var(--arch-footer-logo-color); font-family: var(--arch-footer-logo-font-family); font-size: var(--arch-footer-logo-font-size); font-weight: var(--arch-footer-logo-font-weight); line-height: var(--line-height-tight); overflow-wrap: anywhere; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-description { color: var(--arch-footer-text); overflow-wrap: anywhere; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-description > :first-child { margin-block-start: 0; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-description > :last-child { margin-block-end: 0; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-navigation-list { display: flex; flex-wrap: wrap; gap: var(--space-sm) var(--arch-footer-group-gap); list-style: none; padding: 0; margin: 0; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-navigation-list li { min-width: 0; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-link { color: var(--arch-footer-link); font-family: var(--arch-footer-nav-font-family); font-size: var(--arch-footer-nav-font-size); font-weight: var(--arch-footer-nav-font-weight); line-height: var(--line-height-normal); text-decoration: none; overflow-wrap: anywhere; }
-    .widget-{{ widget.id }}.arch-footer-v1 a.arch-footer-link:hover { color: var(--arch-footer-link-hover); }
-    .widget-{{ widget.id }}.arch-footer-v1 a.arch-footer-link:focus-visible,
-    .widget-{{ widget.id }}.arch-footer-v1 a.arch-footer-social-link:focus-visible,
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-sm); }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-social { display: flex; flex-wrap: wrap; align-items: center; gap: var(--arch-footer-social-gap); }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-social-link { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; color: var(--arch-footer-social-color); border-radius: var(--radius-sm); }
-    .widget-{{ widget.id }}.arch-footer-v1 a.arch-footer-social-link:hover { color: var(--arch-footer-social-hover); }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-social-link svg { display: block; width: var(--arch-footer-social-size); height: auto; max-height: var(--arch-footer-social-size); color: inherit; flex: none; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom { margin-block-start: var(--arch-footer-group-gap); padding-block-start: var(--arch-footer-group-gap); }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom--divider { border-block-start: var(--border-width-thin) solid var(--border-color); }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-inner { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-md) var(--arch-footer-group-gap); }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-copy { color: var(--arch-footer-text); font-size: calc(var(--font-size-xs) * var(--body-scale)); overflow-wrap: anywhere; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-copy > :first-child { margin-block-start: 0; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-copy > :last-child { margin-block-end: 0; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-links { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--arch-footer-group-gap); list-style: none; padding: 0; margin: 0; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-links a { color: var(--arch-footer-link); font-size: var(--font-size-sm); text-decoration: none; overflow-wrap: anywhere; }
-    .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-links a:hover { color: var(--arch-footer-link-hover); }
-    @media (max-width: 989px) {
-      .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-main { grid-template-columns: minmax(0, 1fr); }
-      .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-region,
-      .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-inner { justify-content: center; text-align: center; }
-      .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-identity { align-items: center; }
-      .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-navigation-list,
-      .widget-{{ widget.id }}.arch-footer-v1 .arch-footer-bottom-links { justify-content: center; }
-    }
-  </style>
-  {% if footer_has_main %}
-    <div class="arch-footer-main widget-container">
-      <div class="arch-footer-region arch-footer-region--left">
-        {% if footer_has_identity and footer_identity_region == 'left' %}
-          <div class="arch-footer-group arch-footer-identity" data-footer-group="identity">
-            {% if widget.settings.footer_logo_image != blank %}{% image src: widget.settings.footer_logo_image, size: 'medium', class: 'arch-footer-logo-image', alt: widget.settings.footer_logo_text | default: '' %}{% endif %}
-            {% if widget.settings.footer_logo_text != blank %}<span class="arch-footer-logo-text">{{ widget.settings.footer_logo_text }}</span>{% endif %}
-            {% unless widget.settings.footer_description | rte_blank %}<div class="arch-footer-description">{{ widget.settings.footer_description | raw }}</div>{% endunless %}
-          </div>
-        {% endif %}
-        {% if footer_has_navigation and footer_navigation_region == 'left' %}<div class="arch-footer-group" data-footer-group="navigation">{% render 'footer-v1-navigation', footer_settings: widget.settings %}</div>{% endif %}
-        {% if footer_has_social and footer_social_region == 'left' %}<div class="arch-footer-group" data-footer-group="social">{% render 'footer-v1-social', footer_settings: widget.settings %}</div>{% endif %}
-      </div>
-      <div class="arch-footer-region arch-footer-region--center">
-        {% if footer_has_identity and footer_identity_region == 'center' %}
-          <div class="arch-footer-group arch-footer-identity" data-footer-group="identity">
-            {% if widget.settings.footer_logo_image != blank %}{% image src: widget.settings.footer_logo_image, size: 'medium', class: 'arch-footer-logo-image', alt: widget.settings.footer_logo_text | default: '' %}{% endif %}
-            {% if widget.settings.footer_logo_text != blank %}<span class="arch-footer-logo-text">{{ widget.settings.footer_logo_text }}</span>{% endif %}
-            {% unless widget.settings.footer_description | rte_blank %}<div class="arch-footer-description">{{ widget.settings.footer_description | raw }}</div>{% endunless %}
-          </div>
-        {% endif %}
-        {% if footer_has_navigation and footer_navigation_region == 'center' %}<div class="arch-footer-group" data-footer-group="navigation">{% render 'footer-v1-navigation', footer_settings: widget.settings %}</div>{% endif %}
-        {% if footer_has_social and footer_social_region == 'center' %}<div class="arch-footer-group" data-footer-group="social">{% render 'footer-v1-social', footer_settings: widget.settings %}</div>{% endif %}
-      </div>
-      <div class="arch-footer-region arch-footer-region--right">
-        {% if footer_has_identity and footer_identity_region == 'right' %}
-          <div class="arch-footer-group arch-footer-identity" data-footer-group="identity">
-            {% if widget.settings.footer_logo_image != blank %}{% image src: widget.settings.footer_logo_image, size: 'medium', class: 'arch-footer-logo-image', alt: widget.settings.footer_logo_text | default: '' %}{% endif %}
-            {% if widget.settings.footer_logo_text != blank %}<span class="arch-footer-logo-text">{{ widget.settings.footer_logo_text }}</span>{% endif %}
-            {% unless widget.settings.footer_description | rte_blank %}<div class="arch-footer-description">{{ widget.settings.footer_description | raw }}</div>{% endunless %}
-          </div>
-        {% endif %}
-        {% if footer_has_navigation and footer_navigation_region == 'right' %}<div class="arch-footer-group" data-footer-group="navigation">{% render 'footer-v1-navigation', footer_settings: widget.settings %}</div>{% endif %}
-        {% if footer_has_social and footer_social_region == 'right' %}<div class="arch-footer-group" data-footer-group="social">{% render 'footer-v1-social', footer_settings: widget.settings %}</div>{% endif %}
-      </div>
-    </div>
-  {% endif %}
-  {% if footer_has_bottom %}
-    <div class="arch-footer-bottom{% if widget.settings.show_footer_bottom_divider == false or widget.settings.show_footer_bottom_divider == 'false' %} arch-footer-bottom--no-divider{% else %} arch-footer-bottom--divider{% endif %}">
-      <div class="arch-footer-bottom-inner widget-container">
-        {% if footer_copyright_text != blank %}<div class="arch-footer-bottom-copy">{{ footer_copyright_html | raw }}</div>{% endif %}
-        {% if widget.settings.footer_bottom_links.size > 0 %}
-          <ul class="arch-footer-bottom-links" aria-label="Footer secondary links">
-            {% for footer_bottom_link in widget.settings.footer_bottom_links %}
-              {% assign footer_bottom_href = blank %}
-              {% if footer_bottom_link.destination != blank and footer_bottom_link.destination_type == 'page' %}{% assign footer_bottom_href = footer_bottom_link.destination | page_url %}{% elsif footer_bottom_link.destination != blank %}{% assign footer_bottom_href = footer_bottom_link.destination | safe_url %}{% endif %}
-              {% if footer_bottom_link.label != blank %}<li>{% if footer_bottom_href and footer_bottom_href.size > 0 %}<a href="{{ footer_bottom_href }}"{% if footer_bottom_link.open_in_new_tab == true or footer_bottom_link.open_in_new_tab == 'true' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ footer_bottom_link.label }}</a>{% else %}<span>{{ footer_bottom_link.label }}</span>{% endif %}</li>{% endif %}
-            {% endfor %}
-          </ul>
-        {% endif %}
-      </div>
-    </div>
-  {% endif %}
-</footer>
-{%- else -%}
 {%- assign copyright_html = widget.settings.copyright | default: '' -%}
 {%- assign copyright_text = copyright_html | rte_text -%}
 <footer
@@ -205,21 +67,73 @@
             {% if block.settings.title != blank %}
               <h3 class="w-title t-lg" data-setting="title">{{ block.settings.title }}</h3>
             {% endif %}
-            <div class="social-links footer-social">
-              {% render 'social-icons', social: theme.social, identity: project.identity %}
-            </div>
+            {% unless block.settings.show_social_links == false or block.settings.show_social_links == 'false' %}
+              {% if block.settings.footer_social_links.size > 0 %}
+                {%- assign footer_social_color = block.settings.footer_social_icon_color | default: '' | strip -%}
+                {%- assign footer_social_hover = block.settings.footer_social_icon_hover_color | default: '' | strip -%}
+                {%- assign footer_social_color_prefix = footer_social_color | slice: 0, 1 -%}
+                {%- assign footer_social_hover_prefix = footer_social_hover | slice: 0, 1 -%}
+                {%- assign footer_social_color_valid = false -%}
+                {%- assign footer_social_hover_valid = false -%}
+                {%- if footer_social_color_prefix == '#' and footer_social_color.size == 4 -%}{%- assign footer_social_color_valid = true -%}{%- endif -%}
+                {%- if footer_social_color_prefix == '#' and footer_social_color.size == 7 -%}{%- assign footer_social_color_valid = true -%}{%- endif -%}
+                {%- if footer_social_hover_prefix == '#' and footer_social_hover.size == 4 -%}{%- assign footer_social_hover_valid = true -%}{%- endif -%}
+                {%- if footer_social_hover_prefix == '#' and footer_social_hover.size == 7 -%}{%- assign footer_social_hover_valid = true -%}{%- endif -%}
+                <style>
+                  .widget-{{ widget.id }} [data-block-id="{{ blockId }}"] .footer-social-custom { display: flex; flex-wrap: wrap; align-items: center; gap: {{ block.settings.footer_social_icon_spacing | default: 8 }}px; }
+                  .widget-{{ widget.id }} [data-block-id="{{ blockId }}"] .footer-social-custom-item { display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; padding: .8rem; color: {% if footer_social_color_valid %}{{ footer_social_color | escape }}{% else %}var(--text-content){% endif %}; border-radius: var(--radius-sm); }
+                  .widget-{{ widget.id }} [data-block-id="{{ blockId }}"] .footer-social-custom-item svg { display: block; width: {{ block.settings.footer_social_icon_size | default: 38 }}px; height: auto; max-height: {{ block.settings.footer_social_icon_size | default: 38 }}px; color: inherit; flex: none; }
+                  .widget-{{ widget.id }} [data-block-id="{{ blockId }}"] a.footer-social-custom-item:hover { color: {% if footer_social_hover_valid %}{{ footer_social_hover | escape }}{% else %}var(--accent){% endif %}; }
+                  .widget-{{ widget.id }} [data-block-id="{{ blockId }}"] .footer-social-custom-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+                </style>
+                <div class="footer-social-custom" aria-label="{{ block.settings.title | default: 'Social links' | escape }}">
+                  {% for social_item in block.settings.footer_social_links %}
+                    {% assign social_icon = social_item.icon | default: 'facebook' %}
+                    {% assign social_label = social_item.accessible_label | strip %}
+                    {% if social_label == blank %}
+                      {% case social_icon %}
+                        {% when 'twitter' %}{% assign social_label = 'X / Twitter' %}
+                        {% when 'linkedin' %}{% assign social_label = 'LinkedIn' %}
+                        {% when 'tiktok' %}{% assign social_label = 'TikTok' %}
+                        {% when 'youtube' %}{% assign social_label = 'YouTube' %}
+                        {% when 'github' %}{% assign social_label = 'GitHub' %}
+                        {% when 'bluesky' %}{% assign social_label = 'Bluesky' %}
+                        {% when 'whatsapp' %}{% assign social_label = 'WhatsApp' %}
+                        {% else %}{% assign social_label = social_icon | capitalize %}
+                      {% endcase %}
+                    {% endif %}
+                    {% assign social_href = social_item.url | strip | safe_url %}
+                    {% if social_href != blank %}
+                      <a class="footer-social-custom-item" href="{{ social_href | escape }}" aria-label="{{ social_label | escape }}"{% if social_item.open_in_new_tab == true or social_item.open_in_new_tab == 'true' %} target="_blank" rel="noopener noreferrer"{% endif %}>
+                        {% render 'icon', icon: social_icon %}
+                      </a>
+                    {% else %}
+                      <span class="footer-social-custom-item" role="img" aria-label="{{ social_label | escape }}">
+                        {% render 'icon', icon: social_icon %}
+                      </span>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="social-links footer-social">
+                  {% render 'social-icons', social: theme.social, identity: project.identity %}
+                </div>
+              {% endif %}
+            {% endunless %}
 
           {% when 'business_details' %}
-            {% if block.settings.title != blank %}
-              <h3 class="w-title t-lg" data-setting="title">{{ block.settings.title }}</h3>
-            {% endif %}
-            {% render 'business-details',
-              identity: project.identity,
-              show_address: block.settings.show_address,
-              show_contact: block.settings.show_contact,
-              show_hours: block.settings.show_hours,
-              text: block.settings.text
-            %}
+            {% unless block.settings.show_contact_information == false or block.settings.show_contact_information == 'false' %}
+              {% if block.settings.title != blank %}
+                <h3 class="w-title t-lg" data-setting="title">{{ block.settings.title }}</h3>
+              {% endif %}
+              {% render 'business-details',
+                identity: project.identity,
+                show_address: block.settings.show_address,
+                show_contact: block.settings.show_contact,
+                show_hours: block.settings.show_hours,
+                text: block.settings.text
+              %}
+            {% endunless %}
 
           {% when 'badges_block' %}
             {% if block.settings.title != blank %}
@@ -259,4 +173,3 @@
     {% endif %}
   </div>
 </footer>
-{%- endif -%}

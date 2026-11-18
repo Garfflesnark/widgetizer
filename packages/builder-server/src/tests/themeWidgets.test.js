@@ -282,6 +282,17 @@ describe("footer business details and social profiles", () => {
     assert.ok(!html.includes("business-details-hours"), html);
   });
 
+  it("hides the complete contact block without removing its saved details", async () => {
+    const block = {
+      type: "business_details",
+      settings: { title: "Private contact", show_contact_information: false, show_contact: true, text: "<p>Retained note</p>" },
+    };
+    const html = compact(await renderFooter(block));
+    assert.ok(!html.includes("Private contact"), html);
+    assert.ok(!html.includes("business-details"), html);
+    assert.equal(block.settings.text, "<p>Retained note</p>");
+  });
+
   it("publishes nothing without details, but hints in the editor preview", async () => {
     const block = { type: "business_details", settings: { title: "", show_address: true, show_contact: true, show_hours: true } };
     const published = compact(await renderFooter(block, { identity: {} }));
@@ -305,6 +316,62 @@ describe("footer business details and social profiles", () => {
     assert.ok(html.includes('href="https://facebook.com/theme-page"'), html);
     assert.ok(!html.includes("instagram.com/crumbly"), html);
     assert.ok(!html.includes("mailto:hello@crumbly.example"), html);
+  });
+
+  it("renders configured Footer social rows as safe links or visible accessible icons", async () => {
+    const html = await renderFooter({
+      type: "social_block",
+      settings: {
+        title: "Follow us",
+        footer_social_links: [
+          { icon: "instagram", accessible_label: "Instagram updates", url: "https://example.com/social", open_in_new_tab: "true" },
+          { icon: "facebook", accessible_label: "Facebook profile", url: "", open_in_new_tab: "false" },
+          { icon: "linkedin", accessible_label: "LinkedIn same tab", url: "https://example.com/same", open_in_new_tab: "false" },
+          { icon: "twitter", accessible_label: "Unsafe destination", url: "javascript:alert(1)" },
+        ],
+        footer_social_icon_size: 42,
+        footer_social_icon_spacing: 12,
+        footer_social_icon_color: "#123456",
+        footer_social_icon_hover_color: "#abcdef",
+      },
+    });
+    assert.match(html, /href="https:\/\/example\.com\/social"[^>]*aria-label="Instagram updates"[^>]*target="_blank" rel="noopener noreferrer"/);
+    assert.match(html, /<a class="footer-social-custom-item" href="https:\/\/example\.com\/same" aria-label="LinkedIn same tab">/);
+    assert.match(html, /<span class="footer-social-custom-item" role="img" aria-label="Facebook profile">/);
+    assert.match(html, /<span class="footer-social-custom-item" role="img" aria-label="Unsafe destination">/);
+    assert.equal((html.match(/href="javascript:/g) || []).length, 0);
+    assert.match(html, /gap: 12px/);
+    assert.match(html, /color: #123456/);
+    assert.match(html, /color: #abcdef/);
+    assert.match(html, /width: 42px/);
+    assert.match(html, /:focus-visible \{ outline: 2px solid var\(--accent\)/);
+  });
+
+  it("hides Footer social content without deleting its saved rows", async () => {
+    const block = {
+      type: "social_block",
+      settings: {
+        title: "Follow us",
+        show_social_links: false,
+        footer_social_links: [{ icon: "instagram", accessible_label: "Instagram", url: "https://example.com" }],
+      },
+    };
+    const html = await renderFooter(block);
+    assert.ok(html.includes("Follow us"), html);
+    assert.ok(!html.includes("footer-social-custom"), html);
+    assert.equal(block.settings.footer_social_links.length, 1);
+  });
+
+  it("uses theme-derived colours and the existing icon defaults when no override is set", async () => {
+    const html = await renderFooter({
+      type: "social_block",
+      settings: { title: "Follow us", footer_social_links: [{ icon: "instagram", url: "" }] },
+    });
+    assert.match(html, /gap: 8px/);
+    assert.match(html, /color: var\(--text-content\)/);
+    assert.match(html, /color: var\(--accent\)/);
+    assert.match(html, /width: 38px/);
+    assert.match(html, /stroke="currentColor"/);
   });
 });
 

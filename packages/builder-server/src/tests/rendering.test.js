@@ -762,128 +762,50 @@ describe("Arch Header v1", () => {
 // renderWidget — link resolution (pageUuid -> current slug)
 // ============================================================================
 
-describe("Arch structured Footer v1", () => {
-  it("renders region groups, safe navigation and social links, bottom links and shared styles", async () => {
-    const html = await renderWidget(PROJECT_ID, "footer-v1-structured", {
+describe("Arch legacy Footer restoration", () => {
+  it("renders the original block Footer and custom social links while ignoring retired structured settings", async () => {
+    const html = await renderWidget(PROJECT_ID, "footer-restored-blocks", {
       type: "footer",
       settings: {
         structured_footer_enabled: true,
-        show_footer_identity: true,
-        footer_logo_image: "/uploads/images/hero.jpg",
-        footer_logo_max_width: 180,
-        footer_logo_text: "Acme Studio",
-        footer_description: "<p>Thoughtful tools for small teams.</p>",
-        identity_region: "left",
-        show_footer_navigation: true,
-        footer_navigation_region: "center",
-        footer_navigation_links: [
-          { label: "About", destination: "old-about", destination_type: "page", destination_page_uuid: "page-uuid-about" },
-          { label: "Visit", destination: "https://example.com/visit", destination_type: "url", open_in_new_tab: "true" },
-          { label: "Shop", destination: "https://example.com/shop", destination_type: "url", open_in_new_tab: "false" },
-          { label: "Coming soon", destination: "", destination_type: "url" },
-          { label: "Unsafe", destination: "javascript:alert(1)", destination_type: "url" },
-        ],
-        show_footer_social: true,
-        footer_social_region: "right",
-        footer_social_links: [
-          { icon: "instagram", url: "https://example.com/social", accessible_label: "Instagram", open_in_new_tab: "true" },
-          { icon: "github", url: "https://example.com/code", accessible_label: "Code", open_in_new_tab: "false" },
-          { icon: "github", url: "", accessible_label: "GitHub" },
-        ],
-        copyright: "<p>© Acme Studio</p>",
-        footer_bottom_links: [
-          { label: "Privacy", destination: "https://example.com/privacy", destination_type: "url" },
-        ],
-        show_footer_bottom_divider: true,
-        footer_background_color: "#112233",
-        footer_text_color: "#eeeeee",
-        footer_link_color: "#ddeeff",
-        footer_link_hover_color: "#ff66aa",
-        footer_navigation_font_family: "heading",
-        footer_navigation_font_size: 18,
-        footer_navigation_font_weight: "600",
-        footer_logo_font_family: "body",
-        footer_logo_font_size: 26,
-        footer_logo_font_weight: "700",
-        footer_logo_text_color: "#ffffff",
-        footer_horizontal_padding: 40,
-        footer_vertical_padding: 60,
-        footer_group_spacing: 28,
-        footer_social_icon_size: 36,
-        footer_social_icon_spacing: 16,
-        footer_social_icon_color: "#abcdef",
-        footer_social_icon_hover_color: "#ed1877",
+        footer_logo_text: "Retired value",
+        footer_navigation_links: [{ label: "Retired link", destination: "https://example.com/retired" }],
+        copyright: "<p>© Existing studio</p>",
+        color_scheme: "highlight-primary",
       },
+      blocks: {
+        brand: { type: "logo_text", settings: { logo_text: "Existing Brand", text: "<p>Built with care</p>" } },
+        social: { type: "social_block", settings: {
+          title: "Follow us",
+          footer_social_links: [
+            { icon: "instagram", url: "https://example.com/social", accessible_label: "Instagram", open_in_new_tab: "true" },
+            { icon: "github", url: "", accessible_label: "GitHub" },
+          ],
+        } },
+      },
+      blocksOrder: ["brand", "social"],
     }, RAW_THEME_SETTINGS, "publish", null, null);
 
-    assert.match(html, /class="widget widget-footer[^"]*arch-footer-v1"/);
-    assert.match(html, /--arch-footer-background: #112233/);
-    assert.match(html, /--arch-footer-text: #eeeeee/);
-    assert.match(html, /--arch-footer-link: #ddeeff/);
-    assert.match(html, /--arch-footer-link-hover: #ff66aa/);
-    assert.match(html, /--arch-footer-padding-inline: min\(40px/);
-    assert.match(html, /--arch-footer-padding-block: 60px/);
-    assert.match(html, /--arch-footer-group-gap: 28px/);
-    assert.match(html, /--arch-footer-social-size: 36px/);
-    assert.match(html, /--arch-footer-social-gap: 16px/);
-    assert.match(html, /--arch-footer-social-color: #abcdef/);
-    assert.match(html, /--arch-footer-social-hover: #ed1877/);
-    assert.match(html, /arch-footer-region--left[\s\S]*data-footer-group="identity"/);
-    assert.match(html, /class="arch-footer-logo-image"/);
-    assert.match(html, /max-width: min\(180px, 100%\)/);
-    assert.match(html, /class="arch-footer-logo-text">Acme Studio/);
-    assert.match(html, /arch-footer-region--center[\s\S]*data-footer-group="navigation"/);
-    assert.match(html, /arch-footer-region--right[\s\S]*data-footer-group="social"/);
-    assert.match(html, /class="arch-footer-link" href="about-us\.html"/);
-    assert.match(html, /href="https:\/\/example\.com\/visit"[^>]*target="_blank" rel="noopener noreferrer"/);
-    assert.match(html, /class="arch-footer-link" href="https:\/\/example\.com\/shop"/);
-    assert.doesNotMatch(html, /href="https:\/\/example\.com\/shop"[^>]*target=/);
-    assert.match(html, /<span class="arch-footer-link arch-footer-link--static">Coming soon<\/span>/);
-    assert.match(html, /<span class="arch-footer-link arch-footer-link--static">Unsafe<\/span>/);
-    assert.doesNotMatch(html, /href="javascript:/);
-    assert.match(html, /href="https:\/\/example\.com\/social"[^>]*target="_blank" rel="noopener noreferrer"/);
-    assert.match(html, /class="arch-footer-social-link" href="https:\/\/example\.com\/code" aria-label="Code"/);
-    assert.match(html, /<span class="arch-footer-social-link arch-footer-social-link--static" role="img" aria-label="GitHub">/);
-    assert.match(html, /footer-bottom--divider/);
-    assert.match(html, /© Acme Studio/);
-    assert.match(html, /href="https:\/\/example\.com\/privacy"/);
-    assert.match(html, /@media \(max-width: 989px\)[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
-    assert.match(html, /:focus-visible \{ outline: 2px solid var\(--accent\); outline-offset: 3px;/);
-    assert.match(html, /color: inherit; flex: none/);
+    assert.match(html, /class="widget widget-footer[^"]*"/);
+    assert.doesNotMatch(html, /arch-footer-v1|Retired value|Retired link/);
+    assert.match(html, /Existing Brand/);
+    assert.match(html, /Built with care/);
+    assert.ok(html.includes('href="https://example.com/social"'));
+    assert.ok(html.includes('target="_blank" rel="noopener noreferrer"'));
+    assert.match(html, /role="img" aria-label="GitHub"/);
+    assert.match(html, /© Existing studio/);
   });
 
-  it("keeps the bottom section visible when all main groups are hidden and allows hiding its divider", async () => {
-    const html = await renderWidget(PROJECT_ID, "footer-v1-bottom-only", {
+  it("keeps the original Copyright field visible even when no Footer blocks remain", async () => {
+    const html = await renderWidget(PROJECT_ID, "footer-restored-copyright", {
       type: "footer",
-      settings: {
-        structured_footer_enabled: true,
-        show_footer_identity: false,
-        show_footer_navigation: false,
-        show_footer_social: false,
-        copyright: "<p>Bottom remains</p>",
-        footer_bottom_links: [{ label: "Credits", destination: "", destination_type: "url" }],
-        show_footer_bottom_divider: false,
-      },
+      settings: { copyright: "<p>Existing copy</p>", structured_footer_enabled: true },
+      blocks: {},
+      blocksOrder: [],
     }, RAW_THEME_SETTINGS, "publish", null, null);
 
-    assert.doesNotMatch(html, /class="arch-footer-main/);
-    assert.match(html, /class="arch-footer-bottom arch-footer-bottom--no-divider"/);
-    assert.match(html, /Bottom remains/);
-    assert.match(html, /<span>Credits<\/span>/);
-  });
-
-  it("keeps the legacy block Footer when structured mode is not enabled", async () => {
-    const html = await renderWidget(PROJECT_ID, "footer-v1-legacy", {
-      type: "footer",
-      settings: { copyright: "<p>Existing Footer copy</p>", color_scheme: "highlight-primary" },
-      blocks: { brand: { type: "logo_text", settings: { logo_text: "Legacy Brand", text: "<p>Legacy description</p>" } } },
-      blocksOrder: ["brand"],
-    }, RAW_THEME_SETTINGS, "publish", null, null);
-
-    assert.doesNotMatch(html, /arch-footer-v1/);
-    assert.match(html, /Legacy Brand/);
-    assert.match(html, /Legacy description/);
-    assert.match(html, /Existing Footer copy/);
+    assert.match(html, /Existing copy/);
+    assert.doesNotMatch(html, /arch-footer-v1|arch-footer-bottom/);
   });
 });
 
