@@ -428,8 +428,15 @@ describe("Arch Header v1", () => {
     assert.doesNotMatch(hiddenHtml, /href="https:\/\/example\.com\/same"[^>]*target=/);
     assert.match(hiddenHtml, /href="https:\/\/example\.com\/new"[^>]*target="_blank" rel="noopener noreferrer"/);
     assert.match(hiddenHtml, /href="about-us\.html"[^>]*target="_blank" rel="noopener noreferrer"/);
-    assert.match(hiddenHtml, /font-size: calc\(var\(--font-size-base\) \* var\(--body-scale\)\)/);
-    assert.match(hiddenHtml, /font-size: calc\(var\(--font-size-sm\) \* var\(--body-scale\)\)/);
+    assert.match(hiddenHtml, /--arch-header-navigation-font-size: 16px/);
+    assert.match(hiddenHtml, /--arch-header-navigation-font-family: var\(--typography-body_font-family, inherit\)/);
+    assert.match(hiddenHtml, /--arch-header-navigation-text-color: var\(--header-nav-top-link-color\)/);
+    assert.match(hiddenHtml, /--arch-header-navigation-hover-color: var\(--header-nav-top-link-hover-color\)/);
+    assert.match(hiddenHtml, /--arch-header-navigation-button-color: var\(--accent-text\)/);
+    assert.match(hiddenHtml, /font-size: var\(--arch-header-navigation-font-size\)/);
+    assert.doesNotMatch(hiddenHtml, /\.nav-link--button \{[^}]*font-size:/);
+    assert.match(hiddenHtml, /--arch-header-logo-font-size: 24px/);
+    assert.match(hiddenHtml, /--arch-header-logo-text-color: inherit/);
 
     const legacyDefaultHtml = await renderWidget(PROJECT_ID, "header-legacy-contact-default", {
       type: "header",
@@ -462,6 +469,58 @@ describe("Arch Header v1", () => {
     assert.match(html, /<a href="https:\/\/example\.com\/code" class="social-link" aria-label="Code">/);
     assert.doesNotMatch(html, /href="https:\/\/example\.com\/code"[^>]*target=/);
     assert.match(html, /--header-social-icon-size: 32px/);
+  });
+
+  it("applies shared navigation typography and independent Logo Text typography", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-shared-typography", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        show_logo_image: false,
+        show_logo_text: true,
+        logoText: "My Brand",
+        logo_font_family: "body",
+        logo_font_size: 30,
+        logo_font_weight: "800",
+        logo_text_color: "#123456",
+        logo_letter_spacing: 0.5,
+        logo_text_transform: "capitalize",
+        navigation_font_family: "heading",
+        navigation_font_size: 22,
+        navigation_font_weight: "600",
+        navigation_text_color: "#aa2233",
+        navigation_letter_spacing: 1.2,
+        navigation_text_transform: "uppercase",
+        navigation_hover_color: "#006644",
+        navigation_hover_underline: true,
+        header_links: [
+          { label: "About Us", destination: "about-us", destination_type: "page", destination_page_uuid: "page-uuid-about", presentation: "link" },
+          { label: "Contact Us", destination: "", destination_type: "url", presentation: "button" },
+        ],
+      },
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+
+    assert.match(html, /--arch-header-navigation-font-family: var\(--typography-heading_font-family, inherit\)/);
+    assert.match(html, /--arch-header-navigation-font-size: 22px/);
+    assert.match(html, /--arch-header-navigation-font-weight: 600/);
+    assert.match(html, /--arch-header-navigation-text-color: #aa2233/);
+    assert.match(html, /--arch-header-navigation-letter-spacing: 1\.2px/);
+    assert.match(html, /--arch-header-navigation-text-transform: uppercase/);
+    assert.match(html, /--arch-header-navigation-hover-color: #006644/);
+    assert.match(html, /--arch-header-navigation-hover-decoration: underline/);
+    assert.match(html, /font-family: var\(--arch-header-navigation-font-family\)/);
+    assert.match(html, /font-size: var\(--arch-header-navigation-font-size\)/);
+    assert.match(html, /font-weight: var\(--arch-header-navigation-font-weight\)/);
+    assert.match(html, /<a href="about-us\.html" class="nav-link">About Us<\/a>/);
+    assert.match(html, /<span class="nav-link nav-link--button[^>]*>Contact Us<\/span>/);
+    assert.match(html, /--arch-header-logo-font-family: var\(--typography-body_font-family, inherit\)/);
+    assert.match(html, /--arch-header-logo-font-size: 30px/);
+    assert.match(html, /--arch-header-logo-font-weight: 800/);
+    assert.match(html, /--arch-header-logo-text-color: #123456/);
+    assert.match(html, /--arch-header-logo-letter-spacing: 0\.5px/);
+    assert.match(html, /--arch-header-logo-text-transform: capitalize/);
+    assert.match(html, /\.header-v1 \.header-v1-logo-text \{[\s\S]*?font-family: var\(--arch-header-logo-font-family\)/);
+    assert.match(html, /<span class="header-v1-logo-text">My Brand<\/span>/, "text transform is presentation-only");
   });
 
   it("resolves a stored Header page UUID to the current page slug", async () => {

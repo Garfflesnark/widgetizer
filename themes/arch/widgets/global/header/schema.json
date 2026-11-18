@@ -133,6 +133,75 @@
       "default": true
     },
     {
+      "type": "header",
+      "id": "logo_text_typography_header",
+      "label": "tTheme:header.settings.logo_text_typography_header.label",
+      "description": "tTheme:header.settings.logo_text_typography_header.description"
+    },
+    {
+      "type": "select",
+      "id": "logo_font_family",
+      "label": "tTheme:header.settings.logo_font_family.label",
+      "description": "tTheme:header.settings.logo_font_family.description",
+      "default": "body",
+      "options": [
+        { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
+        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "logo_font_size",
+      "label": "tTheme:header.settings.logo_font_size.label",
+      "default": 24,
+      "min": 12,
+      "max": 48,
+      "step": 1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "logo_font_weight",
+      "label": "tTheme:header.settings.logo_font_weight.label",
+      "default": "700",
+      "options": [
+        { "value": "400", "label": "tTheme:header.settings.typography_font_weight.options.regular" },
+        { "value": "500", "label": "tTheme:header.settings.typography_font_weight.options.medium" },
+        { "value": "600", "label": "tTheme:header.settings.typography_font_weight.options.semibold" },
+        { "value": "700", "label": "tTheme:header.settings.typography_font_weight.options.bold" },
+        { "value": "800", "label": "tTheme:header.settings.typography_font_weight.options.extrabold" },
+        { "value": "900", "label": "tTheme:header.settings.typography_font_weight.options.black" }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "logo_text_color",
+      "label": "tTheme:header.settings.logo_text_color.label",
+      "default": "#0f172a"
+    },
+    {
+      "type": "range",
+      "id": "logo_letter_spacing",
+      "label": "tTheme:header.settings.logo_letter_spacing.label",
+      "default": 0,
+      "min": -1,
+      "max": 4,
+      "step": 0.1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "logo_text_transform",
+      "label": "tTheme:header.settings.logo_text_transform.label",
+      "default": "none",
+      "options": [
+        { "value": "none", "label": "tTheme:header.settings.typography_text_transform.options.as_written" },
+        { "value": "uppercase", "label": "tTheme:header.settings.typography_text_transform.options.uppercase" },
+        { "value": "lowercase", "label": "tTheme:header.settings.typography_text_transform.options.lowercase" },
+        { "value": "capitalize", "label": "tTheme:header.settings.typography_text_transform.options.capitalize" }
+      ]
+    },
+    {
       "type": "select",
       "id": "logo_region",
       "label": "tTheme:header.settings.logo_region.label",
@@ -219,6 +288,87 @@
           { "value": "button", "label": "tTheme:header.settings.header_links.presentations.button" }
         ] }
       ]
+    },
+    {
+      "type": "header",
+      "id": "navigation_typography_header",
+      "label": "tTheme:header.settings.navigation_typography_header.label",
+      "description": "tTheme:header.settings.navigation_typography_header.description"
+    },
+    {
+      "type": "select",
+      "id": "navigation_font_family",
+      "label": "tTheme:header.settings.navigation_font_family.label",
+      "description": "tTheme:header.settings.navigation_font_family.description",
+      "default": "body",
+      "options": [
+        { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
+        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "navigation_font_size",
+      "label": "tTheme:header.settings.navigation_font_size.label",
+      "default": 16,
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "navigation_font_weight",
+      "label": "tTheme:header.settings.navigation_font_weight.label",
+      "default": "400",
+      "options": [
+        { "value": "400", "label": "tTheme:header.settings.typography_font_weight.options.regular" },
+        { "value": "500", "label": "tTheme:header.settings.typography_font_weight.options.medium" },
+        { "value": "600", "label": "tTheme:header.settings.typography_font_weight.options.semibold" },
+        { "value": "700", "label": "tTheme:header.settings.typography_font_weight.options.bold" },
+        { "value": "800", "label": "tTheme:header.settings.typography_font_weight.options.extrabold" },
+        { "value": "900", "label": "tTheme:header.settings.typography_font_weight.options.black" }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "navigation_text_color",
+      "label": "tTheme:header.settings.navigation_text_color.label",
+      "default": "#334155"
+    },
+    {
+      "type": "range",
+      "id": "navigation_letter_spacing",
+      "label": "tTheme:header.settings.navigation_letter_spacing.label",
+      "default": 0,
+      "min": -1,
+      "max": 4,
+      "step": 0.1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "navigation_text_transform",
+      "label": "tTheme:header.settings.navigation_text_transform.label",
+      "default": "none",
+      "options": [
+        { "value": "none", "label": "tTheme:header.settings.typography_text_transform.options.as_written" },
+        { "value": "uppercase", "label": "tTheme:header.settings.typography_text_transform.options.uppercase" },
+        { "value": "lowercase", "label": "tTheme:header.settings.typography_text_transform.options.lowercase" },
+        { "value": "capitalize", "label": "tTheme:header.settings.typography_text_transform.options.capitalize" }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "navigation_hover_color",
+      "label": "tTheme:header.settings.navigation_hover_color.label",
+      "default": "#0f172a"
+    },
+    {
+      "type": "checkbox",
+      "id": "navigation_hover_underline",
+      "label": "tTheme:header.settings.navigation_hover_underline.label",
+      "default": false
     },
     {
       "type": "table",

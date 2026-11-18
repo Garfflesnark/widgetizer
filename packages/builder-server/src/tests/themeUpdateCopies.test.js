@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.16");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.17");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
@@ -66,6 +66,8 @@ describe("Arch newest theme update", () => {
     const authoredHeader = { type: "header", settings: {
       logoText: "My brand", menu: "main-menu", show_logo_image: false, show_contact_details: false,
       navigation_item_spacing: 20, social_icon_spacing: 16, horizontal_header_padding: 32,
+      navigation_font_family: "heading", navigation_font_size: 21, navigation_font_weight: "600",
+      navigation_text_color: "#224466", logo_font_family: "body", logo_font_size: 29,
       header_links: [{ label: "About", destination: "about", destination_type: "page", open_in_new_tab: "true" }],
       header_social_links: [{ icon: "instagram", url: "https://example.com/social", accessible_label: "Updates", open_in_new_tab: "false" }],
     } };
@@ -76,7 +78,7 @@ describe("Arch newest theme update", () => {
     const result = await applyThemeUpdateToDir({ themeSourceDir: updateDir, projectDir: project });
     const installedSchema = await fs.readJson(path.join(project, "widgets/global/header/schema.json"));
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
-    assert.equal(result.newVersion, "0.9.16");
+    assert.equal(result.newVersion, "0.9.17");
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -91,6 +93,20 @@ describe("Arch newest theme update", () => {
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.find((column) => column.id === "open_in_new_tab").default, "false");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_item_spacing").default, 8);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_spacing").default, 8);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_font_family").default, "body");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_font_size").default, 16);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_font_weight").default, "400");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_hover_underline").default, false);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "logo_font_family").default, "body");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "logo_font_size").default, 24);
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "logo_font_weight").default, "700");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "logo_text_transform").default, "none");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_text_color").default, "#334155");
+    assert.equal(installedSchema.settings.find((setting) => setting.id === "logo_text_color").default, "#0f172a");
+    assert.deepEqual(
+      installedSchema.settings.find((setting) => setting.id === "navigation_font_family").options.map((option) => option.value),
+      ["body", "heading"],
+    );
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.filter((column) => column.type !== "hidden").map((column) => column.id).join(","), "label,open_in_new_tab,destination,destination_type,presentation");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").columns.find((column) => column.id === "destination").layout, "full");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns.map((column) => column.id).join(","), "icon,open_in_new_tab,accessible_label,url");

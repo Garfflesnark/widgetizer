@@ -1,0 +1,532 @@
+{
+  "type": "header",
+  "displayName": "tTheme:header.name",
+  "settings": [
+    {
+      "type": "header",
+      "id": "logo_header",
+      "label": "tTheme:header.settings.logo_header.label"
+    },
+    {
+      "type": "image",
+      "id": "logoImage",
+      "label": "tTheme:header.settings.logoImage.label",
+      "description": "tTheme:header.settings.logoImage.description"
+    },
+    {
+      "type": "range",
+      "id": "logoMaxWidth",
+      "label": "tTheme:header.settings.logoMaxWidth.label",
+      "description": "tTheme:header.settings.logoMaxWidth.description",
+      "default": 150,
+      "min": 50,
+      "max": 300,
+      "step": 10,
+      "unit": "px"
+    },
+    {
+      "type": "text",
+      "id": "logoText",
+      "label": "tTheme:header.settings.logoText.label",
+      "description": "tTheme:header.settings.logoText.description",
+      "default": "Arch"
+    },
+    {
+      "type": "header",
+      "id": "contact_header",
+      "label": "tTheme:header.settings.contact_header.label"
+    },
+    {
+      "type": "text",
+      "id": "contactDetailsLine1",
+      "label": "tTheme:header.settings.contactDetailsLine1.label",
+      "description": "tTheme:header.settings.contactDetailsLine1.description",
+      "default": "Call us: (555) 203-9844"
+    },
+    {
+      "type": "text",
+      "id": "contactDetailsLine2",
+      "label": "tTheme:header.settings.contactDetailsLine2.label",
+      "description": "tTheme:header.settings.contactDetailsLine2.description",
+      "default": "1450 Market St, Suite 200"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_contact_details",
+      "label": "tTheme:header.settings.show_contact_details.label",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "contact_position",
+      "label": "tTheme:header.settings.contact_position.label",
+      "default": "logo",
+      "options": [
+        {
+          "value": "logo",
+          "label": "tTheme:header.settings.contact_position.options.logo"
+        },
+        {
+          "value": "menu",
+          "label": "tTheme:header.settings.contact_position.options.menu"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "id": "navigation_header",
+      "label": "tTheme:header.settings.navigation_header.label"
+    },
+    {
+      "type": "menu",
+      "id": "headerNavigation",
+      "label": "tTheme:header.settings.headerNavigation.label",
+      "description": "tTheme:header.settings.headerNavigation.description",
+      "default": "main-menu"
+    },
+    {
+      "type": "checkbox",
+      "id": "center_nav",
+      "label": "tTheme:header.settings.center_nav.label",
+      "description": "tTheme:header.settings.center_nav.description",
+      "default": false
+    },
+    {
+      "type": "header",
+      "id": "three_region_header",
+      "label": "tTheme:header.settings.three_region_header.label",
+      "description": "tTheme:header.settings.three_region_header.description"
+    },
+    {
+      "type": "checkbox",
+      "id": "three_region_enabled",
+      "label": "tTheme:header.settings.three_region_enabled.label",
+      "description": "tTheme:header.settings.three_region_enabled.description",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_bottom_border",
+      "label": "tTheme:header.settings.show_bottom_border.label",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "horizontal_header_padding",
+      "label": "tTheme:header.settings.horizontal_header_padding.label",
+      "default": 16,
+      "min": 0,
+      "max": 200,
+      "step": 2,
+      "unit": "px"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_logo_image",
+      "label": "tTheme:header.settings.show_logo_image.label",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_logo_text",
+      "label": "tTheme:header.settings.show_logo_text.label",
+      "default": true
+    },
+    {
+      "type": "header",
+      "id": "logo_text_typography_header",
+      "label": "tTheme:header.settings.logo_text_typography_header.label",
+      "description": "tTheme:header.settings.logo_text_typography_header.description"
+    },
+    {
+      "type": "select",
+      "id": "logo_font_family",
+      "label": "tTheme:header.settings.logo_font_family.label",
+      "description": "tTheme:header.settings.logo_font_family.description",
+      "default": "body",
+      "options": [
+        { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
+        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "logo_font_size",
+      "label": "tTheme:header.settings.logo_font_size.label",
+      "default": 24,
+      "min": 12,
+      "max": 48,
+      "step": 1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "logo_font_weight",
+      "label": "tTheme:header.settings.logo_font_weight.label",
+      "default": "700",
+      "options": [
+        { "value": "400", "label": "tTheme:header.settings.typography_font_weight.options.regular" },
+        { "value": "500", "label": "tTheme:header.settings.typography_font_weight.options.medium" },
+        { "value": "600", "label": "tTheme:header.settings.typography_font_weight.options.semibold" },
+        { "value": "700", "label": "tTheme:header.settings.typography_font_weight.options.bold" },
+        { "value": "800", "label": "tTheme:header.settings.typography_font_weight.options.extrabold" },
+        { "value": "900", "label": "tTheme:header.settings.typography_font_weight.options.black" }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "logo_text_color",
+      "label": "tTheme:header.settings.logo_text_color.label",
+      "default": "#0f172a"
+    },
+    {
+      "type": "range",
+      "id": "logo_letter_spacing",
+      "label": "tTheme:header.settings.logo_letter_spacing.label",
+      "default": 0,
+      "min": -1,
+      "max": 4,
+      "step": 0.1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "logo_text_transform",
+      "label": "tTheme:header.settings.logo_text_transform.label",
+      "default": "none",
+      "options": [
+        { "value": "none", "label": "tTheme:header.settings.typography_text_transform.options.as_written" },
+        { "value": "uppercase", "label": "tTheme:header.settings.typography_text_transform.options.uppercase" },
+        { "value": "lowercase", "label": "tTheme:header.settings.typography_text_transform.options.lowercase" },
+        { "value": "capitalize", "label": "tTheme:header.settings.typography_text_transform.options.capitalize" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "logo_region",
+      "label": "tTheme:header.settings.logo_region.label",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "tTheme:header.settings.regions.left" },
+        { "value": "center", "label": "tTheme:header.settings.regions.center" },
+        { "value": "right", "label": "tTheme:header.settings.regions.right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "navigation_region",
+      "label": "tTheme:header.settings.navigation_region.label",
+      "default": "center",
+      "options": [
+        { "value": "left", "label": "tTheme:header.settings.regions.left" },
+        { "value": "center", "label": "tTheme:header.settings.regions.center" },
+        { "value": "right", "label": "tTheme:header.settings.regions.right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "social_region",
+      "label": "tTheme:header.settings.social_region.label",
+      "default": "right",
+      "options": [
+        { "value": "left", "label": "tTheme:header.settings.regions.left" },
+        { "value": "center", "label": "tTheme:header.settings.regions.center" },
+        { "value": "right", "label": "tTheme:header.settings.regions.right" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "navigation_item_spacing",
+      "label": "tTheme:header.settings.navigation_item_spacing.label",
+      "default": 8,
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "social_icon_size",
+      "label": "tTheme:header.settings.social_icon_size.label",
+      "description": "tTheme:header.settings.social_icon_size.description",
+      "default": 32,
+      "min": 16,
+      "max": 64,
+      "step": 2,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "social_icon_spacing",
+      "label": "tTheme:header.settings.social_icon_spacing.label",
+      "default": 8,
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px"
+    },
+    {
+      "type": "table",
+      "id": "header_links",
+      "label": "tTheme:header.settings.header_links.label",
+      "description": "tTheme:header.settings.header_links.description",
+      "default": [],
+      "rowNames": true,
+      "pageOptions": true,
+      "columns": [
+        { "id": "label", "label": "tTheme:header.settings.header_links.columns.label", "type": "text" },
+        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_links.columns.open_in_new_tab", "type": "checkbox", "default": "false" },
+        { "id": "destination", "label": "tTheme:header.settings.header_links.columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url", "layout": "full" },
+        { "id": "destination_page_uuid", "type": "hidden" },
+        { "id": "destination_url", "type": "hidden" },
+        { "id": "destination_type", "label": "tTheme:header.settings.header_links.columns.destination_type", "type": "select", "layout": "full", "options": [
+          { "value": "page", "label": "tTheme:header.settings.header_links.destination_types.page" },
+          { "value": "url", "label": "tTheme:header.settings.header_links.destination_types.url" }
+        ] },
+        { "id": "presentation", "label": "tTheme:header.settings.header_links.columns.presentation", "type": "select", "layout": "full", "options": [
+          { "value": "link", "label": "tTheme:header.settings.header_links.presentations.link" },
+          { "value": "button", "label": "tTheme:header.settings.header_links.presentations.button" }
+        ] }
+      ]
+    },
+    {
+      "type": "header",
+      "id": "navigation_typography_header",
+      "label": "tTheme:header.settings.navigation_typography_header.label",
+      "description": "tTheme:header.settings.navigation_typography_header.description"
+    },
+    {
+      "type": "select",
+      "id": "navigation_font_family",
+      "label": "tTheme:header.settings.navigation_font_family.label",
+      "description": "tTheme:header.settings.navigation_font_family.description",
+      "default": "body",
+      "options": [
+        { "value": "body", "label": "tTheme:header.settings.typography_font_family.options.body" },
+        { "value": "heading", "label": "tTheme:header.settings.typography_font_family.options.heading" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "navigation_font_size",
+      "label": "tTheme:header.settings.navigation_font_size.label",
+      "default": 16,
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "navigation_font_weight",
+      "label": "tTheme:header.settings.navigation_font_weight.label",
+      "default": "400",
+      "options": [
+        { "value": "400", "label": "tTheme:header.settings.typography_font_weight.options.regular" },
+        { "value": "500", "label": "tTheme:header.settings.typography_font_weight.options.medium" },
+        { "value": "600", "label": "tTheme:header.settings.typography_font_weight.options.semibold" },
+        { "value": "700", "label": "tTheme:header.settings.typography_font_weight.options.bold" },
+        { "value": "800", "label": "tTheme:header.settings.typography_font_weight.options.extrabold" },
+        { "value": "900", "label": "tTheme:header.settings.typography_font_weight.options.black" }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "navigation_text_color",
+      "label": "tTheme:header.settings.navigation_text_color.label",
+      "default": "#334155"
+    },
+    {
+      "type": "range",
+      "id": "navigation_letter_spacing",
+      "label": "tTheme:header.settings.navigation_letter_spacing.label",
+      "default": 0,
+      "min": -1,
+      "max": 4,
+      "step": 0.1,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "navigation_text_transform",
+      "label": "tTheme:header.settings.navigation_text_transform.label",
+      "default": "none",
+      "options": [
+        { "value": "none", "label": "tTheme:header.settings.typography_text_transform.options.as_written" },
+        { "value": "uppercase", "label": "tTheme:header.settings.typography_text_transform.options.uppercase" },
+        { "value": "lowercase", "label": "tTheme:header.settings.typography_text_transform.options.lowercase" },
+        { "value": "capitalize", "label": "tTheme:header.settings.typography_text_transform.options.capitalize" }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "navigation_hover_color",
+      "label": "tTheme:header.settings.navigation_hover_color.label",
+      "default": "#0f172a"
+    },
+    {
+      "type": "checkbox",
+      "id": "navigation_hover_underline",
+      "label": "tTheme:header.settings.navigation_hover_underline.label",
+      "default": false
+    },
+    {
+      "type": "table",
+      "id": "header_social_links",
+      "label": "tTheme:header.settings.header_social_links.label",
+      "description": "tTheme:header.settings.header_social_links.description",
+      "default": [],
+      "rowNames": true,
+      "columns": [
+        { "id": "icon", "label": "tTheme:header.settings.header_social_links.columns.icon", "type": "select", "options": [
+          { "value": "facebook", "label": "Facebook" }, { "value": "instagram", "label": "Instagram" },
+          { "value": "twitter", "label": "X / Twitter" }, { "value": "linkedin", "label": "LinkedIn" },
+          { "value": "youtube", "label": "YouTube" }, { "value": "tiktok", "label": "TikTok" },
+          { "value": "pinterest", "label": "Pinterest" }, { "value": "github", "label": "GitHub" },
+          { "value": "mastodon", "label": "Mastodon" }, { "value": "bluesky", "label": "Bluesky" },
+          { "value": "discord", "label": "Discord" }, { "value": "reddit", "label": "Reddit" },
+          { "value": "telegram", "label": "Telegram" }, { "value": "threads", "label": "Threads" },
+          { "value": "whatsapp", "label": "WhatsApp" }, { "value": "mail", "label": "Email" }
+        ] },
+        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_social_links.columns.open_in_new_tab", "type": "checkbox", "default": "true" },
+        { "id": "accessible_label", "label": "tTheme:header.settings.header_social_links.columns.accessible_label", "type": "text", "layout": "full" },
+        { "id": "url", "label": "tTheme:header.settings.header_social_links.columns.url", "type": "text", "layout": "full" }
+      ]
+    },
+    {
+      "type": "link",
+      "id": "ctaButtonLink",
+      "label": "tTheme:header.settings.ctaButtonLink.label",
+      "description": "tTheme:header.settings.ctaButtonLink.description",
+      "default": {
+        "href": "contact.html",
+        "text": "Get in touch",
+        "target": "_self"
+      }
+    },
+    {
+      "type": "select",
+      "id": "ctaButtonStyle",
+      "label": "tTheme:header.settings.ctaButtonStyle.label",
+      "default": "secondary",
+      "options": [
+        {
+          "value": "primary",
+          "label": "tTheme:header.settings.ctaButtonStyle.options.primary"
+        },
+        {
+          "value": "secondary",
+          "label": "tTheme:header.settings.ctaButtonStyle.options.secondary"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "id": "languages_header",
+      "label": "tTheme:header.settings.languages_header.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_language_switcher",
+      "label": "tTheme:header.settings.show_language_switcher.label",
+      "description": "tTheme:header.settings.show_language_switcher.description",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "language_switcher_label",
+      "label": "tTheme:header.settings.language_switcher_label.label",
+      "description": "tTheme:header.settings.language_switcher_label.description",
+      "default": "Languages"
+    },
+    {
+      "type": "header",
+      "id": "labels_header",
+      "label": "tTheme:header.settings.labels_header.label"
+    },
+    {
+      "type": "text",
+      "id": "skip_link_text",
+      "label": "tTheme:header.settings.skip_link_text.label",
+      "description": "tTheme:header.settings.skip_link_text.description",
+      "default": "Skip to main content"
+    },
+    {
+      "type": "text",
+      "id": "nav_label",
+      "label": "tTheme:header.settings.nav_label.label",
+      "description": "tTheme:header.settings.nav_label.description",
+      "default": "Primary"
+    },
+    {
+      "type": "text",
+      "id": "menu_title",
+      "label": "tTheme:header.settings.menu_title.label",
+      "description": "tTheme:header.settings.menu_title.description",
+      "default": "Menu"
+    },
+    {
+      "type": "text",
+      "id": "menu_close_label",
+      "label": "tTheme:header.settings.menu_close_label.label",
+      "description": "tTheme:header.settings.menu_close_label.description",
+      "default": "Close menu"
+    },
+    {
+      "type": "header",
+      "id": "display_header",
+      "label": "tTheme:global.widgets.settings.display_header.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "full_width",
+      "label": "tTheme:header.settings.full_width.label",
+      "description": "tTheme:header.settings.full_width.description",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "sticky",
+      "label": "tTheme:header.settings.sticky.label",
+      "description": "tTheme:header.settings.sticky.description",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "transparent_on_hero",
+      "label": "tTheme:header.settings.transparent_on_hero.label",
+      "description": "tTheme:header.settings.transparent_on_hero.description",
+      "default": false
+    },
+    {
+      "type": "image",
+      "id": "transparent_logo",
+      "label": "tTheme:header.settings.transparent_logo.label",
+      "description": "tTheme:header.settings.transparent_logo.description"
+    },
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "tTheme:global.widgets.settings.color_scheme.label",
+      "default": "standard-primary",
+      "options": [
+        {
+          "value": "standard-primary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.standard_primary"
+        },
+        {
+          "value": "standard-secondary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.standard_secondary"
+        },
+        {
+          "value": "highlight-primary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.highlight_primary"
+        },
+        {
+          "value": "highlight-secondary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.highlight_secondary"
+        }
+      ]
+    }
+  ]
+}

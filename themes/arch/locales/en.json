@@ -1533,6 +1533,55 @@
       },
       "show_logo_image": { "label": "Show logo image" },
       "show_logo_text": { "label": "Show logo text" },
+      "logo_text_typography_header": {
+        "label": "Logo Text Typography",
+        "description": "These settings apply to three-region Header; legacy Header styling stays unchanged."
+      },
+      "logo_font_family": {
+        "label": "Font Family",
+        "description": "Use the project's Body or Heading font."
+      },
+      "logo_font_size": { "label": "Font Size" },
+      "logo_font_weight": { "label": "Font Weight" },
+      "logo_text_color": { "label": "Text Colour" },
+      "logo_letter_spacing": { "label": "Letter Spacing" },
+      "logo_text_transform": { "label": "Text Transform" },
+      "navigation_typography_header": {
+        "label": "Navigation Typography",
+        "description": "These settings apply to three-region Header; legacy Header styling stays unchanged."
+      },
+      "navigation_font_family": {
+        "label": "Font Family",
+        "description": "Use the project's Body or Heading font."
+      },
+      "navigation_font_size": { "label": "Font Size" },
+      "navigation_font_weight": { "label": "Font Weight" },
+      "navigation_text_color": { "label": "Text Colour" },
+      "navigation_letter_spacing": { "label": "Letter Spacing" },
+      "navigation_text_transform": { "label": "Text Transform" },
+      "navigation_hover_color": { "label": "Hover Colour" },
+      "navigation_hover_underline": { "label": "Underline on Hover" },
+      "typography_font_family": {
+        "options": { "body": "Body font", "heading": "Heading font" }
+      },
+      "typography_font_weight": {
+        "options": {
+          "regular": "Regular",
+          "medium": "Medium",
+          "semibold": "Semibold",
+          "bold": "Bold",
+          "extrabold": "Extra Bold",
+          "black": "Black"
+        }
+      },
+      "typography_text_transform": {
+        "options": {
+          "as_written": "As written",
+          "uppercase": "UPPERCASE",
+          "lowercase": "lowercase",
+          "capitalize": "Capitalize"
+        }
+      },
       "logo_region": { "label": "Logo group region" },
       "navigation_region": { "label": "Navigation region" },
       "social_region": { "label": "Social links region" },
