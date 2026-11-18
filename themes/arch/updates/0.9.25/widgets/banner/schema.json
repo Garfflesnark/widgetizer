@@ -1,0 +1,776 @@
+{
+  "type": "banner",
+  "displayName": "tTheme:banner.name",
+  "supportsTransparentHeader": true,
+  "aliases": [
+    "hero",
+    "intro",
+    "cover",
+    "billboard",
+    "jumbotron",
+    "header",
+    "splash"
+  ],
+  "settings": [
+    {
+      "type": "image",
+      "id": "image",
+      "label": "tTheme:global.widgets.settings.background_image.label"
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "tTheme:global.widgets.settings.overlay_color.label",
+      "default": "#0a1e38bf",
+      "allow_alpha": true,
+      "description": "tTheme:global.widgets.settings.overlay_color.description"
+    },
+    {
+      "type": "header",
+      "id": "display_header",
+      "label": "tTheme:global.widgets.settings.display_header.label"
+    },
+    {
+      "type": "select",
+      "id": "height",
+      "label": "tTheme:banner.settings.height.label",
+      "default": "auto",
+      "options": [
+        {
+          "value": "auto",
+          "label": "tTheme:banner.settings.height.options.auto"
+        },
+        {
+          "value": "small",
+          "label": "tTheme:banner.settings.height.options.small"
+        },
+        {
+          "value": "medium",
+          "label": "tTheme:banner.settings.height.options.medium"
+        },
+        {
+          "value": "large",
+          "label": "tTheme:banner.settings.height.options.large"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "fullwidth",
+      "label": "tTheme:global.widgets.settings.fullwidth.label",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "content_width",
+      "label": "tTheme:global.widgets.settings.content_width.label",
+      "default": "wide",
+      "options": [
+        {
+          "value": "narrow",
+          "label": "tTheme:global.widgets.settings.content_width.options.narrow"
+        },
+        {
+          "value": "medium",
+          "label": "tTheme:global.widgets.settings.content_width.options.medium"
+        },
+        {
+          "value": "wide",
+          "label": "tTheme:global.widgets.settings.content_width.options.wide"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "alignment",
+      "label": "tTheme:global.widgets.settings.alignment.label",
+      "default": "center",
+      "options": [
+        {
+          "value": "start",
+          "label": "tTheme:global.widgets.settings.alignment.options.start"
+        },
+        {
+          "value": "center",
+          "label": "tTheme:global.widgets.settings.alignment.options.center"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "vertical_alignment",
+      "label": "tTheme:banner.settings.vertical_alignment.label",
+      "default": "center",
+      "options": [
+        {
+          "value": "start",
+          "label": "tTheme:global.widgets.settings.options.top"
+        },
+        {
+          "value": "center",
+          "label": "tTheme:global.widgets.settings.options.center"
+        },
+        {
+          "value": "end",
+          "label": "tTheme:global.widgets.settings.options.bottom"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "id": "appearance_header",
+      "label": "tTheme:global.widgets.settings.appearance_header.label"
+    },
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "tTheme:global.widgets.settings.color_scheme.label",
+      "default": "highlight-primary",
+      "options": [
+        {
+          "value": "standard-primary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.standard_primary"
+        },
+        {
+          "value": "standard-secondary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.standard_secondary"
+        },
+        {
+          "value": "highlight-primary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.highlight_primary"
+        },
+        {
+          "value": "highlight-secondary",
+          "label": "tTheme:global.widgets.settings.color_scheme.options.highlight_secondary"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "top_spacing",
+      "label": "tTheme:global.widgets.settings.top_spacing.label",
+      "default": "auto",
+      "options": [
+        {
+          "value": "auto",
+          "label": "tTheme:global.widgets.settings.top_spacing.options.auto"
+        },
+        {
+          "value": "small",
+          "label": "tTheme:global.widgets.settings.top_spacing.options.small"
+        },
+        {
+          "value": "none",
+          "label": "tTheme:global.widgets.settings.top_spacing.options.none"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "bottom_spacing",
+      "label": "tTheme:global.widgets.settings.bottom_spacing.label",
+      "default": "auto",
+      "options": [
+        {
+          "value": "auto",
+          "label": "tTheme:global.widgets.settings.bottom_spacing.options.auto"
+        },
+        {
+          "value": "small",
+          "label": "tTheme:global.widgets.settings.bottom_spacing.options.small"
+        },
+        {
+          "value": "none",
+          "label": "tTheme:global.widgets.settings.bottom_spacing.options.none"
+        }
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "type": "rating",
+      "displayName": "tTheme:global.widgets.blocks.rating.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "select",
+          "id": "rating",
+          "label": "tTheme:global.widgets.blocks.rating.settings.rating.label",
+          "options": [
+            {
+              "value": "5",
+              "label": "tTheme:global.widgets.blocks.rating.settings.rating.options.5"
+            },
+            {
+              "value": "4",
+              "label": "tTheme:global.widgets.blocks.rating.settings.rating.options.4"
+            },
+            {
+              "value": "3",
+              "label": "tTheme:global.widgets.blocks.rating.settings.rating.options.3"
+            }
+          ],
+          "default": "5"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "displayName": "tTheme:global.widgets.blocks.image.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "image",
+          "id": "image",
+          "label": "tTheme:global.widgets.blocks.image.settings.image.label"
+        },
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "range",
+          "id": "width",
+          "label": "tTheme:global.widgets.blocks.image.settings.width.label",
+          "default": 20,
+          "min": 5,
+          "max": 100,
+          "step": 5
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "displayName": "tTheme:global.widgets.blocks.heading.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "tTheme:global.widgets.blocks.heading.settings.text.label",
+          "default": "Build your future"
+        },
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "select",
+          "id": "size",
+          "label": "tTheme:global.widgets.blocks.heading.settings.size.label",
+          "default": "5xl",
+          "options": [
+            {
+              "value": "lg",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.lg"
+            },
+            {
+              "value": "xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.xl"
+            },
+            {
+              "value": "2xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.2xl"
+            },
+            {
+              "value": "3xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.3xl"
+            },
+            {
+              "value": "4xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.4xl"
+            },
+            {
+              "value": "5xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.5xl"
+            },
+            {
+              "value": "6xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.6xl"
+            },
+            {
+              "value": "7xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.7xl"
+            },
+            {
+              "value": "8xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.8xl"
+            },
+            {
+              "value": "9xl",
+              "label": "tTheme:global.widgets.blocks.heading.settings.size.options.9xl"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "displayName": "tTheme:global.widgets.blocks.text.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "tTheme:global.widgets.blocks.text.settings.text.label",
+          "default": "<p>Start your journey with our powerful platform.</p>"
+        },
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "select",
+          "id": "size",
+          "label": "tTheme:global.widgets.blocks.text.settings.size.label",
+          "default": "lg",
+          "options": [
+            {
+              "value": "sm",
+              "label": "tTheme:global.widgets.blocks.text.settings.size.options.sm"
+            },
+            {
+              "value": "base",
+              "label": "tTheme:global.widgets.blocks.text.settings.size.options.base"
+            },
+            {
+              "value": "lg",
+              "label": "tTheme:global.widgets.blocks.text.settings.size.options.lg"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "id": "uppercase",
+          "label": "tTheme:global.widgets.blocks.text.settings.uppercase.label",
+          "default": false
+        },
+        {
+          "type": "checkbox",
+          "id": "muted",
+          "label": "tTheme:global.widgets.blocks.text.settings.muted.label",
+          "default": false
+        }
+      ]
+    },
+    {
+      "type": "features",
+      "displayName": "tTheme:global.widgets.blocks.features.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "textarea",
+          "id": "features",
+          "label": "tTheme:global.widgets.blocks.features.settings.features.label",
+          "description": "tTheme:global.widgets.blocks.features.settings.features.description",
+          "default": "+ Feature 1\n+ Feature 2\n+ Feature 3"
+        }
+      ]
+    },
+    {
+      "type": "icon",
+      "displayName": "tTheme:global.widgets.blocks.icon.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "icon",
+          "id": "icon",
+          "label": "tTheme:global.widgets.blocks.icon.settings.icon.label",
+          "default": "star"
+        },
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "select",
+          "id": "style",
+          "label": "tTheme:global.widgets.blocks.icon.settings.style.label",
+          "default": "plain",
+          "options": [
+            {
+              "value": "plain",
+              "label": "tTheme:global.widgets.blocks.icon.settings.style.options.plain"
+            },
+            {
+              "value": "outline",
+              "label": "tTheme:global.widgets.blocks.icon.settings.style.options.outline"
+            },
+            {
+              "value": "filled",
+              "label": "tTheme:global.widgets.blocks.icon.settings.style.options.filled"
+            }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "size",
+          "label": "tTheme:global.widgets.blocks.icon.settings.size.label",
+          "default": "md",
+          "options": [
+            {
+              "value": "sm",
+              "label": "tTheme:global.widgets.blocks.icon.settings.size.options.sm"
+            },
+            {
+              "value": "md",
+              "label": "tTheme:global.widgets.blocks.icon.settings.size.options.md"
+            },
+            {
+              "value": "lg",
+              "label": "tTheme:global.widgets.blocks.icon.settings.size.options.lg"
+            },
+            {
+              "value": "xl",
+              "label": "tTheme:global.widgets.blocks.icon.settings.size.options.xl"
+            }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "shape",
+          "label": "tTheme:global.widgets.blocks.icon.settings.shape.label",
+          "default": "circle",
+          "options": [
+            {
+              "value": "sharp",
+              "label": "tTheme:global.widgets.blocks.icon.settings.shape.options.sharp"
+            },
+            {
+              "value": "rounded",
+              "label": "tTheme:global.widgets.blocks.icon.settings.shape.options.rounded"
+            },
+            {
+              "value": "circle",
+              "label": "tTheme:global.widgets.blocks.icon.settings.shape.options.circle"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "numbered-item",
+      "displayName": "tTheme:global.widgets.blocks.numbered_item.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "tTheme:global.widgets.blocks.numbered_item.settings.title.label",
+          "default": "Feature Title"
+        },
+        {
+          "type": "text",
+          "id": "description",
+          "label": "tTheme:global.widgets.blocks.numbered_item.settings.description.label",
+          "default": "A short description of this feature."
+        },
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "select",
+          "id": "size",
+          "label": "tTheme:global.widgets.blocks.numbered_item.settings.size.label",
+          "default": "medium",
+          "options": [
+            {
+              "value": "small",
+              "label": "tTheme:global.widgets.blocks.numbered_item.settings.size.options.small"
+            },
+            {
+              "value": "medium",
+              "label": "tTheme:global.widgets.blocks.numbered_item.settings.size.options.medium"
+            },
+            {
+              "value": "large",
+              "label": "tTheme:global.widgets.blocks.numbered_item.settings.size.options.large"
+            },
+            {
+              "value": "xlarge",
+              "label": "tTheme:global.widgets.blocks.numbered_item.settings.size.options.xlarge"
+            }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "shape",
+          "label": "tTheme:global.widgets.blocks.numbered_item.settings.shape.label",
+          "default": "circle",
+          "options": [
+            {
+              "value": "sharp",
+              "label": "tTheme:global.widgets.blocks.numbered_item.settings.shape.options.sharp"
+            },
+            {
+              "value": "rounded",
+              "label": "tTheme:global.widgets.blocks.numbered_item.settings.shape.options.rounded"
+            },
+            {
+              "value": "circle",
+              "label": "tTheme:global.widgets.blocks.numbered_item.settings.shape.options.circle"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "countdown",
+      "displayName": "tTheme:global.widgets.blocks.countdown.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "text",
+          "id": "target_date",
+          "label": "tTheme:countdown.settings.target_date.label",
+          "default": "2027-01-01 00:00"
+        },
+        {
+          "type": "text",
+          "id": "expired_message",
+          "label": "tTheme:countdown.settings.expired_message.label",
+          "default": "The wait is over!"
+        },
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_seconds",
+          "label": "tTheme:countdown.settings.show_seconds.label",
+          "default": true
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "displayName": "tTheme:global.widgets.blocks.button.name",
+      "settings": [
+        {
+          "type": "header",
+          "id": "content_header",
+          "label": "tTheme:global.widgets.settings.content_header.label"
+        },
+        {
+          "type": "select",
+          "id": "button_count",
+          "label": "tTheme:global.widgets.blocks.button.settings.button_count.label",
+          "description": "tTheme:global.widgets.blocks.button.settings.button_count.description",
+          "default": "2",
+          "options": [
+            { "value": "1", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.one" },
+            { "value": "2", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.two" },
+            { "value": "3", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.three" },
+            { "value": "4", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.four" },
+            { "value": "5", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.five" }
+          ]
+        },
+        {
+          "type": "link",
+          "id": "link",
+          "label": "tTheme:global.widgets.blocks.button.settings.link.label",
+          "default": {
+            "text": "Get Started",
+            "href": "#",
+            "target": "_self"
+          }
+        },
+        {
+          "type": "link",
+          "id": "link_2",
+          "label": "tTheme:global.widgets.blocks.button.settings.link_2.label"
+        },
+        {
+          "type": "link",
+          "id": "link_3",
+          "label": "tTheme:global.widgets.blocks.button.settings.link_3.label"
+        },
+        {
+          "type": "link",
+          "id": "link_4",
+          "label": "tTheme:global.widgets.blocks.button.settings.link_4.label"
+        },
+        {
+          "type": "link",
+          "id": "link_5",
+          "label": "tTheme:global.widgets.blocks.button.settings.link_5.label"
+        },
+        {
+          "type": "header",
+          "id": "display_header",
+          "label": "tTheme:global.widgets.settings.display_header.label"
+        },
+        {
+          "type": "select",
+          "id": "style",
+          "label": "tTheme:global.widgets.blocks.button.settings.style.label",
+          "default": "primary",
+          "options": [
+            {
+              "value": "primary",
+              "label": "tTheme:global.widgets.blocks.button.settings.style.options.primary"
+            },
+            {
+              "value": "secondary",
+              "label": "tTheme:global.widgets.blocks.button.settings.style.options.secondary"
+            }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "style_2",
+          "label": "tTheme:global.widgets.blocks.button.settings.style_2.label",
+          "default": "secondary",
+          "options": [
+            {
+              "value": "primary",
+              "label": "tTheme:global.widgets.blocks.button.settings.style_2.options.primary"
+            },
+            {
+              "value": "secondary",
+              "label": "tTheme:global.widgets.blocks.button.settings.style_2.options.secondary"
+            }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "style_3",
+          "label": "tTheme:global.widgets.blocks.button.settings.style_3.label",
+          "default": "secondary",
+          "options": [
+            { "value": "primary", "label": "tTheme:global.widgets.blocks.button.settings.style_3.options.primary" },
+            { "value": "secondary", "label": "tTheme:global.widgets.blocks.button.settings.style_3.options.secondary" }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "style_4",
+          "label": "tTheme:global.widgets.blocks.button.settings.style_4.label",
+          "default": "secondary",
+          "options": [
+            { "value": "primary", "label": "tTheme:global.widgets.blocks.button.settings.style_4.options.primary" },
+            { "value": "secondary", "label": "tTheme:global.widgets.blocks.button.settings.style_4.options.secondary" }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "style_5",
+          "label": "tTheme:global.widgets.blocks.button.settings.style_5.label",
+          "default": "secondary",
+          "options": [
+            { "value": "primary", "label": "tTheme:global.widgets.blocks.button.settings.style_5.options.primary" },
+            { "value": "secondary", "label": "tTheme:global.widgets.blocks.button.settings.style_5.options.secondary" }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "size",
+          "label": "tTheme:global.widgets.blocks.button.settings.size.label",
+          "default": "medium",
+          "options": [
+            {
+              "value": "small",
+              "label": "tTheme:global.widgets.blocks.button.settings.size.options.small"
+            },
+            {
+              "value": "medium",
+              "label": "tTheme:global.widgets.blocks.button.settings.size.options.medium"
+            },
+            {
+              "value": "large",
+              "label": "tTheme:global.widgets.blocks.button.settings.size.options.large"
+            },
+            {
+              "value": "xlarge",
+              "label": "tTheme:global.widgets.blocks.button.settings.size.options.xlarge"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "defaultBlocks": [
+    {
+      "type": "text",
+      "settings": {
+        "text": "<p>Welcome</p>",
+        "size": "sm",
+        "uppercase": false,
+        "muted": false
+      }
+    },
+    {
+      "type": "heading",
+      "settings": {
+        "text": "Build your future",
+        "size": "5xl"
+      }
+    },
+    {
+      "type": "text",
+      "settings": {
+        "text": "<p>Start your journey with our powerful platform. Scalable, secure, and ready for growth.</p>",
+        "size": "lg",
+        "uppercase": false,
+        "muted": false
+      }
+    },
+    {
+      "type": "button",
+      "settings": {
+        "link": {
+          "text": "Get Started",
+          "href": "#",
+          "target": "_self"
+        },
+        "style": "primary",
+        "link_2": {
+          "text": "Learn More",
+          "href": "#",
+          "target": "_self"
+        },
+        "style_2": "secondary"
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{% if footer_settings.footer_navigation_links.size > 0 %}
+  <nav class="arch-footer-navigation" aria-label="{{ footer_settings.footer_navigation_label | default: 'Footer' }}">
+    <ul class="arch-footer-navigation-list">
+      {% for footer_link in footer_settings.footer_navigation_links %}
+        {% assign footer_href = blank %}
+        {% if footer_link.destination != blank and footer_link.destination_type == 'page' %}
+          {% assign footer_href = footer_link.destination | page_url %}
+        {% elsif footer_link.destination != blank %}
+          {% assign footer_href = footer_link.destination | safe_url %}
+        {% endif %}
+        {% if footer_link.label != blank %}
+          <li>
+            {% if footer_href and footer_href.size > 0 %}
+              <a class="arch-footer-link" href="{{ footer_href }}"{% if footer_link.open_in_new_tab == true or footer_link.open_in_new_tab == 'true' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ footer_link.label }}</a>
+            {% else %}
+              <span class="arch-footer-link arch-footer-link--static">{{ footer_link.label }}</span>
+            {% endif %}
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </nav>
+{% endif %}

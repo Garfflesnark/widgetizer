@@ -397,6 +397,7 @@
           { "value": "facebook", "label": "Facebook" }, { "value": "instagram", "label": "Instagram" },
           { "value": "twitter", "label": "X / Twitter" }, { "value": "linkedin", "label": "LinkedIn" },
           { "value": "youtube", "label": "YouTube" }, { "value": "tiktok", "label": "TikTok" },
+          { "value": "twitch", "label": "Twitch" },
           { "value": "pinterest", "label": "Pinterest" }, { "value": "github", "label": "GitHub" },
           { "value": "mastodon", "label": "Mastodon" }, { "value": "bluesky", "label": "Bluesky" },
           { "value": "discord", "label": "Discord" }, { "value": "reddit", "label": "Reddit" },

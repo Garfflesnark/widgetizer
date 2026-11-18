@@ -50,6 +50,7 @@ export const PROFILE_NETWORKS = Object.freeze([
   "linkedin",
   "youtube",
   "tiktok",
+  "twitch",
   "pinterest",
   "github",
   "mastodon",

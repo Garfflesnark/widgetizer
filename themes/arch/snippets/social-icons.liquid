@@ -11,6 +11,7 @@
   {% assign linkedin = identity.profiles.linkedin %}
   {% assign youtube = identity.profiles.youtube %}
   {% assign tiktok = identity.profiles.tiktok %}
+  {% assign twitch = identity.profiles.twitch %}
   {% assign pinterest = identity.profiles.pinterest %}
   {% assign github = identity.profiles.github %}
   {% assign mastodon = identity.profiles.mastodon %}
@@ -28,6 +29,7 @@
   {% assign linkedin = social.linkedin_url %}
   {% assign youtube = social.youtube_url %}
   {% assign tiktok = social.tiktok_url %}
+  {% assign twitch = social.twitch_url %}
   {% assign pinterest = social.pinterest_url %}
   {% assign github = social.github_url %}
   {% assign mastodon = social.mastodon_url %}
@@ -41,7 +43,7 @@
 {% endif %}
 
 {% assign has_social = false %}
-{% if facebook != blank or instagram != blank or twitter != blank or linkedin != blank or youtube != blank or tiktok != blank or pinterest != blank or github != blank or mastodon != blank or bluesky != blank or discord != blank or reddit != blank or telegram != blank or threads != blank or whatsapp != blank or mail != blank %}
+{% if facebook != blank or instagram != blank or twitter != blank or linkedin != blank or youtube != blank or tiktok != blank or twitch != blank or pinterest != blank or github != blank or mastodon != blank or bluesky != blank or discord != blank or reddit != blank or telegram != blank or threads != blank or whatsapp != blank or mail != blank %}
   {% assign has_social = true %}
 {% endif %}
 
@@ -77,6 +79,11 @@
 {% if tiktok != blank %}
   <a href="{{ tiktok | safe_url }}" class="social-link" target="_blank" rel="noopener" aria-label="TikTok">
     {% render 'icon', icon: 'tiktok' %}
+  </a>
+{% endif %}
+{% if twitch != blank %}
+  <a href="{{ twitch | safe_url }}" class="social-link" target="_blank" rel="noopener" aria-label="Twitch">
+    {% render 'icon', icon: 'twitch' %}
   </a>
 {% endif %}
 {% if pinterest != blank %}

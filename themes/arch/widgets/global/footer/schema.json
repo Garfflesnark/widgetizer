@@ -206,6 +206,10 @@
                     "label": "TikTok"
                   },
                   {
+                    "value": "twitch",
+                    "label": "Twitch"
+                  },
+                  {
                     "value": "pinterest",
                     "label": "Pinterest"
                   },

@@ -207,6 +207,22 @@ describe("SiteIdentityFields — social profiles", () => {
     expect([...addPicker().options].map((option) => option.value)).toContain("facebook");
   });
 
+  it("offers Twitch as a project social profile", async () => {
+    render(<Harness />);
+    const twitchOption = [...addPicker().options].find((option) => option.value === "twitch");
+    expect(twitchOption).toBeTruthy();
+    expect(twitchOption.textContent).toBe("forms.project.identity.networks.twitch");
+
+    fireEvent.change(addPicker(), { target: { value: "twitch" } });
+    const input = await waitFor(() => {
+      const element = document.getElementById("identity-twitch");
+      expect(element).not.toBeNull();
+      return element;
+    });
+    fireEvent.change(input, { target: { value: "https://twitch.tv/example" } });
+    expect(input.value).toBe("https://twitch.tv/example");
+  });
+
   it("keeps a profile with an error visible", () => {
     render(<Harness identityErrors={[{ field: "profiles.github", code: "invalid" }]} />);
     expect(document.getElementById("identity-github")).not.toBeNull();

@@ -1,6 +1,6 @@
 {
   "name": "Arch",
-  "version": "0.9.24",
+  "version": "0.9.25",
   "description": "The default Widgetizer theme",
   "author": "Widgetizer",
   "settings": {
@@ -371,6 +371,11 @@
           "type": "text",
           "id": "tiktok_url",
           "label": "tTheme:global.social.settings.tiktok_url.label"
+        },
+        {
+          "type": "text",
+          "id": "twitch_url",
+          "label": "tTheme:global.social.settings.twitch_url.label"
         },
         {
           "type": "text",

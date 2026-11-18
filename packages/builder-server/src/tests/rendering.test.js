@@ -96,7 +96,9 @@ before(async () => {
   await fs.copy(path.join(archThemeDir, "widgets/global/header"), path.join(projectDir, "widgets/global/header"));
   await fs.copy(path.join(archThemeDir, "widgets/global/footer"), path.join(projectDir, "widgets/global/footer"));
   await fs.copy(path.join(archThemeDir, "widgets/banner"), path.join(projectDir, "widgets/banner"));
+  await fs.copy(path.join(archThemeDir, "widgets/social-icons"), path.join(projectDir, "widgets/social-icons"));
   await fs.copy(path.join(archThemeDir, "snippets"), path.join(projectDir, "snippets"));
+  await fs.copy(path.join(archThemeDir, "assets/icons.json"), path.join(projectDir, "assets/icons.json"));
 
   // Create media data
   await writeMediaFile(
@@ -896,6 +898,78 @@ describe("Arch Banner Button Group", () => {
     assert.match(fiveHtml, /flex-wrap: nowrap/);
     assert.match(fiveHtml, /flex: 1 1 0/);
     assert.match(fiveHtml, /@media \(max-width: 749px\)/);
+  });
+});
+
+describe("Arch Twitch social profile", () => {
+  it("renders the Twitch brand icon in Header, Footer, and Social Icons profiles", async () => {
+    const header = await renderWidget(PROJECT_ID, "header-twitch-social", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logo_region: "left",
+        navigation_region: "center",
+        social_region: "right",
+        header_social_links: [{ icon: "twitch", url: "https://twitch.tv/example", accessible_label: "Twitch" }],
+      },
+      blocks: {},
+      blocksOrder: [],
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+    const footer = await renderWidget(PROJECT_ID, "footer-twitch-social", {
+      type: "footer",
+      settings: {},
+      blocks: {
+        social: { type: "social_block", settings: {
+          footer_social_links: [{ icon: "twitch", url: "https://twitch.tv/example", accessible_label: "Twitch" }],
+        } },
+      },
+      blocksOrder: ["social"],
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+    const socialRawSettings = {
+      ...RAW_THEME_SETTINGS,
+      settings: {
+        ...RAW_THEME_SETTINGS.settings,
+        global: {
+          ...RAW_THEME_SETTINGS.settings.global,
+          social: [{ id: "twitch_url", value: "https://twitch.tv/example" }],
+        },
+      },
+    };
+    const social = await renderWidget(PROJECT_ID, "social-icons-twitch", {
+      type: "social-icons",
+      settings: { title: "Follow Twitch", description: "" },
+      blocks: {},
+      blocksOrder: [],
+    }, socialRawSettings, "publish", null, null);
+    projectRepo.updateProject(PROJECT_ID, { siteIdentity: { profiles: { twitch: "https://twitch.tv/project-profile" } } });
+    let projectProfile;
+    try {
+      projectProfile = await renderWidget(PROJECT_ID, "social-icons-twitch-project-profile", {
+        type: "social-icons",
+        settings: { title: "Follow Twitch", description: "" },
+        blocks: {},
+        blocksOrder: [],
+      }, RAW_THEME_SETTINGS, "publish", {
+        projectId: PROJECT_ID,
+        apiUrl: "",
+        renderMode: "publish",
+        themeSettingsRaw: RAW_THEME_SETTINGS,
+        enqueuedStyles: new Map(),
+        enqueuedScripts: new Map(),
+      }, null);
+    } finally {
+      projectRepo.updateProject(PROJECT_ID, { siteIdentity: {} });
+    }
+
+    for (const html of [header, footer, social]) {
+      assert.match(html, /https:\/\/twitch\.tv\/example/);
+      assert.match(html, /aria-label="Twitch"/);
+      assert.match(html, /fill="currentColor"/);
+      assert.ok(html.includes("M11.571 4.714h1.715v5.143H11.57"));
+    }
+    assert.match(projectProfile, /https:\/\/twitch\.tv\/project-profile/);
+    assert.match(projectProfile, /aria-label="Twitch"/);
+    assert.ok(projectProfile.includes("M11.571 4.714h1.715v5.143H11.57"));
   });
 });
 

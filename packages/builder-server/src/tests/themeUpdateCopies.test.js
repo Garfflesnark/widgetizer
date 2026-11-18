@@ -53,11 +53,13 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.24");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.25");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const newBannerSchema = await fs.readJson(path.join(THEME_DIR, "widgets/banner/schema.json"));
     const updateBannerSchema = await fs.readJson(path.join(updateDir, "widgets/banner/schema.json"));
+    const newFooterSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/footer/schema.json"));
+    const updateFooterSchema = await fs.readJson(path.join(updateDir, "widgets/global/footer/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
     assert.equal(enabled(newProjectSchema), true, "new Arch projects include the Header v1 controls");
     assert.equal(enabled(updateSchema), true, "the existing-project update includes the Header v1 controls");
@@ -96,9 +98,17 @@ describe("Arch newest theme update", () => {
     const installedFooter = await fs.readJson(path.join(project, "pages/global/footer.json"));
     const installedFooterSchema = await fs.readJson(path.join(project, "widgets/global/footer/schema.json"));
     const installedBannerSchema = await fs.readJson(path.join(project, "widgets/banner/schema.json"));
-    assert.equal(result.newVersion, "0.9.24");
+    const installedTheme = await fs.readJson(path.join(project, "theme.json"));
+    const installedIcons = await fs.readJson(path.join(project, "assets/icons.json"));
+    assert.equal(result.newVersion, "0.9.25");
+    assert.equal(installedTheme.version, "0.9.25");
     assert.equal(installedBannerSchema.blocks.find((block) => block.type === "button").settings.find((setting) => setting.id === "button_count").default, "2");
     assert.equal(await fs.pathExists(path.join(project, "widgets/banner/widget.liquid")), true);
+    assert.ok(installedSchema.settings.find((setting) => setting.id === "header_social_links").columns[0].options.some((option) => option.value === "twitch"));
+    assert.ok(installedFooterSchema.blocks.find((block) => block.type === "social_block").settings.find((setting) => setting.id === "footer_social_links").columns[0].options.some((option) => option.value === "twitch"));
+    assert.ok(installedTheme.settings.global.social.some((setting) => setting.id === "twitch_url"));
+    assert.ok(installedIcons.groups.Social.twitch.body.includes('fill="currentColor"'));
+    assert.equal(await fs.pathExists(path.join(project, "snippets/social-icons.liquid")), true);
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -127,6 +137,12 @@ describe("Arch newest theme update", () => {
         assert.ok(button.settings.some((setting) => setting.id === `link_${number}`));
         assert.ok(button.settings.some((setting) => setting.id === `style_${number}`));
       }
+    }
+    for (const schema of [newProjectSchema, updateSchema]) {
+      assert.ok(schema.settings.find((setting) => setting.id === "header_social_links").columns[0].options.some((option) => option.value === "twitch"));
+    }
+    for (const schema of [newFooterSchema, updateFooterSchema]) {
+      assert.ok(schema.blocks.find((block) => block.type === "social_block").settings.find((setting) => setting.id === "footer_social_links").columns[0].options.some((option) => option.value === "twitch"));
     }
     assert.ok(installedSchema.settings.findIndex((setting) => setting.id === "social_icon_color") >
       installedSchema.settings.findIndex((setting) => setting.id === "social_icon_spacing"));

@@ -288,6 +288,9 @@
         "tiktok_url": {
           "label": "TikTok URL"
         },
+        "twitch_url": {
+          "label": "Twitch URL"
+        },
         "pinterest_url": {
           "label": "Pinterest URL"
         },
