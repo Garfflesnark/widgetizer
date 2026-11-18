@@ -1,0 +1,18 @@
+{% if header_settings.header_social_links.size > 0 %}
+  <div class="header-three-region-social" role="group" aria-label="Social links" style="--header-social-icon-size: {{ header_settings.social_icon_size | default: 32 }}px; --header-social-icon-spacing: {{ header_settings.social_icon_spacing | default: 8 }}px;">
+    {% for social_link in header_settings.header_social_links %}
+      {% assign social_href = social_link.url | safe_url %}
+      {% if social_link.icon != blank %}
+        {% if social_href != blank %}
+          <a href="{{ social_href }}" class="social-link" aria-label="{{ social_link.accessible_label | default: social_link.icon }}"{% if social_link.open_in_new_tab == true or social_link.open_in_new_tab == 'true' %} target="_blank" rel="noopener noreferrer"{% endif %}>
+            {% render 'icon', icon: social_link.icon %}
+          </a>
+        {% else %}
+          <span class="social-link social-link--static" role="img" aria-label="{{ social_link.accessible_label | default: social_link.icon }}">
+            {% render 'icon', icon: social_link.icon %}
+          </span>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

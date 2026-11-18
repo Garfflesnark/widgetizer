@@ -53,7 +53,7 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.17");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.18");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
@@ -78,7 +78,7 @@ describe("Arch newest theme update", () => {
     const result = await applyThemeUpdateToDir({ themeSourceDir: updateDir, projectDir: project });
     const installedSchema = await fs.readJson(path.join(project, "widgets/global/header/schema.json"));
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
-    assert.equal(result.newVersion, "0.9.17");
+    assert.equal(result.newVersion, "0.9.18");
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -95,6 +95,10 @@ describe("Arch newest theme update", () => {
     assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_spacing").default, 8);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_font_family").default, "body");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_font_size").default, 16);
+    const navigationTypographyIndex = installedSchema.settings.findIndex((setting) => setting.id === "navigation_typography_header");
+    const navigationItemsIndex = installedSchema.settings.findIndex((setting) => setting.id === "header_links");
+    assert.ok(navigationTypographyIndex >= 0 && navigationTypographyIndex < navigationItemsIndex,
+      "Navigation Typography appears before the potentially long navigation items editor");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_font_weight").default, "400");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_hover_underline").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "logo_font_family").default, "body");

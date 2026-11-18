@@ -523,6 +523,25 @@ describe("Arch Header v1", () => {
     assert.match(html, /<span class="header-v1-logo-text">My Brand<\/span>/, "text transform is presentation-only");
   });
 
+  it("vertically centers Logo Text beside the logo image in the three-region Header", async () => {
+    const html = await renderWidget(PROJECT_ID, "header-v1-aligned-logo-pair", {
+      type: "header",
+      settings: {
+        three_region_enabled: true,
+        logoImage: "/uploads/images/hero.jpg",
+        logoText: "Aligned Brand",
+        show_logo_image: true,
+        show_logo_text: true,
+        logo_region: "left",
+        navigation_region: "center",
+        social_region: "right",
+      },
+    }, RAW_THEME_SETTINGS, "preview", null, null);
+
+    assert.match(html, /\.widget-site-header\.header-v1 \.header-v1-logo \{\s*display: inline-flex;\s*align-items: center;\s*gap: var\(--space-sm\);\s*line-height: normal;/);
+    assert.match(html, /<a[^>]*class="header-logo header-v1-logo"[^>]*>[\s\S]*header-logo-image[\s\S]*<span class="header-v1-logo-text">Aligned Brand<\/span>[\s\S]*<\/a>/);
+  });
+
   it("resolves a stored Header page UUID to the current page slug", async () => {
     const html = await renderWidget(PROJECT_ID, "header-v1-page-reference", {
       type: "header",

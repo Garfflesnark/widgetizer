@@ -1535,7 +1535,7 @@
       "show_logo_text": { "label": "Show logo text" },
       "logo_text_typography_header": {
         "label": "Logo Text Typography",
-        "description": "These settings apply to three-region Header; legacy Header styling stays unchanged."
+        "description": "These settings style Logo Text in the three-region Header; when shown with a logo image, both are vertically centered. Legacy Header styling stays unchanged."
       },
       "logo_font_family": {
         "label": "Font Family",
@@ -1548,7 +1548,7 @@
       "logo_text_transform": { "label": "Text Transform" },
       "navigation_typography_header": {
         "label": "Navigation Typography",
-        "description": "These settings apply to three-region Header; legacy Header styling stays unchanged."
+        "description": "Shared typography for linked, unlinked and button-styled navigation items in the three-region Header. Legacy Header styling stays unchanged."
       },
       "navigation_font_family": {
         "label": "Font Family",

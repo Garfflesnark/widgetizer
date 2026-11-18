@@ -266,30 +266,6 @@
       "unit": "px"
     },
     {
-      "type": "table",
-      "id": "header_links",
-      "label": "tTheme:header.settings.header_links.label",
-      "description": "tTheme:header.settings.header_links.description",
-      "default": [],
-      "rowNames": true,
-      "pageOptions": true,
-      "columns": [
-        { "id": "label", "label": "tTheme:header.settings.header_links.columns.label", "type": "text" },
-        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_links.columns.open_in_new_tab", "type": "checkbox", "default": "false" },
-        { "id": "destination", "label": "tTheme:header.settings.header_links.columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url", "layout": "full" },
-        { "id": "destination_page_uuid", "type": "hidden" },
-        { "id": "destination_url", "type": "hidden" },
-        { "id": "destination_type", "label": "tTheme:header.settings.header_links.columns.destination_type", "type": "select", "layout": "full", "options": [
-          { "value": "page", "label": "tTheme:header.settings.header_links.destination_types.page" },
-          { "value": "url", "label": "tTheme:header.settings.header_links.destination_types.url" }
-        ] },
-        { "id": "presentation", "label": "tTheme:header.settings.header_links.columns.presentation", "type": "select", "layout": "full", "options": [
-          { "value": "link", "label": "tTheme:header.settings.header_links.presentations.link" },
-          { "value": "button", "label": "tTheme:header.settings.header_links.presentations.button" }
-        ] }
-      ]
-    },
-    {
       "type": "header",
       "id": "navigation_typography_header",
       "label": "tTheme:header.settings.navigation_typography_header.label",
@@ -370,6 +346,31 @@
       "label": "tTheme:header.settings.navigation_hover_underline.label",
       "default": false
     },
+    {
+      "type": "table",
+      "id": "header_links",
+      "label": "tTheme:header.settings.header_links.label",
+      "description": "tTheme:header.settings.header_links.description",
+      "default": [],
+      "rowNames": true,
+      "pageOptions": true,
+      "columns": [
+        { "id": "label", "label": "tTheme:header.settings.header_links.columns.label", "type": "text" },
+        { "id": "open_in_new_tab", "label": "tTheme:header.settings.header_links.columns.open_in_new_tab", "type": "checkbox", "default": "false" },
+        { "id": "destination", "label": "tTheme:header.settings.header_links.columns.destination", "type": "destination", "destinationTypeColumn": "destination_type", "pageUuidColumn": "destination_page_uuid", "urlColumn": "destination_url", "layout": "full" },
+        { "id": "destination_page_uuid", "type": "hidden" },
+        { "id": "destination_url", "type": "hidden" },
+        { "id": "destination_type", "label": "tTheme:header.settings.header_links.columns.destination_type", "type": "select", "layout": "full", "options": [
+          { "value": "page", "label": "tTheme:header.settings.header_links.destination_types.page" },
+          { "value": "url", "label": "tTheme:header.settings.header_links.destination_types.url" }
+        ] },
+        { "id": "presentation", "label": "tTheme:header.settings.header_links.columns.presentation", "type": "select", "layout": "full", "options": [
+          { "value": "link", "label": "tTheme:header.settings.header_links.presentations.link" },
+          { "value": "button", "label": "tTheme:header.settings.header_links.presentations.button" }
+        ] }
+      ]
+    },
+
     {
       "type": "table",
       "id": "header_social_links",
