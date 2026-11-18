@@ -129,6 +129,39 @@ it("shows shared typography before the navigation table and applies edits to Hea
   }), undefined);
 });
 
+it("exposes the Footer rule and copyright line-height controls and saves them independently", async () => {
+  const copyright = "<p>Existing first line</p><p>Existing second line</p>";
+  const footer = { type: "footer", settings: { copyright } };
+  pageStore.setState({ globalWidgets: { header: structuredClone(legacyHeader), footer: structuredClone(footer) } });
+  widgetStore.setState({ schemas: {}, selectedGlobalWidgetId: "footer", selectedBlockId: null, activeLoadId: 0 });
+  getProjectWidgets.mockResolvedValue([currentFooterSchema]);
+  await widgetStore.getState().loadSchemas("");
+  render(<FooterPanel />);
+
+  const horizontalRule = screen.getByRole("switch", { name: "Show Footer Horizontal Rule" });
+  expect(horizontalRule.getAttribute("aria-checked")).toBe("true");
+  expect(screen.getByText("Copyright Line Height")).toBeTruthy();
+  const lineHeight = document.getElementById("copyright_line_height");
+  expect(lineHeight.value).toBe("1.5");
+
+  pageStore.setState({
+    originalPage: { id: "index", widgets: {} },
+    originalGlobalWidgets: { header: structuredClone(legacyHeader), footer: structuredClone(footer) },
+  });
+  fireEvent.click(horizontalRule);
+  fireEvent.change(lineHeight, { target: { value: "2.1" } });
+  expect(pageStore.getState().globalWidgets.footer.settings).toMatchObject({
+    copyright,
+    show_footer_horizontal_rule: false,
+    copyright_line_height: 2.1,
+  });
+
+  await saveStore.getState().save();
+  expect(saveGlobalWidget).toHaveBeenCalledWith("footer", expect.objectContaining({
+    settings: expect.objectContaining({ copyright, show_footer_horizontal_rule: false, copyright_line_height: 2.1 }),
+  }), undefined);
+});
+
 it("exposes social settings in the legacy Footer block and preserves saved Footer data", async () => {
   const footer = {
     type: "footer",

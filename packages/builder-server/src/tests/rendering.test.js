@@ -807,6 +807,47 @@ describe("Arch legacy Footer restoration", () => {
     assert.match(html, /Existing copy/);
     assert.doesNotMatch(html, /arch-footer-v1|arch-footer-bottom/);
   });
+
+  it("toggles only the Footer top rule and preserves the default visible appearance", async () => {
+    const makeFooter = (settings = {}) => renderWidget(PROJECT_ID, "footer-rule-toggle", {
+      type: "footer",
+      settings: { copyright: "<p>Existing copy</p>", ...settings },
+      blocks: {},
+      blocksOrder: [],
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+
+    const defaultHtml = await makeFooter();
+    const shownHtml = await makeFooter({ show_footer_horizontal_rule: true });
+    const hiddenHtml = await makeFooter({ show_footer_horizontal_rule: false });
+    assert.match(defaultHtml, /class="widget widget-footer[^"]*"/);
+    assert.doesNotMatch(defaultHtml, /footer-no-horizontal-rule/);
+    assert.doesNotMatch(shownHtml, /footer-no-horizontal-rule/);
+    assert.match(hiddenHtml, /footer-no-horizontal-rule/);
+    assert.match(hiddenHtml, /footer-copyright/);
+    assert.match(hiddenHtml, /Existing copy/);
+  });
+
+  it("applies copyright line height only to the unchanged copyright content", async () => {
+    const multilineCopyright = "<p>© Existing studio</p><p>Second line<br>Third line</p>";
+    const adjusted = await renderWidget(PROJECT_ID, "footer-copyright-line-height", {
+      type: "footer",
+      settings: { copyright: multilineCopyright, copyright_line_height: 2.1 },
+      blocks: {},
+      blocksOrder: [],
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+    const defaulted = await renderWidget(PROJECT_ID, "footer-copyright-line-height-default", {
+      type: "footer",
+      settings: { copyright: "Single line" },
+      blocks: {},
+      blocksOrder: [],
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+
+    assert.ok(adjusted.includes('data-setting="copyright" style="line-height: 2.1;"'), adjusted);
+    assert.ok(adjusted.includes(multilineCopyright), adjusted);
+    assert.ok(defaulted.includes('data-setting="copyright" style="line-height: 1.5;"'), defaulted);
+    assert.ok(defaulted.includes("Single line"), defaulted);
+    assert.equal((adjusted.match(/line-height:/g) || []).length, 1);
+  });
 });
 
 describe("renderWidget — link resolution", () => {

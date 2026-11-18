@@ -1398,6 +1398,14 @@
     "settings":     {
       "copyright": {
         "label": "Copyright text"
+      },
+      "show_footer_horizontal_rule": {
+        "label": "Show Footer Horizontal Rule",
+        "description": "Show or hide the horizontal rule at the top of the Footer."
+      },
+      "copyright_line_height": {
+        "label": "Copyright Line Height",
+        "description": "Line-height multiplier for multiline copyright text."
       }
     },
     "blocks": {

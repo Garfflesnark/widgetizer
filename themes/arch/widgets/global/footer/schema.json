@@ -15,6 +15,23 @@
       "default": "<p>© 2026 Widgetizer. All rights are yours to keep.</p>"
     },
     {
+      "type": "checkbox",
+      "id": "show_footer_horizontal_rule",
+      "label": "tTheme:footer.settings.show_footer_horizontal_rule.label",
+      "description": "tTheme:footer.settings.show_footer_horizontal_rule.description",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "copyright_line_height",
+      "label": "tTheme:footer.settings.copyright_line_height.label",
+      "description": "tTheme:footer.settings.copyright_line_height.description",
+      "default": 1.5,
+      "min": 1.0,
+      "max": 2.5,
+      "step": 0.1
+    },
+    {
       "type": "header",
       "id": "display_header",
       "label": "tTheme:global.widgets.settings.display_header.label"

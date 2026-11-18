@@ -307,7 +307,13 @@ describe("saveGlobalWidget", () => {
   it("round-trips legacy Footer blocks and new social settings without dropping prior saved values", async () => {
     const footer = {
       type: "footer",
-      settings: { copyright: "<p>Existing copyright</p>", structured_footer_enabled: true, footer_logo_text: "Keep stored value" },
+      settings: {
+        copyright: "<p>Existing copyright</p>",
+        structured_footer_enabled: true,
+        footer_logo_text: "Keep stored value",
+        show_footer_horizontal_rule: false,
+        copyright_line_height: 2.1,
+      },
       blocks: {
         social: {
           type: "social_block",
