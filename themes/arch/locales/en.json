@@ -637,6 +637,17 @@
         "button": {
           "name": "Button Group",
           "settings": {
+            "button_count": {
+              "label": "Number of buttons",
+              "description": "Choose how many buttons from the fields below to show. Five buttons stay on one row on desktop and wrap on mobile.",
+              "options": {
+                "one": "1 button",
+                "two": "2 buttons",
+                "three": "3 buttons",
+                "four": "4 buttons",
+                "five": "5 buttons"
+              }
+            },
             "link": {
               "label": "Button 1"
             },
@@ -650,8 +661,38 @@
             "link_2": {
               "label": "Button 2"
             },
+            "link_3": {
+              "label": "Button 3"
+            },
+            "link_4": {
+              "label": "Button 4"
+            },
+            "link_5": {
+              "label": "Button 5"
+            },
             "style_2": {
               "label": "Button 2 style",
+              "options": {
+                "primary": "Primary",
+                "secondary": "Secondary"
+              }
+            },
+            "style_3": {
+              "label": "Button 3 style",
+              "options": {
+                "primary": "Primary",
+                "secondary": "Secondary"
+              }
+            },
+            "style_4": {
+              "label": "Button 4 style",
+              "options": {
+                "primary": "Primary",
+                "secondary": "Secondary"
+              }
+            },
+            "style_5": {
+              "label": "Button 5 style",
               "options": {
                 "primary": "Primary",
                 "secondary": "Secondary"

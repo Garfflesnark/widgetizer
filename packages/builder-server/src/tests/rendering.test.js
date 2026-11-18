@@ -95,6 +95,7 @@ before(async () => {
   const archThemeDir = path.resolve("themes/arch");
   await fs.copy(path.join(archThemeDir, "widgets/global/header"), path.join(projectDir, "widgets/global/header"));
   await fs.copy(path.join(archThemeDir, "widgets/global/footer"), path.join(projectDir, "widgets/global/footer"));
+  await fs.copy(path.join(archThemeDir, "widgets/banner"), path.join(projectDir, "widgets/banner"));
   await fs.copy(path.join(archThemeDir, "snippets"), path.join(projectDir, "snippets"));
 
   // Create media data
@@ -852,6 +853,49 @@ describe("Arch legacy Footer restoration", () => {
     }
     assert.ok(defaulted.includes('data-setting="copyright" style="line-height: 1.5;"'), defaulted);
     assert.ok(defaulted.includes("Single line"), defaulted);
+  });
+});
+
+describe("Arch Banner Button Group", () => {
+  it("renders the selected Banner Button Group count, including five buttons on one desktop row", async () => {
+    const links = Object.fromEntries(Array.from({ length: 5 }, (_, index) => {
+      const number = index + 1;
+      return [number === 1 ? "link" : `link_${number}`, {
+        text: `Action ${number}`,
+        href: `/action-${number}`,
+        target: "_self",
+      }];
+    }));
+    const renderButtons = (button_count) => renderWidget(PROJECT_ID, `banner-button-count-${button_count ?? "default"}`, {
+      type: "banner",
+      settings: {},
+      blocks: {
+        actions: {
+          type: "button",
+          settings: { ...links, button_count },
+        },
+      },
+      blocksOrder: ["actions"],
+    }, RAW_THEME_SETTINGS, "publish", null, null);
+
+    const defaultHtml = await renderButtons(undefined);
+    const threeHtml = await renderButtons("3");
+    const fiveHtml = await renderButtons(5);
+
+    assert.match(defaultHtml, /Action 1/);
+    assert.match(defaultHtml, /Action 2/);
+    assert.doesNotMatch(defaultHtml, /Action 3/);
+    assert.equal((threeHtml.match(/class="widget-button/g) || []).length, 3);
+    assert.doesNotMatch(threeHtml, /Action 4|Action 5/);
+    assert.equal((fiveHtml.match(/class="widget-button/g) || []).length, 5);
+    for (let number = 1; number <= 5; number += 1) {
+      assert.match(fiveHtml, new RegExp(`data-setting="${number === 1 ? "link" : `link_${number}`}"`));
+      assert.match(fiveHtml, new RegExp(`Action ${number}`));
+    }
+    assert.match(fiveHtml, /widget-actions-button-count-5/);
+    assert.match(fiveHtml, /flex-wrap: nowrap/);
+    assert.match(fiveHtml, /flex: 1 1 0/);
+    assert.match(fiveHtml, /@media \(max-width: 749px\)/);
   });
 });
 

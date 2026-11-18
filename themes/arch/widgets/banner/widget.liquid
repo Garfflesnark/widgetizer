@@ -54,6 +54,20 @@
       justify-content: center;
     }
 
+    @media (min-width: 750px) {
+      .widget-{{ widget.id }} .widget-actions-button-count-5 {
+        flex-wrap: nowrap;
+      }
+
+      .widget-{{ widget.id }} .widget-actions-button-count-5 > .widget-button {
+        flex: 1 1 0;
+        min-width: 0;
+        justify-content: center;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+    }
+
 @media (max-width: 749px) {
       .widget-{{ widget.id }} {
         padding-inline: var(--space-md);
@@ -191,7 +205,8 @@
               {% endif %}
             </div>
           {% when 'button' %}
-            {% if block.settings.link.text != blank or block.settings.link_2.text != blank %}
+            {% assign button_count = block.settings.button_count | default: 2 | plus: 0 %}
+            {% if block.settings.link.text != blank or block.settings.link_2.text != blank or block.settings.link_3.text != blank or block.settings.link_4.text != blank or block.settings.link_5.text != blank %}
               {% assign gap_value = 'var(--space-md)' %}
               {% case block.settings.size %}
                 {% when 'small' %}{% assign gap_value = 'var(--space-sm)' %}
@@ -199,41 +214,35 @@
                 {% when 'large' %}{% assign gap_value = 'var(--space-lg)' %}
                 {% when 'xlarge' %}{% assign gap_value = 'var(--space-xl)' %}
               {% endcase %}
-              <div class="widget-actions reveal reveal-up" style="--reveal-delay: {{ forloop.index0 }}; gap: {{ gap_value }};" data-block-id="{{ blockId }}">
-                {% if block.settings.link.text != blank %}
+              <div class="widget-actions widget-actions-button-count-{{ button_count }} reveal reveal-up" style="--reveal-delay: {{ forloop.index0 }}; gap: {{ gap_value }};" data-block-id="{{ blockId }}">
+                {% for button_number in (1..button_count) %}
+                  {% assign link_key = 'link' %}
+                  {% assign style_key = 'style' %}
+                  {% if button_number > 1 %}
+                    {% assign key_suffix = button_number | prepend: '_' %}
+                    {% assign link_key = link_key | append: key_suffix %}
+                    {% assign style_key = style_key | append: key_suffix %}
+                  {% endif %}
+                  {% assign button_link = block.settings[link_key] %}
+                  {% assign button_style = block.settings[style_key] %}
+                  {% if button_link.text != blank %}
                   {% if block.settings.size != 'small' and block.settings.size != blank %}
                     {% assign size_class = 'widget-button-' | append: block.settings.size %}
                   {% else %}
                     {% assign size_class = '' %}
                   {% endif %}
                   <a
-                    href="{{ block.settings.link.href }}"
-                    class="widget-button {{ size_class }} {% if block.settings.style == 'primary' %}widget-button-primary{% else %}widget-button-secondary{% endif %}"
-                    data-setting="link"
-                    {% if block.settings.link.target == '_blank' %}
+                    href="{{ button_link.href }}"
+                    class="widget-button {{ size_class }} {% if button_style == 'primary' or button_number == 1 and button_style == blank %}widget-button-primary{% else %}widget-button-secondary{% endif %}"
+                    data-setting="{{ link_key }}"
+                    {% if button_link.target == '_blank' %}
                       target="_blank" rel="noopener"
                     {% endif %}
                   >
-                    {{ block.settings.link.text }}
+                    {{ button_link.text }}
                   </a>
-                {% endif %}
-                {% if block.settings.link_2.text != blank %}
-                  {% if block.settings.size != 'small' and block.settings.size != blank %}
-                    {% assign size_class = 'widget-button-' | append: block.settings.size %}
-                  {% else %}
-                    {% assign size_class = '' %}
                   {% endif %}
-                  <a
-                    href="{{ block.settings.link_2.href }}"
-                    class="widget-button {{ size_class }} {% if block.settings.style_2 == 'primary' %}widget-button-primary{% else %}widget-button-secondary{% endif %}"
-                    data-setting="link_2"
-                    {% if block.settings.link_2.target == '_blank' %}
-                      target="_blank" rel="noopener"
-                    {% endif %}
-                  >
-                    {{ block.settings.link_2.text }}
-                  </a>
-                {% endif %}
+                {% endfor %}
               </div>
             {% endif %}
         {% endcase %}

@@ -592,6 +592,20 @@
           "label": "tTheme:global.widgets.settings.content_header.label"
         },
         {
+          "type": "select",
+          "id": "button_count",
+          "label": "tTheme:global.widgets.blocks.button.settings.button_count.label",
+          "description": "tTheme:global.widgets.blocks.button.settings.button_count.description",
+          "default": "2",
+          "options": [
+            { "value": "1", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.one" },
+            { "value": "2", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.two" },
+            { "value": "3", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.three" },
+            { "value": "4", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.four" },
+            { "value": "5", "label": "tTheme:global.widgets.blocks.button.settings.button_count.options.five" }
+          ]
+        },
+        {
           "type": "link",
           "id": "link",
           "label": "tTheme:global.widgets.blocks.button.settings.link.label",
@@ -605,6 +619,21 @@
           "type": "link",
           "id": "link_2",
           "label": "tTheme:global.widgets.blocks.button.settings.link_2.label"
+        },
+        {
+          "type": "link",
+          "id": "link_3",
+          "label": "tTheme:global.widgets.blocks.button.settings.link_3.label"
+        },
+        {
+          "type": "link",
+          "id": "link_4",
+          "label": "tTheme:global.widgets.blocks.button.settings.link_4.label"
+        },
+        {
+          "type": "link",
+          "id": "link_5",
+          "label": "tTheme:global.widgets.blocks.button.settings.link_5.label"
         },
         {
           "type": "header",
@@ -641,6 +670,36 @@
               "value": "secondary",
               "label": "tTheme:global.widgets.blocks.button.settings.style_2.options.secondary"
             }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "style_3",
+          "label": "tTheme:global.widgets.blocks.button.settings.style_3.label",
+          "default": "secondary",
+          "options": [
+            { "value": "primary", "label": "tTheme:global.widgets.blocks.button.settings.style_3.options.primary" },
+            { "value": "secondary", "label": "tTheme:global.widgets.blocks.button.settings.style_3.options.secondary" }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "style_4",
+          "label": "tTheme:global.widgets.blocks.button.settings.style_4.label",
+          "default": "secondary",
+          "options": [
+            { "value": "primary", "label": "tTheme:global.widgets.blocks.button.settings.style_4.options.primary" },
+            { "value": "secondary", "label": "tTheme:global.widgets.blocks.button.settings.style_4.options.secondary" }
+          ]
+        },
+        {
+          "type": "select",
+          "id": "style_5",
+          "label": "tTheme:global.widgets.blocks.button.settings.style_5.label",
+          "default": "secondary",
+          "options": [
+            { "value": "primary", "label": "tTheme:global.widgets.blocks.button.settings.style_5.options.primary" },
+            { "value": "secondary", "label": "tTheme:global.widgets.blocks.button.settings.style_5.options.secondary" }
           ]
         },
         {

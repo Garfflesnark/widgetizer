@@ -53,9 +53,11 @@ describe("Arch newest theme update", () => {
     t.after(() => fs.remove(root));
     const dataRoot = path.join(root, "data");
     const project = path.join(dataRoot, "projects", "arch-updated");
-    const updateDir = path.join(THEME_DIR, "updates", "0.9.23");
+    const updateDir = path.join(THEME_DIR, "updates", "0.9.24");
     const newProjectSchema = await fs.readJson(path.join(THEME_DIR, "widgets/global/header/schema.json"));
     const updateSchema = await fs.readJson(path.join(updateDir, "widgets/global/header/schema.json"));
+    const newBannerSchema = await fs.readJson(path.join(THEME_DIR, "widgets/banner/schema.json"));
+    const updateBannerSchema = await fs.readJson(path.join(updateDir, "widgets/banner/schema.json"));
     const enabled = (schema) => schema.settings.some((setting) => setting.id === "three_region_enabled");
     assert.equal(enabled(newProjectSchema), true, "new Arch projects include the Header v1 controls");
     assert.equal(enabled(updateSchema), true, "the existing-project update includes the Header v1 controls");
@@ -93,7 +95,10 @@ describe("Arch newest theme update", () => {
     const installedHeader = await fs.readJson(path.join(project, "pages/global/header.json"));
     const installedFooter = await fs.readJson(path.join(project, "pages/global/footer.json"));
     const installedFooterSchema = await fs.readJson(path.join(project, "widgets/global/footer/schema.json"));
-    assert.equal(result.newVersion, "0.9.23");
+    const installedBannerSchema = await fs.readJson(path.join(project, "widgets/banner/schema.json"));
+    assert.equal(result.newVersion, "0.9.24");
+    assert.equal(installedBannerSchema.blocks.find((block) => block.type === "button").settings.find((setting) => setting.id === "button_count").default, "2");
+    assert.equal(await fs.pathExists(path.join(project, "widgets/banner/widget.liquid")), true);
     assert.equal(enabled(installedSchema), true);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "three_region_enabled").default, false);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "header_links").pageOptions, true);
@@ -112,6 +117,17 @@ describe("Arch newest theme update", () => {
     assert.equal(installedSchema.settings.find((setting) => setting.id === "navigation_font_size").default, 16);
     assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_color").default, "#334155");
     assert.equal(installedSchema.settings.find((setting) => setting.id === "social_icon_hover_color").default, "#0f172a");
+    const buttonBlock = (schema) => schema.blocks.find((block) => block.type === "button");
+    for (const schema of [newBannerSchema, updateBannerSchema]) {
+      const button = buttonBlock(schema);
+      const countSetting = button.settings.find((setting) => setting.id === "button_count");
+      assert.equal(countSetting.default, "2");
+      assert.deepEqual(countSetting.options.map((option) => option.value), ["1", "2", "3", "4", "5"]);
+      for (let number = 3; number <= 5; number += 1) {
+        assert.ok(button.settings.some((setting) => setting.id === `link_${number}`));
+        assert.ok(button.settings.some((setting) => setting.id === `style_${number}`));
+      }
+    }
     assert.ok(installedSchema.settings.findIndex((setting) => setting.id === "social_icon_color") >
       installedSchema.settings.findIndex((setting) => setting.id === "social_icon_spacing"));
     assert.ok(installedSchema.settings.findIndex((setting) => setting.id === "social_icon_hover_color") >
