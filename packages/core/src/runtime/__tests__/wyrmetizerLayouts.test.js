@@ -346,6 +346,65 @@ it.each([false, true])("transfers root Mobile ownership when including into an A
     .toBe(hasPatch ? false : mobileBefore.widgets.c.settings.fullwidth);
   expect(roundTrip(next)).toEqual(next);
 });
+it("returns an Area member's Mobile override to root ownership when detached", () => {
+  let page = withStandaloneImages(["c", "d"]);
+  const patch = { fullwidth: false, top_spacing_px: 7 };
+  page.layout.mobile.presentation = { c: structuredClone(patch) };
+  page.layout.mobile.rootOrder = mobileRootOrder(["area", "area"], ["widget", "c"], ["widget", "d"]);
+  page = includeWyrmetizerWidgets(page, "area", ["c"], { c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } } }, adapters);
+
+  const desktopBefore = resolveWyrmetizerPage(page).widgets.c.settings;
+  const detached = removeWyrmetizerWidget(page, "area", "c", adapters);
+
+  expect(detached.layout.mobile.presentation.c).toEqual(patch);
+  expect(detached.layout.mobile.rootOrder).toEqual(mobileRootOrder(["area", "area"], ["widget", "c"], ["widget", "d"]));
+  expect(detached.layout.mobile.areas.area.flow.presentation.c).toBeUndefined();
+  expect(detached.layout.mobile.areas.area.composition.presentation.c).toBeUndefined();
+  expect(detached.layout.areas.area.members).not.toContain("c");
+  expect(resolveWyrmetizerPage(detached).widgets.c.settings).toEqual(desktopBefore);
+  expect(resolveWyrmetizerPresentation(detached, 390).widgets.c.settings.top_spacing_px).toBe(7);
+  expect(roundTrip(detached)).toEqual(detached);
+});
+it("atomically rejects detachment when Mobile mode overrides cannot share root ownership", () => {
+  const page = withStandaloneImages(["c"]);
+  page.layout.mobile.presentation = { c: { top_spacing_px: 3 } };
+  let included = includeWyrmetizerWidgets(page, "area", ["c"], { c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } } }, adapters);
+  included.layout.mobile.areas.area.composition.presentation.c.top_spacing_px = 8;
+  const before = structuredClone(included);
+
+  expect(() => removeWyrmetizerWidget(included, "area", "c", adapters)).toThrow(/Mobile Flow and Composition overrides differ/);
+  expect(included).toEqual(before);
+});
+it("atomically rejects detachment when Mobile placement has no standalone representation", () => {
+  const page = withStandaloneImages(["c"]);
+  let included = includeWyrmetizerWidgets(page, "area", ["c"], { c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } } }, adapters);
+  included.layout.mobile.areas.area.composition.geometry = {
+    version: 1, referenceWidthPx: 390, heightPx: 400,
+    readingOrder: ["a", "c"], stackOrder: ["a", "c"],
+    placements: Object.fromEntries(["a", "c"].map(id => [id, {
+      x: { value: 12, unit: "px" }, y: { value: 24, unit: "px" }, pivot: { x: 0.5, y: 0.5 },
+    }])),
+  };
+  const before = structuredClone(included);
+
+  expect(() => removeWyrmetizerWidget(included, "area", "c", adapters)).toThrow(/reset the Area's independent Mobile Composition layout first/);
+  expect(included).toEqual(before);
+});
+it("releases Mobile patches when deleting an Area and its members as root Widgets", () => {
+  let page = withStandaloneImages(["c"]);
+  page.layout.mobile.presentation = { c: { top_spacing_px: 12 } };
+  page.layout.mobile.rootOrder = mobileRootOrder(["area", "area"], ["widget", "c"]);
+  page = includeWyrmetizerWidgets(page, "area", ["c"], { c: { x: 0.1, y: 0.1, pivot: { x: 0, y: 0 } } }, adapters);
+
+  const deleted = deleteWyrmetizerComposition(page, "area", adapters);
+
+  expect(deleted.layout.areas.area).toBeUndefined();
+  expect(deleted.layout.mobile.areas?.area).toBeUndefined();
+  expect(deleted.layout.mobile.presentation.c).toEqual({ top_spacing_px: 12 });
+  expect(deleted.layout.mobile.rootOrder).toEqual(mobileRootOrder(["widget", "a"], ["widget", "c"]));
+  expect(deleted.widgetsOrder).toEqual(["a", "c"]);
+  expect(roundTrip(deleted)).toEqual(deleted);
+});
 it.each(["new Area", "existing Area"]) ("keeps Mobile root order sparse when it was omitted during transfer to a %s", destination => {
   const page = withStandaloneImages(["c"]);
   page.layout.mobile.presentation = { c: { top_spacing_px: 0 } };

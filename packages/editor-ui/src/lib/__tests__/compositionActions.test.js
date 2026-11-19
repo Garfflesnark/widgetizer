@@ -245,6 +245,32 @@ it("commits existing-Area root Mobile transfers as one reversible editor action"
   expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
   expect(useAutoSave.getState().structureModified).toBe(true);
 });
+it("removes a Mobile-adjusted image from Composition as one reversible editor action", () => {
+  const { editor } = v3WithStandaloneImage({ fullwidth: false, top_spacing_px: 9 });
+  usePageStore.getState().setPage(editor);
+  expect(addImagesToComposition("canvas", ["c"])).toBe(true);
+  usePageStore.temporal.getState().clear();
+  useAutoSave.setState({ structureModified: false, modifiedWidgets: new Set() });
+
+  expect(removeImageFromComposition("canvas", "c")).toBe(true);
+  let saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(saved.layout.areas.canvas.members).not.toContain("c");
+  expect(saved.layout.mobile.presentation.c).toEqual({ fullwidth: false, top_spacing_px: 9 });
+  expect(saved.layout.mobile.areas.canvas.flow.presentation.c).toBeUndefined();
+  expect(saved.layout.mobile.rootOrder).toEqual([
+    { kind: "area", id: "canvas" }, { kind: "widget", id: "c" }, { kind: "widget", id: "after" },
+  ]);
+  expect(usePageStore.temporal.getState().pastStates).toHaveLength(1);
+  expect(useAutoSave.getState().structureModified).toBe(true);
+  const after = structuredClone(usePageStore.getState().page);
+
+  usePageStore.temporal.getState().undo();
+  saved = serializeWyrmetizerEditorPage(usePageStore.getState().page, compositionAdapters);
+  expect(saved.layout.areas.canvas.members).toContain("c");
+  expect(saved.layout.mobile.presentation?.c).toBeUndefined();
+  usePageStore.temporal.getState().redo();
+  expect(usePageStore.getState().page).toEqual(after);
+});
 it("rejects a transferred Mobile size that exceeds bounds before changing editor state", () => {
   const { canonical } = v3WithStandaloneImage({ fullwidth: false });
   const desktopView = resolveWyrmetizerPage(canonical);

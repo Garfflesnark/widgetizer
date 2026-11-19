@@ -97,6 +97,65 @@ function transferRootMobileOwnership(page, ids, areaId, { createdArea = false, p
   }
 }
 
+function mobileAreaMemberPatch(area, id) {
+  if (area?.composition?.geometry?.placements?.[id])
+    fail(`cannot detach Widget ${id}: reset the Area's independent Mobile Composition layout first`);
+  const flow = area?.flow?.presentation?.[id] ?? {};
+  const composition = area?.composition?.presentation?.[id] ?? {};
+  if (JSON.stringify(flow) !== JSON.stringify(composition))
+    fail(`cannot detach Widget ${id}: its Mobile Flow and Composition overrides differ; make them match first`);
+  return clone(flow);
+}
+
+function removeMobileAreaMember(page, areaId, id, { transferToRoot = false, updateRootOrder = true } = {}) {
+  const mobile = page.layout.mobile;
+  if (!mobile) return;
+  const area = mobile.areas?.[areaId];
+  const patch = transferToRoot ? mobileAreaMemberPatch(area, id) : {};
+  if (transferToRoot && Object.keys(patch).length) {
+    mobile.presentation ??= {};
+    mobile.presentation[id] = patch;
+  }
+  for (const mode of ["flow", "composition"]) {
+    const modeData = area?.[mode];
+    if (!modeData) continue;
+    if (mode === "flow" && Array.isArray(modeData.order)) modeData.order = modeData.order.filter(value => value !== id);
+    if (modeData.presentation) delete modeData.presentation[id];
+  }
+  const geometry = area?.composition?.geometry;
+  if (geometry) {
+    geometry.readingOrder = geometry.readingOrder?.filter(value => value !== id);
+    geometry.stackOrder = geometry.stackOrder?.filter(value => value !== id);
+    if (geometry.placements) delete geometry.placements[id];
+  }
+  if (mobile.rootOrder && updateRootOrder) {
+    const detachedIds = Object.keys(page.layout.areas[areaId]?.detached || {})
+      .sort((a, b) => page.layout.areas[areaId].detached[a].flowIndex - page.layout.areas[areaId].detached[b].flowIndex);
+    const retained = mobile.rootOrder.filter(entry => entry.kind !== "widget" || !detachedIds.includes(entry.id));
+    const areaIndex = retained.findIndex(entry => entry.kind === "area" && entry.id === areaId);
+    if (transferToRoot && areaIndex >= 0)
+      mobile.rootOrder = [...retained.slice(0, areaIndex + 1), ...detachedIds.map(widgetId => ({ kind: "widget", id: widgetId })), ...retained.slice(areaIndex + 1)];
+    else mobile.rootOrder = retained;
+  }
+}
+
+function releaseMobileArea(page, areaId, memberIds) {
+  const mobile = page.layout.mobile;
+  if (!mobile) return;
+  for (const id of memberIds) removeMobileAreaMember(page, areaId, id, { transferToRoot: true, updateRootOrder: false });
+  if (mobile.areas) {
+    delete mobile.areas[areaId];
+    if (Object.keys(mobile.areas).length === 0) delete mobile.areas;
+  }
+  if (mobile.rootOrder) {
+    const areaIndex = mobile.rootOrder.findIndex(entry => entry.kind === "area" && entry.id === areaId);
+    const members = page.layout.areas[areaId].flow.order.map(id => ({ kind: "widget", id }));
+    mobile.rootOrder = areaIndex < 0 ? mobile.rootOrder : [
+      ...mobile.rootOrder.slice(0, areaIndex), ...members, ...mobile.rootOrder.slice(areaIndex + 1),
+    ];
+  }
+}
+
 // Only creation entry points call this; opening an existing page never upgrades it.
 export function initializeWyrmetizerPage(page, adapters) {
   if (page.layout?.version === 1 && Object.keys(page.layout.compositions).length)
@@ -165,6 +224,7 @@ export function deleteWyrmetizerComposition(page, areaId, adapters) {
   validateWyrmetizerPage(page, adapters);
   if (!Object.hasOwn(page.layout.areas, areaId)) return page;
   const next = clone(page), area = next.layout.areas[areaId];
+  releaseMobileArea(next, areaId, area.flow.order);
   for (const id of area.members) next.widgets[id] = presented(page.widgets[id], area.flow.presentation[id]);
   next.layout.contentOrder = next.layout.contentOrder.flatMap(entry =>
     entry.kind === "area" && entry.id === areaId ? area.flow.order.map(id => ({ kind: "widget", id })) : [entry]);
@@ -518,6 +578,7 @@ export function removeWyrmetizerWidget(page, areaId, id, adapters) {
   while (next.layout.contentOrder[index]?.kind === "widget" &&
       area.detached[next.layout.contentOrder[index].id]?.flowIndex < area.detached[id].flowIndex) index++;
   next.layout.contentOrder.splice(index, 0, { kind: "widget", id });
+  removeMobileAreaMember(next, areaId, id, { transferToRoot: true });
   next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
   validateWyrmetizerPage(next, adapters);
   return next;
@@ -588,6 +649,7 @@ export function deleteWyrmetizerWidget(page, id, adapters) {
   validateWyrmetizerPage(page, adapters);
   if (!Object.hasOwn(page.widgets, id)) return page;
   const next = clone(page);
+  const ownerAreaId = Object.keys(next.layout.areas).find(areaId => next.layout.areas[areaId].members.includes(id));
   delete next.widgets[id];
   next.layout.contentOrder = next.layout.contentOrder.filter(entry => entry.kind !== "widget" || entry.id !== id);
   for (const area of Object.values(next.layout.areas)) {
@@ -600,6 +662,12 @@ export function deleteWyrmetizerWidget(page, id, adapters) {
     geometry.childrenOrder = geometry.childrenOrder.filter(value => value !== id);
     geometry.stackOrder = geometry.stackOrder.filter(value => value !== id);
     delete geometry.placements[id];
+  }
+  if (next.layout.mobile) {
+    delete next.layout.mobile.presentation?.[id];
+    if (next.layout.mobile.rootOrder)
+      next.layout.mobile.rootOrder = next.layout.mobile.rootOrder.filter(entry => entry.kind !== "widget" || entry.id !== id);
+    if (ownerAreaId) removeMobileAreaMember(next, ownerAreaId, id, { updateRootOrder: false });
   }
   next.widgetsOrder = resolveWyrmetizerPage(next).widgetsOrder;
   validateWyrmetizerPage(next, adapters);
